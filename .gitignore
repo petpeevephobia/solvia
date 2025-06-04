@@ -1,31 +1,50 @@
-# Ignore Python cache files
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# VS Code settings
-.vscode/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Environment variables and secrets
 .env
-.env.local
-.env.*.local
+*.env
 secrets.json
 credentials.json
 
 # Token/auth files
 *.token
 *.key
-*.pem
+token.pickle
+
+# Logs
+*.log
+debug.log
+
+# Virtual Environment
+venv/
+ENV/
+
+# VS Code settings
+.vscode/
 
 # OS-generated files
 .DS_Store
 Thumbs.db
-
-# Logs
-*.log
-logs/
 
 # Node-related (if any frontend/React)
 node_modules/
@@ -33,9 +52,31 @@ package-lock.json
 yarn.lock
 
 # Build output
-dist/
-build/
 *.egg-info/
+
+# Frontend artifacts (if you use React or Tailwind)
+*.css.map
+*.js.map
+
+# Airtable/backup exports
+*.csv
+*.xlsx
+*.bak
+
+# Jupyter Notebooks (if used for testing)
+.ipynb_checkpoints/
+
+# PyInstaller / Build folders
+*.spec
+
+# Output / reports
+reports/
+*.md.html
+output/
+
+# Virtual environments
+.venv/
+env/
 
 # Virtual environments
 venv/
