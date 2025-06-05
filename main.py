@@ -9,12 +9,16 @@ from googleapiclient.discovery import build
 from pyairtable import Api
 import pickle
 from urllib.parse import urlparse, quote
+import requests
 
 # Load environment variables
 load_dotenv()
 
 # If modifying these scopes, delete the token.pickle file.
-SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly']
+SCOPES = [
+    'https://www.googleapis.com/auth/webmasters.readonly',
+    'https://www.googleapis.com/auth/webmasters'
+]
 
 
 
@@ -197,13 +201,34 @@ def get_gsc_metrics(service, url, days=30):
                 ).execute()
             
         except Exception as e:
-            print(f"Error during verification: {str(e)}")
-            return {
-                'impressions': 0,
-                'clicks': 0,
-                'ctr': 0,
-                'average_position': 0
-            }
+            # print(f"Error during verification: {str(e)}")
+            if original_is_domain:
+                print("Falling back to domain property due to insufficient permissions on URL prefix property")
+                domain = parsed.netloc.replace('www.', '')
+                site_url = f"sc-domain:{domain}"
+                encoded_site_url = quote(site_url, safe=':/')
+                # Update request with full URL for domain property
+                request['dimensionFilterGroups'][0]['filters'][0]['expression'] = url
+                try:
+                    response = service.searchanalytics().query(
+                        siteUrl=encoded_site_url,
+                        body=request
+                    ).execute()
+                except Exception as e2:
+                    print(f"Error fetching domain property data: {str(e2)}")
+                    return {
+                        'impressions': 0,
+                        'clicks': 0,
+                        'ctr': 0,
+                        'average_position': 0
+                    }
+            else:
+                return {
+                    'impressions': 0,
+                    'clicks': 0,
+                    'ctr': 0,
+                    'average_position': 0
+                }
         
         if not response.get('rows'):
             print(f"No data found for URL: {url}")
@@ -267,6 +292,69 @@ def check_gsc_access(service):
 
 
 
+def get_psi_metrics(url, strategy="mobile"):
+    """Fetch PageSpeed Insights metrics for a given URL."""
+    api_key = os.getenv("PSI_API_KEY")
+    if not api_key:
+        print("PSI_API_KEY env var not set; returning zeroed PSI metrics")
+        return {
+            "performance_score": 0,
+            "first_contentful_paint": 0,
+            "largest_contentful_paint": 0,
+            "speed_index": 0,
+            "time_to_interactive": 0,
+            "total_blocking_time": 0,
+            "cumulative_layout_shift": 0
+        }
+    endpoint = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
+    params = {"url": url, "strategy": strategy, "key": api_key}
+    try:
+        r = requests.get(endpoint, params=params)
+        r.raise_for_status()
+        data = r.json()
+        lh = data.get("lighthouseResult", {})
+        audits = lh.get("audits", {})
+        perf_cat = lh.get("categories", {}).get("performance", {})
+        return {
+            "performance_score": round(perf_cat.get("score", 0) * 100, 2),
+            "first_contentful_paint": round(audits.get("first-contentful-paint", {}).get("numericValue", 0) / 1000, 2),
+            "largest_contentful_paint": round(audits.get("largest-contentful-paint", {}).get("numericValue", 0) / 1000, 2),
+            "speed_index": round(audits.get("speed-index", {}).get("numericValue", 0) / 1000, 2),
+            "time_to_interactive": round(audits.get("interactive", {}).get("numericValue", 0) / 1000, 2),
+            "total_blocking_time": round(audits.get("total-blocking-time", {}).get("numericValue", 0), 2),
+            "cumulative_layout_shift": round(audits.get("cumulative-layout-shift", {}).get("numericValue", 0), 2)
+        }
+    except requests.exceptions.HTTPError as http_err:
+        print(f"HTTP error fetching PSI metrics for {url}: {http_err}")
+        try:
+            print(f"Response body: {r.text}")
+        except Exception:
+            pass
+        return {
+            "performance_score": 0,
+            "first_contentful_paint": 0,
+            "largest_contentful_paint": 0,
+            "speed_index": 0,
+            "time_to_interactive": 0,
+            "total_blocking_time": 0,
+            "cumulative_layout_shift": 0
+        }
+    except Exception as e:
+        print(f"Error fetching PSI metrics for {url}: {e}")
+        return {
+            "performance_score": 0,
+            "first_contentful_paint": 0,
+            "largest_contentful_paint": 0,
+            "speed_index": 0,
+            "time_to_interactive": 0,
+            "total_blocking_time": 0,
+            "cumulative_layout_shift": 0
+        }
+
+
+
+
+
 def main():
     # Check for required environment variables
     required_vars = [
@@ -319,8 +407,18 @@ def main():
                 # Get metrics from GSC
                 metrics = get_gsc_metrics(service, url)
                 
-                # Update record in Airtable
-                table.update(record['id'], metrics)
+                # Get PSI metrics
+                psi_metrics = get_psi_metrics(url)
+                # Log the PSI metrics for debugging
+                print(f"Fetched PSI metrics for {url}: {psi_metrics}")
+                
+                # Combine metrics
+                combined_metrics = {**metrics, **psi_metrics}
+                # Log combined metrics before updating Airtable
+                print(f"Combined metrics to update Airtable for {url}: {combined_metrics}")
+                
+                # Update PSI metrics in Airtable
+                table.update(record['id'], combined_metrics)
                 
                 # Accumulate metrics for summary
                 if metrics['impressions'] > 0:  # Only include non-zero metrics
