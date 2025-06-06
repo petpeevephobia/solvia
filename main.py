@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import datetime, timedelta
 import pandas as pd
 from dotenv import load_dotenv
@@ -30,8 +31,8 @@ def get_gsc_credentials():
     """Gets valid credentials for Google Search Console API."""
     credentials = None
     
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
+    if os.path.exists('config/token.pickle'):
+        with open('config/token.pickle', 'rb') as token:
             credentials = pickle.load(token)
     
     if not credentials or not credentials.valid:
@@ -54,7 +55,7 @@ def get_gsc_credentials():
                 open_browser=True
             )
         
-        with open('token.pickle', 'wb') as token:
+        with open('config/token.pickle', 'wb') as token:
             pickle.dump(credentials, token)
     
     return credentials
@@ -493,10 +494,13 @@ def get_mobile_usability_from_psi(url):
         
         print(f"\t✓ Mobile usability check completed: {mobile_status}")
         
+        # Format for Airtable field types
+        issues_text = "; ".join(mobile_issues) if mobile_issues else ""
+        
         return {
             "mobile_friendly_status": mobile_status,
             "mobile_friendly_issues_count": len(mobile_issues),
-            "mobile_friendly_issues": "; ".join(mobile_issues),
+            "mobile_friendly_issues": issues_text,
             "mobile_test_loading_state": "COMPLETE",
             "mobile_passed": mobile_passed
         }
@@ -616,7 +620,7 @@ def get_keyword_performance(service, url, days=90):
             'avg_keyword_position': 0,
             'high_opportunity_keywords': 0,
             'branded_keywords_count': 0,
-            'keyword_cannibalization_risk': 'Unknown'
+            'keyword_cannibalization_risk': 'Low'
         }
 
 def classify_keyword_intent(keyword):
@@ -735,13 +739,256 @@ def detect_cannibalization_risk(keywords_data):
     else:
         return 'Low'
 
+def get_airtable_multi_tables():
+    """Initialize connections to all Airtable tables."""
+    try:
+        api_key = os.getenv('AIRTABLE_API_KEY')
+        base_id = os.getenv('AIRTABLE_BASE_ID')
+        
+        if not all([api_key, base_id]):
+            raise ValueError("Missing required Airtable configuration")
+            
+        airtable = Api(api_key)
+        
+        # Define all table connections
+        tables = {
+            'websites': airtable.table(base_id, 'Websites'),
+            'core_metrics': airtable.table(base_id, 'Core_Metrics'),
+            'performance_metrics': airtable.table(base_id, 'Performance_Metrics'),
+            'index_technical': airtable.table(base_id, 'Index_Technical'),
+            'sitemap_data': airtable.table(base_id, 'Sitemap_Data'),
+            'mobile_usability': airtable.table(base_id, 'Mobile_Usability'),
+            'keyword_analysis': airtable.table(base_id, 'Keyword_Analysis'),
+
+        }
+        
+        # Test connection with main websites table
+        websites_records = tables['websites'].all()
+        print(f"Successfully connected to Airtable with {len(websites_records)} websites")
+        
+        # Test all table connections
+        for table_name, table_obj in tables.items():
+            try:
+                table_records = table_obj.all()
+                print(f"\t✓ {table_name}: {len(table_records)} records")
+            except Exception as e:
+                print(f"\t✗ {table_name}: Connection failed - {e}")
+        
+        return tables, websites_records
+        
+    except Exception as e:
+        print(f"\nError connecting to Airtable multi-table setup: {str(e)}")
+        raise
+
+def update_airtable_organized(tables, url, combined_metrics):
+    """Update organized Airtable tables with categorized data."""
+    try:
+        analysis_date = datetime.now().isoformat()
+        
+        # Find or create website record
+        website_record = None
+        websites_records = tables['websites'].all()
+        print(f"\t\tLooking for {url} in {len(websites_records)} website records")
+        
+        for record in websites_records:
+            record_url = record['fields'].get('url')
+            print(f"\t\t  Checking: '{record_url}' vs '{url}'")
+            if record_url == url:
+                website_record = record
+                print(f"\t\t  ✓ Found matching record: {record['id']}")
+                break
+        
+        if not website_record:
+            print(f"\t\t✗ Website {url} not found in main table - skipping organized update")
+            print(f"\t\t  Available URLs in main table:")
+            for record in websites_records:
+                print(f"\t\t    - {record['fields'].get('url', 'NO URL FIELD')}")
+            return False
+        
+        website_id = website_record['id']
+        print(f"\t\tUsing website ID: {website_id}")
+        
+        # Prepare data for each table
+        table_data = {
+            'core_metrics': {
+                'url': [website_id],
+                'impressions': combined_metrics.get('impressions', 0),
+                'clicks': combined_metrics.get('clicks', 0),
+                'ctr': combined_metrics.get('ctr', 0),
+                'average_position': combined_metrics.get('average_position', 0),
+                'analysis_date': analysis_date
+            },
+            'performance_metrics': {
+                'url': [website_id],
+                'performance_score': combined_metrics.get('performance_score', 0),
+                'first_contentful_paint': combined_metrics.get('first_contentful_paint', 0),
+                'largest_contentful_paint': combined_metrics.get('largest_contentful_paint', 0),
+                'speed_index': combined_metrics.get('speed_index', 0),
+                'time_to_interactive': combined_metrics.get('time_to_interactive', 0),
+                'total_blocking_time': combined_metrics.get('total_blocking_time', 0),
+                'cumulative_layout_shift': combined_metrics.get('cumulative_layout_shift', 0),
+                'analysis_date': analysis_date
+            },
+            'index_technical': {
+                'url': [website_id],
+                'index_verdict': combined_metrics.get('index_verdict', ''),
+                'coverage_state': combined_metrics.get('coverage_state', ''),
+                'robots_txt_state': combined_metrics.get('robots_txt_state', ''),
+                'indexing_state': combined_metrics.get('indexing_state', ''),
+                'last_crawl_time': combined_metrics.get('last_crawl_time', ''),
+                'page_fetch_state': combined_metrics.get('page_fetch_state', ''),
+                'analysis_date': analysis_date
+            },
+            'sitemap_data': {
+                'url': [website_id],
+                'sitemaps_submitted': combined_metrics.get('sitemaps_submitted', ''),
+                'sitemap_count': combined_metrics.get('sitemap_count', 0),
+                'sitemap_errors': combined_metrics.get('sitemap_errors', 0),
+                'sitemap_warnings': combined_metrics.get('sitemap_warnings', 0),
+                'last_submission': combined_metrics.get('last_submission', ''),
+                'analysis_date': analysis_date
+            },
+            'mobile_usability': {
+                'url': [website_id],
+                'mobile_friendly_status': combined_metrics.get('mobile_friendly_status', ''),
+                'mobile_friendly_issues_count': combined_metrics.get('mobile_friendly_issues_count', 0),
+                'mobile_friendly_issues': combined_metrics.get('mobile_friendly_issues', ''),
+                'mobile_test_loading_state': combined_metrics.get('mobile_test_loading_state', ''),
+                'mobile_passed': combined_metrics.get('mobile_passed', ''),
+                'analysis_date': analysis_date
+            },
+            'keyword_analysis': {
+                'url': [website_id],
+                'top_keywords': combined_metrics.get('top_keywords', ''),
+                'total_keywords_tracked': combined_metrics.get('total_keywords_tracked', 0),
+                'avg_keyword_position': combined_metrics.get('avg_keyword_position', 0),
+                'high_opportunity_keywords': combined_metrics.get('high_opportunity_keywords', 0),
+                'branded_keywords_count': combined_metrics.get('branded_keywords_count', 0),
+                'keyword_cannibalization_risk': combined_metrics.get('keyword_cannibalization_risk', ''),
+                'analysis_date': analysis_date
+            },
+
+        }
+        
+        # Update each table
+        for table_name, data in table_data.items():
+            try:
+                print(f"\t\tAttempting to update {table_name} with data: {data}")
+                result = tables[table_name].create(data)
+                print(f"\t\t✓ Updated {table_name} - Record ID: {result['id']}")
+            except Exception as e:
+                print(f"\t\t✗ Failed to update {table_name}: {e}")
+                print(f"\t\t   Data attempted: {data}")
+                # Continue with other tables even if one fails
+        
+        # Update last analyzed timestamp in main websites table
+        try:
+            tables['websites'].update(website_id, {'last_analyzed': analysis_date})
+            print(f"\t\t✓ Updated last_analyzed timestamp in main table")
+        except Exception as e:
+            print(f"\t\t✗ Failed to update last_analyzed timestamp: {e}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"\t\t✗ Error updating organized tables: {e}")
+        return False
+
+def get_url_inspection(service, url):
+    """Get URL inspection data from Google Search Console."""
+    print(f"\nFetching URL inspection data for {url}...")
+    
+    # Get site property (domain vs URL prefix)
+    parsed = urlparse(url)
+    domain = parsed.netloc.replace("www.", "")
+    url_prefix = f"https://{parsed.netloc}/"
+    domain_property = f"sc-domain:{domain}"
+    
+    try:
+        sites = service.sites().list().execute().get("siteEntry", [])
+        original_is_domain = any(site.get("siteUrl") == domain_property for site in sites)
+    except Exception:
+        original_is_domain = False
+    
+    site_property = domain_property if original_is_domain else url_prefix
+    
+    try:
+        print(f"\tChecking URL inspection for {url}...")
+        
+        # For URL inspection, we need to use the full URL
+        inspection_url = url
+        
+        # Build URL inspection request
+        request_body = {
+            'inspectionUrl': inspection_url,
+            'siteUrl': site_property,
+            'languageCode': 'en'
+        }
+        
+        # Call URL inspection API
+        encoded_site_url = quote(site_property, safe=':/')
+        response = service.urlInspection().index().inspect(body=request_body).execute()
+        
+        # Extract inspection results
+        inspection_result = response.get('inspectionResult', {})
+        index_status_result = inspection_result.get('indexStatusResult', {})
+        
+        # Get verdict
+        verdict = index_status_result.get('verdict', 'UNKNOWN')
+        
+        # Get coverage state
+        coverage_state = index_status_result.get('coverageState', 'UNKNOWN')
+        
+        # Get robots.txt state
+        robots_txt_state = index_status_result.get('robotsTxtState', 'UNKNOWN')
+        
+        # Get indexing state
+        indexing_state = index_status_result.get('indexingState', 'UNKNOWN')
+        
+        # Get last crawl time
+        last_crawl_time = index_status_result.get('lastCrawlTime', '')
+        
+        # Get page fetch state
+        page_fetch_result = inspection_result.get('pageFetchResult', {})
+        page_fetch_state = page_fetch_result.get('fetchState', 'UNKNOWN')
+        
+        print(f"\t✓ URL inspection completed: {verdict}")
+        
+        # Clean up values for Airtable field types
+        return {
+            'index_verdict': str(verdict).replace('"', '').strip(),
+            'coverage_state': str(coverage_state).replace('"', '').strip(),
+            'robots_txt_state': str(robots_txt_state).replace('"', '').strip(),
+            'indexing_state': str(indexing_state).replace('"', '').strip(),
+            'last_crawl_time': str(last_crawl_time).strip(),
+            'page_fetch_state': str(page_fetch_state).replace('"', '').strip()
+        }
+        
+    except Exception as e:
+        print(f"\t✗ Error fetching URL inspection for {url}: {e}")
+        return {
+            'index_verdict': 'ERROR',
+            'coverage_state': 'ERROR',
+            'robots_txt_state': 'ERROR', 
+            'indexing_state': 'ERROR',
+            'last_crawl_time': '',
+            'page_fetch_state': 'ERROR'
+        }
+
 def main():
     # Check for required environment variables
     required_vars = [
         'AIRTABLE_API_KEY',
-        'AIRTABLE_BASE_ID',
-        'AIRTABLE_TABLE_NAME'
+        'AIRTABLE_BASE_ID'
     ]
+    
+    # Check if using organized multi-table structure
+    use_organized_tables = os.getenv('USE_ORGANIZED_TABLES', 'false').lower() == 'true'
+    print(f"Organized tables mode: {use_organized_tables}")
+    print(f"Environment variable USE_ORGANIZED_TABLES = '{os.getenv('USE_ORGANIZED_TABLES', 'NOT SET')}')")
+    
+    if not use_organized_tables:
+        required_vars.append('AIRTABLE_TABLE_NAME')
     
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     if missing_vars:
@@ -758,9 +1005,14 @@ def main():
         service = build('searchconsole', 'v1', credentials=credentials)
         
         # Get records from Airtable
-        print("\nFetching records from Airtable...")
-        table, records = get_airtable_records()
-        print(f"Found {len(records)} records")
+        print(f"\nFetching records from Airtable (organized mode: {use_organized_tables})...")
+        
+        if use_organized_tables:
+            tables, records = get_airtable_multi_tables()
+            print(f"Found {len(records)} websites")
+        else:
+            table, records = get_airtable_records()
+            print(f"Found {len(records)} records")
         
         # Process each record
         print("\nVerifying URLs and fetching GSC metrics...")
@@ -793,6 +1045,11 @@ def main():
                 # Log the PSI metrics for debugging
                 print(f"\tFetched PageSpeed Insights metrics for {url}: {psi_metrics}")
                 
+                # Get URL inspection data
+                print(f"\nFetching URL inspection data for {url}...")
+                url_inspection = get_url_inspection(service, url)
+                print(f"\tFetched URL inspection for {url}: {url_inspection}")
+                
                 # Get sitemaps status
                 print(f"\nFetching sitemap submission data for {url}...")
                 sitemaps_status = get_sitemaps_status(service, url)
@@ -806,17 +1063,25 @@ def main():
                 print(f"\nFetching keyword performance for {url}...")
                 keyword_performance = get_keyword_performance(service, url)
                 print(f"\tFetched keyword performance for {url}: {keyword_performance}")
+        
                 
                 # Combine metrics
-                combined_metrics = {**metrics, **psi_metrics, **sitemaps_status, **mobile_test, **keyword_performance}
+                combined_metrics = {**metrics, **psi_metrics, **url_inspection, **sitemaps_status, **mobile_test, **keyword_performance}
                 # Log combined metrics before updating Airtable
                 print(f"\nCombined metrics to update Airtable for {url}: {combined_metrics}")
                 
                 # Update metrics in Airtable
-                print(f"\nUpdating Airtable record {record['id']}...")
+                print(f"\nUpdating Airtable...")
                 try:
-                    table.update(record['id'], combined_metrics)
-                    print(f"\t✓ Successfully updated Airtable record")
+                    if use_organized_tables:
+                        success = update_airtable_organized(tables, url, combined_metrics)
+                        if success:
+                            print(f"\t✓ Successfully updated organized tables")
+                        else:
+                            print(f"\t✗ Failed to update organized tables")
+                    else:
+                        table.update(record['id'], combined_metrics)
+                        print(f"\t✓ Successfully updated single table record")
                 except Exception as airtable_error:
                     print(f"\t✗ Airtable update failed: {airtable_error}")
                     raise airtable_error
@@ -833,14 +1098,6 @@ def main():
             except Exception as e:
                 print(f"\tError processing {url}: {str(e)}")
                 permission_errors.append(url)
-        
-        # # Display summary
-        # print("\nMetrics Summary:")
-        # print(f"Total Impressions: {total_metrics['impressions']:,}")
-        # print(f"Total Clicks: {total_metrics['clicks']:,}")
-        # if total_metrics['ctr']:
-        #     print(f"Average CTR: {sum(total_metrics['ctr']) / len(total_metrics['ctr']):.2f}%")
-        #     print(f"Average Position: {sum(total_metrics['average_position']) / len(total_metrics['average_position']):.2f}")
         
         if permission_errors:
             print("\nSites with errors:")
