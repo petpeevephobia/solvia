@@ -11,6 +11,7 @@ import pickle
 from urllib.parse import urlparse, quote
 import requests
 import json
+from datetime import datetime, timedelta
 
 # Load environment variables
 load_dotenv()
@@ -514,6 +515,226 @@ def get_mobile_usability_from_psi(url):
 
 
 
+def get_keyword_performance(service, url, days=90):
+    """Get top performing keywords for a URL from GSC."""
+    print(f"\nAnalyzing keyword performance for {url}...")
+    
+    # Get site property (domain vs URL prefix)
+    parsed = urlparse(url)
+    domain = parsed.netloc.replace("www.", "")
+    url_prefix = f"https://{parsed.netloc}/"
+    domain_property = f"sc-domain:{domain}"
+    
+    try:
+        sites = service.sites().list().execute().get("siteEntry", [])
+        original_is_domain = any(site.get("siteUrl") == domain_property for site in sites)
+    except Exception:
+        original_is_domain = False
+    
+    site_property = domain_property if original_is_domain else url_prefix
+    
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=days)
+    
+    try:
+        print(f"\tFetching keyword data from GSC...")
+        
+        # Request top keywords for this specific URL
+        request = {
+            'startDate': start_date.isoformat(),
+            'endDate': end_date.isoformat(),
+            'dimensions': ['query'],
+            'rowLimit': 50,  # Top 50 keywords
+            'dimensionFilterGroups': [{
+                'filters': [{
+                    'dimension': 'page',
+                    'operator': 'equals',
+                    'expression': url if original_is_domain else parsed.path or '/'
+                }]
+            }]
+        }
+        
+        encoded_site_url = quote(site_property, safe=':/')
+        response = service.searchanalytics().query(
+            siteUrl=encoded_site_url,
+            body=request
+        ).execute()
+        
+        keywords_data = []
+        
+        if response.get('rows'):
+            print(f"\tFound {len(response['rows'])} keywords")
+            
+            for row in response['rows']:
+                keyword = row['keys'][0]
+                
+                # Classify keyword intent
+                intent = classify_keyword_intent(keyword)
+                
+                # Calculate opportunity score
+                opportunity_score = calculate_opportunity_score({
+                    'position': row['position'],
+                    'impressions': row['impressions'],
+                    'clicks': row['clicks'],
+                    'ctr': row['ctr']
+                })
+                
+                keyword_data = {
+                    'keyword_text': keyword,
+                    'current_position': round(row['position'], 2),
+                    'monthly_impressions': int(row['impressions']),
+                    'monthly_clicks': int(row['clicks']),
+                    'keyword_ctr': round(row['ctr'] * 100, 2),
+                    'intent_type': intent,
+                    'opportunity_score': opportunity_score,
+                    'traffic_potential': estimate_traffic_potential(row['position'], row['impressions']),
+                    'target_priority': get_priority_level(opportunity_score)
+                }
+                
+                keywords_data.append(keyword_data)
+        
+        # Get top 5 keywords for summary
+        top_keywords = sorted(keywords_data, key=lambda x: x['monthly_clicks'], reverse=True)[:5]
+        top_keywords_text = "; ".join([kw['keyword_text'] for kw in top_keywords])
+        
+        print(f"\tTop keywords: {top_keywords_text[:100]}...")
+        
+        return {
+            'top_keywords': top_keywords_text,
+            'total_keywords_tracked': len(keywords_data),
+            'avg_keyword_position': round(sum([kw['current_position'] for kw in keywords_data]) / len(keywords_data), 2) if keywords_data else 0,
+            'high_opportunity_keywords': len([kw for kw in keywords_data if kw['opportunity_score'] >= 7]),
+            'branded_keywords_count': len([kw for kw in keywords_data if is_branded_keyword(kw['keyword_text'], domain)]),
+            'keyword_cannibalization_risk': detect_cannibalization_risk(keywords_data)
+        }
+        
+    except Exception as e:
+        print(f"\tError fetching keyword data for {url}: {e}")
+        return {
+            'top_keywords': 'Error fetching data',
+            'total_keywords_tracked': 0,
+            'avg_keyword_position': 0,
+            'high_opportunity_keywords': 0,
+            'branded_keywords_count': 0,
+            'keyword_cannibalization_risk': 'Unknown'
+        }
+
+def classify_keyword_intent(keyword):
+    """Classify keyword search intent based on common patterns."""
+    keyword_lower = keyword.lower()
+    
+    # Transactional intent indicators
+    transactional_words = ['buy', 'purchase', 'order', 'shop', 'sale', 'deal', 'discount', 'cheap', 'price', 'cost', 'hire', 'book', 'subscribe']
+    if any(word in keyword_lower for word in transactional_words):
+        return 'Transactional'
+    
+    # Navigational intent indicators  
+    navigational_words = ['login', 'sign in', 'account', 'dashboard', 'contact', 'about', 'careers', 'support']
+    if any(word in keyword_lower for word in navigational_words):
+        return 'Navigational'
+    
+    # Commercial intent indicators
+    commercial_words = ['best', 'top', 'review', 'compare', 'vs', 'alternative', 'solution', 'service', 'company', 'agency']
+    if any(word in keyword_lower for word in commercial_words):
+        return 'Commercial'
+    
+    # Informational (default)
+    return 'Informational'
+
+def calculate_opportunity_score(keyword_data):
+    """Calculate SEO opportunity score (1-10) based on performance metrics."""
+    position = keyword_data['position']
+    impressions = keyword_data['impressions']
+    clicks = keyword_data['clicks']
+    ctr = keyword_data['ctr']
+    
+    score = 0
+    
+    # Position scoring (worse position = higher opportunity)
+    if position > 10:
+        score += 4  # Page 2+ has high improvement potential
+    elif position > 3:
+        score += 3  # Position 4-10 has good potential  
+    elif position > 1:
+        score += 2  # Position 2-3 has some potential
+    else:
+        score += 1  # Position 1 has maintenance value
+    
+    # Impressions scoring (more impressions = more potential traffic)
+    if impressions > 1000:
+        score += 3
+    elif impressions > 100:
+        score += 2
+    elif impressions > 10:
+        score += 1
+    
+    # CTR scoring (low CTR for good position = opportunity)
+    expected_ctr = get_expected_ctr(position)
+    if ctr < expected_ctr * 0.7:  # 30% below expected
+        score += 2
+    elif ctr < expected_ctr * 0.9:  # 10% below expected  
+        score += 1
+    
+    return min(score, 10)  # Cap at 10
+
+def get_expected_ctr(position):
+    """Get expected CTR based on position (industry averages)."""
+    ctr_by_position = {
+        1: 0.285, 2: 0.152, 3: 0.103, 4: 0.073, 5: 0.053,
+        6: 0.040, 7: 0.031, 8: 0.024, 9: 0.019, 10: 0.016
+    }
+    return ctr_by_position.get(int(position), 0.01)
+
+def estimate_traffic_potential(current_position, current_impressions):
+    """Estimate potential monthly traffic if ranking in top 3."""
+    if current_position <= 3:
+        return int(current_impressions * 0.1)  # Already in top 3
+    
+    # Estimate impressions increase from ranking higher
+    current_ctr = get_expected_ctr(current_position)
+    top3_ctr = (get_expected_ctr(1) + get_expected_ctr(2) + get_expected_ctr(3)) / 3
+    
+    potential_traffic = int(current_impressions * (top3_ctr / current_ctr))
+    return min(potential_traffic, current_impressions * 5)  # Cap at 5x current
+
+def get_priority_level(opportunity_score):
+    """Convert opportunity score to priority level."""
+    if opportunity_score >= 8:
+        return 'High'
+    elif opportunity_score >= 5:
+        return 'Medium'
+    else:
+        return 'Low'
+
+def is_branded_keyword(keyword, domain):
+    """Check if keyword contains brand name."""
+    brand_name = domain.split('.')[0]  # Extract main domain
+    return brand_name.lower() in keyword.lower()
+
+def detect_cannibalization_risk(keywords_data):
+    """Detect potential keyword cannibalization issues."""
+    if len(keywords_data) < 2:
+        return 'Low'
+    
+    # Check for very similar keywords with different positions
+    similar_keywords = 0
+    for i, kw1 in enumerate(keywords_data):
+        for kw2 in keywords_data[i+1:]:
+            # Simple similarity check (shared words)
+            words1 = set(kw1['keyword_text'].lower().split())
+            words2 = set(kw2['keyword_text'].lower().split())
+            overlap = len(words1.intersection(words2)) / len(words1.union(words2))
+            
+            if overlap > 0.6 and abs(kw1['current_position'] - kw2['current_position']) > 5:
+                similar_keywords += 1
+    
+    if similar_keywords > 3:
+        return 'High'
+    elif similar_keywords > 1:
+        return 'Medium'
+    else:
+        return 'Low'
+
 def main():
     # Check for required environment variables
     required_vars = [
@@ -581,8 +802,13 @@ def main():
                 mobile_test = get_mobile_usability_from_psi(url)
                 print(f"\tFetched mobile usability results for {url}: {mobile_test}")
                 
+                # Get keyword performance
+                print(f"\nFetching keyword performance for {url}...")
+                keyword_performance = get_keyword_performance(service, url)
+                print(f"\tFetched keyword performance for {url}: {keyword_performance}")
+                
                 # Combine metrics
-                combined_metrics = {**metrics, **psi_metrics, **sitemaps_status, **mobile_test}
+                combined_metrics = {**metrics, **psi_metrics, **sitemaps_status, **mobile_test, **keyword_performance}
                 # Log combined metrics before updating Airtable
                 print(f"\nCombined metrics to update Airtable for {url}: {combined_metrics}")
                 
