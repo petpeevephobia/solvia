@@ -10,6 +10,7 @@ from pyairtable import Api
 import pickle
 from urllib.parse import urlparse, quote
 import requests
+import json
 
 # Load environment variables
 load_dotenv()
@@ -115,14 +116,14 @@ def get_site_info(service, url):
             site_url = site.get('siteUrl', '')
             if site_url == domain_property:
                 original_is_domain = True
-                print(f"Found original domain property: {domain_property}")
+                print(f"\tFound original domain property: {domain_property}")
                 break
             elif site_url.startswith('http') and domain in site_url:
-                print(f"Found original URL prefix property: {site_url}")
+                print(f"\tFound original URL prefix property: {site_url}")
                 break
         
         # For verification, always return URL prefix version first
-        print(f"Checking URL prefix version: {url_prefix}")
+        print(f"\tChecking URL prefix version: {url_prefix}")
         return url_prefix, False, original_is_domain
         
     except Exception as e:
@@ -151,7 +152,7 @@ def get_gsc_metrics(service, url, days=30):
     try:
         # First try with URL prefix format for verification
         site_url, is_domain_property, original_is_domain = get_site_info(service, url)
-        print(f"Verifying access using URL prefix: {site_url}")
+        print(f"\tVerifying access using URL prefix: {site_url}")
         
         # For initial verification, always use path for URL prefix
         parsed = urlparse(url)
@@ -176,7 +177,7 @@ def get_gsc_metrics(service, url, days=30):
         # Try URL prefix version first
         encoded_site_url = quote(site_url, safe=':/')
         try:
-            print(f"Verifying access to: {site_url}")
+            print(f"\tVerifying access to: {site_url}")
             response = service.searchanalytics().query(
                 siteUrl=encoded_site_url,
                 body=request
@@ -185,7 +186,7 @@ def get_gsc_metrics(service, url, days=30):
             
             # If original was domain property, switch back for actual data fetch
             if original_is_domain:
-                print("Switching back to domain property for data fetch...")
+                print("\tSwitching back to domain property for data fetch...")
                 domain = parsed.netloc.replace('www.', '')
                 site_url = f"sc-domain:{domain}"
                 encoded_site_url = quote(site_url, safe=':/')
@@ -194,7 +195,7 @@ def get_gsc_metrics(service, url, days=30):
                 # Update request with full URL for domain property
                 request['dimensionFilterGroups'][0]['filters'][0]['expression'] = page_url
                 
-                print(f"Fetching data using domain property: {site_url}")
+                print(f"\tFetching data using domain property: {site_url}")
                 response = service.searchanalytics().query(
                     siteUrl=encoded_site_url,
                     body=request
@@ -203,7 +204,7 @@ def get_gsc_metrics(service, url, days=30):
         except Exception as e:
             # print(f"Error during verification: {str(e)}")
             if original_is_domain:
-                print("Falling back to domain property due to insufficient permissions on URL prefix property")
+                print("\tFalling back to domain property due to insufficient permissions on URL prefix property")
                 domain = parsed.netloc.replace('www.', '')
                 site_url = f"sc-domain:{domain}"
                 encoded_site_url = quote(site_url, safe=':/')
@@ -231,7 +232,7 @@ def get_gsc_metrics(service, url, days=30):
                 }
         
         if not response.get('rows'):
-            print(f"No data found for URL: {url}")
+            print(f"\tNo data found for URL: {url}")
             return {
                 'impressions': 0,
                 'clicks': 0,
@@ -246,12 +247,12 @@ def get_gsc_metrics(service, url, days=30):
             'ctr': round(row['ctr'] * 100, 2),
             'average_position': round(row['position'], 2)
         }
-        print(f"Retrieved metrics for {url}: {metrics}")
+        print(f"\tRetrieved metrics for {url}: {metrics}")
         return metrics
         
     except Exception as e:
         error_message = str(e)
-        print(f"Error querying GSC for {url}: {error_message}")
+        print(f"\tError querying GSC for {url}: {error_message}")
         return {
             'impressions': 0,
             'clicks': 0,
@@ -355,6 +356,164 @@ def get_psi_metrics(url, strategy="mobile"):
 
 
 
+def get_sitemaps_status(service, url):
+    """Fetch sitemap submission status and details for SEO audit reporting."""
+    parsed = urlparse(url)
+    domain = parsed.netloc.replace("www.", "")
+    url_prefix = f"https://{parsed.netloc}/"
+    domain_property = f"sc-domain:{domain}"
+    
+    try:
+        sites = service.sites().list().execute().get("siteEntry", [])
+        original_is_domain = any(site.get("siteUrl") == domain_property for site in sites)
+    except Exception:
+        original_is_domain = False
+    
+    site_property = domain_property if original_is_domain else url_prefix
+    
+    try:
+        print(f"Fetching sitemap submission data for {site_property}...")
+        resp = service.sitemaps().list(siteUrl=site_property).execute()
+        entries = resp.get("sitemap", [])
+        
+        if not entries:
+            return {
+                "sitemaps_submitted": "No sitemaps found",
+                "sitemap_count": 0,
+                "sitemap_errors": "N/A",
+                "sitemap_warnings": "N/A",
+                "last_submission": "N/A"
+            }
+        
+        sitemap_details = []
+        total_errors = 0
+        total_warnings = 0
+        latest_submission = ""
+        
+        for entry in entries:
+            path = entry.get("path", "Unknown")
+            last_submitted = entry.get("lastSubmitted", "Never")
+            is_pending = entry.get("isPending", False)
+            errors = int(entry.get("errors", 0))
+            warnings = int(entry.get("warnings", 0))
+            
+            total_errors += errors
+            total_warnings += warnings
+            
+            # Track latest submission
+            if last_submitted != "Never" and (not latest_submission or last_submitted > latest_submission):
+                latest_submission = last_submitted
+            
+            status = "Pending" if is_pending else "Processed"
+            sitemap_details.append(f"{path} ({status}, E:{errors}, W:{warnings})")
+        
+        return {
+            "sitemaps_submitted": "; ".join(sitemap_details),
+            "sitemap_count": len(entries),
+            "sitemap_errors": total_errors,
+            "sitemap_warnings": total_warnings,
+            "last_submission": latest_submission or "Never"
+        }
+        
+    except Exception as e:
+        print(f"\tError fetching sitemaps for {url}: {e}")
+        return {
+            "sitemaps_submitted": "Error fetching data",
+            "sitemap_count": 0,
+            "sitemap_errors": -1,
+            "sitemap_warnings": -1, 
+            "last_submission": ""
+        }
+
+
+
+
+
+def get_mobile_usability_from_psi(url):
+    """Extract mobile usability data from PageSpeed Insights API."""
+    print(f"\nChecking mobile usability via PageSpeed Insights for {url}...")
+    
+    api_key = os.getenv("PSI_API_KEY")
+    if not api_key:
+        print("\tPSI_API_KEY not set; skipping mobile usability check")
+        return {
+            "mobile_friendly_status": "NO_API_KEY",
+            "mobile_friendly_issues_count": 0,
+            "mobile_friendly_issues": "PSI API key not configured",
+            "mobile_test_loading_state": "SKIPPED",
+            "mobile_passed": "Unknown"
+        }
+    
+    try:
+        endpoint = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
+        params = {
+            "url": url, 
+            "strategy": "mobile",
+            "key": api_key,
+            "category": "accessibility"  # This includes mobile usability
+        }
+        
+        print(f"\tCalling PageSpeed Insights API for mobile analysis...")
+        
+        response = requests.get(endpoint, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Extract mobile-friendly information from lighthouse result
+        lighthouse = data.get("lighthouseResult", {})
+        audits = lighthouse.get("audits", {})
+        
+        # Check key mobile usability audits
+        viewport_audit = audits.get("viewport", {})
+        tap_targets = audits.get("tap-targets", {})
+        font_size = audits.get("font-size", {})
+        
+        mobile_issues = []
+        
+        # Check viewport configuration
+        if viewport_audit.get("score") == 0:
+            mobile_issues.append("VIEWPORT_NOT_CONFIGURED: " + viewport_audit.get("title", ""))
+            
+        # Check tap targets
+        if tap_targets.get("score") == 0:
+            mobile_issues.append("TAP_TARGETS_TOO_CLOSE: " + tap_targets.get("title", ""))
+            
+        # Check font size
+        if font_size.get("score") == 0:
+            mobile_issues.append("FONT_SIZE_TOO_SMALL: " + font_size.get("title", ""))
+        
+        # Determine overall mobile friendliness
+        if len(mobile_issues) == 0:
+            mobile_status = "MOBILE_FRIENDLY"
+            mobile_passed = "Yes"
+        else:
+            mobile_status = "NOT_MOBILE_FRIENDLY" 
+            mobile_passed = "No"
+        
+        print(f"\t✓ Mobile usability check completed: {mobile_status}")
+        
+        return {
+            "mobile_friendly_status": mobile_status,
+            "mobile_friendly_issues_count": len(mobile_issues),
+            "mobile_friendly_issues": "; ".join(mobile_issues),
+            "mobile_test_loading_state": "COMPLETE",
+            "mobile_passed": mobile_passed
+        }
+        
+    except Exception as e:
+        print(f"\t✗ Error checking mobile usability for {url}: {e}")
+        return {
+            "mobile_friendly_status": "ERROR",
+            "mobile_friendly_issues_count": -1,
+            "mobile_friendly_issues": f"Exception: {str(e)}",
+            "mobile_test_loading_state": "ERROR",
+            "mobile_passed": "Unknown"
+        }
+
+
+
+
+
 def main():
     # Check for required environment variables
     required_vars = [
@@ -394,31 +553,47 @@ def main():
                 continue
                 
             url = record['fields']['url']
-            print(f"\nProcessing {i}/{len(records)}: {url}")
+            print(f"\tProcessing {i}/{len(records)}: {url}")
             
             try:
                 # First verify the URL exists in GSC
                 site_url, is_domain_property, original_is_domain = get_site_info(service, url)
                 if original_is_domain:
-                    print(f"Found as domain property: {url}")
+                    print(f"\tFound as domain property: {url}")
                 else:
-                    print(f"Found as URL prefix property: {url}")
+                    print(f"\tFound as URL prefix property: {url}")
                 
                 # Get metrics from GSC
                 metrics = get_gsc_metrics(service, url)
                 
                 # Get PSI metrics
+                print(f"\nFetching PageSpeed Insights metrics for {url}...")
                 psi_metrics = get_psi_metrics(url)
                 # Log the PSI metrics for debugging
-                print(f"Fetched PSI metrics for {url}: {psi_metrics}")
+                print(f"\tFetched PageSpeed Insights metrics for {url}: {psi_metrics}")
+                
+                # Get sitemaps status
+                print(f"\nFetching sitemap submission data for {url}...")
+                sitemaps_status = get_sitemaps_status(service, url)
+                print(f"\tFetched sitemaps status for {url}: {sitemaps_status}")
+                
+                # Get mobile usability from PSI
+                mobile_test = get_mobile_usability_from_psi(url)
+                print(f"\tFetched mobile usability results for {url}: {mobile_test}")
                 
                 # Combine metrics
-                combined_metrics = {**metrics, **psi_metrics}
+                combined_metrics = {**metrics, **psi_metrics, **sitemaps_status, **mobile_test}
                 # Log combined metrics before updating Airtable
-                print(f"Combined metrics to update Airtable for {url}: {combined_metrics}")
+                print(f"\nCombined metrics to update Airtable for {url}: {combined_metrics}")
                 
-                # Update PSI metrics in Airtable
-                table.update(record['id'], combined_metrics)
+                # Update metrics in Airtable
+                print(f"\nUpdating Airtable record {record['id']}...")
+                try:
+                    table.update(record['id'], combined_metrics)
+                    print(f"\t✓ Successfully updated Airtable record")
+                except Exception as airtable_error:
+                    print(f"\t✗ Airtable update failed: {airtable_error}")
+                    raise airtable_error
                 
                 # Accumulate metrics for summary
                 if metrics['impressions'] > 0:  # Only include non-zero metrics
@@ -427,25 +602,25 @@ def main():
                     total_metrics['ctr'].append(metrics['ctr'])
                     total_metrics['average_position'].append(metrics['average_position'])
                 
-                print(f"✓ Updated metrics for {url}")
+                print(f"\t✓ Updated metrics for {url}")
                 
             except Exception as e:
-                print(f"Error processing {url}: {str(e)}")
+                print(f"\tError processing {url}: {str(e)}")
                 permission_errors.append(url)
         
-        # Display summary
-        print("\nMetrics Summary:")
-        print(f"Total Impressions: {total_metrics['impressions']:,}")
-        print(f"Total Clicks: {total_metrics['clicks']:,}")
-        if total_metrics['ctr']:
-            print(f"Average CTR: {sum(total_metrics['ctr']) / len(total_metrics['ctr']):.2f}%")
-            print(f"Average Position: {sum(total_metrics['average_position']) / len(total_metrics['average_position']):.2f}")
+        # # Display summary
+        # print("\nMetrics Summary:")
+        # print(f"Total Impressions: {total_metrics['impressions']:,}")
+        # print(f"Total Clicks: {total_metrics['clicks']:,}")
+        # if total_metrics['ctr']:
+        #     print(f"Average CTR: {sum(total_metrics['ctr']) / len(total_metrics['ctr']):.2f}%")
+        #     print(f"Average Position: {sum(total_metrics['average_position']) / len(total_metrics['average_position']):.2f}")
         
         if permission_errors:
             print("\nSites with errors:")
             for url in permission_errors:
-                print(f"- {url}")
-            print("\nTo fix errors:")
+                print(f"\t- {url}")
+            print("To fix errors:")
             print("1. Verify the sites are properly set up in GSC")
             print("2. Check if they are domain properties or URL prefix properties")
             print("3. Make sure you have proper access permissions")
