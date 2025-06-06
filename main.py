@@ -13,6 +13,7 @@ from urllib.parse import urlparse, quote
 import requests
 import json
 from datetime import datetime, timedelta
+from modules.business_analysis import BusinessAnalyzer
 
 # Load environment variables
 load_dotenv()
@@ -234,7 +235,14 @@ def get_gsc_metrics(service, url, days=30):
                 }
         
         if not response.get('rows'):
-            print(f"\tNo data found for URL: {url}")
+            print(f"\t⚠️  No GSC data found for URL: {url}")
+            print(f"\t   Possible reasons:")
+            print(f"\t   - Website is new (no search traffic yet)")
+            print(f"\t   - URL not properly verified in GSC")
+            print(f"\t   - Different property type needed (domain vs URL prefix)")
+            print(f"\t   - No search traffic in the selected time period ({days} days)")
+            print(f"\t   - Website not indexed by Google yet")
+            print(f"\t   ✅ Continuing with other metrics...")
             return {
                 'impressions': 0,
                 'clicks': 0,
@@ -382,9 +390,9 @@ def get_sitemaps_status(service, url):
             return {
                 "sitemaps_submitted": "No sitemaps found",
                 "sitemap_count": 0,
-                "sitemap_errors": "N/A",
-                "sitemap_warnings": "N/A",
-                "last_submission": "N/A"
+                "sitemap_errors": 0,
+                "sitemap_warnings": 0,
+                "last_submission": None
             }
         
         sitemap_details = []
@@ -414,7 +422,7 @@ def get_sitemaps_status(service, url):
             "sitemap_count": len(entries),
             "sitemap_errors": total_errors,
             "sitemap_warnings": total_warnings,
-            "last_submission": latest_submission or "Never"
+            "last_submission": latest_submission if latest_submission else None
         }
         
     except Exception as e:
@@ -424,7 +432,7 @@ def get_sitemaps_status(service, url):
             "sitemap_count": 0,
             "sitemap_errors": -1,
             "sitemap_warnings": -1, 
-            "last_submission": ""
+            "last_submission": None
         }
 
 
@@ -759,7 +767,7 @@ def get_airtable_multi_tables():
             'sitemap_data': airtable.table(base_id, 'Sitemap_Data'),
             'mobile_usability': airtable.table(base_id, 'Mobile_Usability'),
             'keyword_analysis': airtable.table(base_id, 'Keyword_Analysis'),
-
+            'business_analysis': airtable.table(base_id, 'Business_Analysis'),
         }
         
         # Test connection with main websites table
@@ -784,6 +792,8 @@ def update_airtable_organized(tables, url, combined_metrics):
     """Update organized Airtable tables with categorized data."""
     try:
         analysis_date = datetime.now().isoformat()
+        print(f"\t\tStarting Airtable update process for {url}")
+        print(f"\t\tAnalysis date: {analysis_date}")
         
         # Find or create website record
         website_record = None
@@ -793,22 +803,46 @@ def update_airtable_organized(tables, url, combined_metrics):
         for record in websites_records:
             record_url = record['fields'].get('url')
             print(f"\t\t  Checking: '{record_url}' vs '{url}'")
+            
+            # Try different URL matching strategies
             if record_url == url:
                 website_record = record
-                print(f"\t\t  ✓ Found matching record: {record['id']}")
+                print(f"\t\t  ✓ Found exact match: {record['id']}")
                 break
+            elif record_url and url:
+                # Try without trailing slashes
+                clean_record = record_url.rstrip('/')
+                clean_url = url.rstrip('/')
+                if clean_record == clean_url:
+                    website_record = record
+                    print(f"\t\t  ✓ Found match (no trailing slash): {record['id']}")
+                    break
+                # Try without www
+                if clean_record.replace('www.', '') == clean_url.replace('www.', ''):
+                    website_record = record
+                    print(f"\t\t  ✓ Found match (no www): {record['id']}")
+                    break
         
         if not website_record:
-            print(f"\t\t✗ Website {url} not found in main table - skipping organized update")
-            print(f"\t\t  Available URLs in main table:")
-            for record in websites_records:
-                print(f"\t\t    - {record['fields'].get('url', 'NO URL FIELD')}")
+            print(f"\t\t✗ CRITICAL ERROR: Website {url} not found in main Websites table!")
+            print(f"\t\t  This means the organized table update will be skipped entirely.")
+            print(f"\t\t  Available URLs in main table ({len(websites_records)} records):")
+            for i, record in enumerate(websites_records[:10], 1):  # Show first 10
+                record_url = record['fields'].get('url', 'NO URL FIELD')
+                print(f"\t\t    {i}. '{record_url}'")
+            if len(websites_records) > 10:
+                print(f"\t\t    ... and {len(websites_records) - 10} more records")
+            print(f"\t\t  SOLUTION: Add '{url}' to your Websites table first!")
             return False
         
         website_id = website_record['id']
         print(f"\t\tUsing website ID: {website_id}")
+        print(f"\t\tWebsite record fields: {list(website_record['fields'].keys())}")
+        print(f"\t\tWebsite URL from record: {website_record['fields'].get('url', 'NO URL')}")
         
         # Prepare data for each table
+        print(f"\t\tPreparing data for {len(combined_metrics)} metrics across 7 organized tables...")
+        
         table_data = {
             'core_metrics': {
                 'url': [website_id],
@@ -867,19 +901,103 @@ def update_airtable_organized(tables, url, combined_metrics):
                 'keyword_cannibalization_risk': combined_metrics.get('keyword_cannibalization_risk', ''),
                 'analysis_date': analysis_date
             },
-
+            'business_analysis': {
+                'url': [website_id],
+                'business_model': combined_metrics.get('business_model', ''),
+                'target_market': combined_metrics.get('target_market', ''),
+                'industry_sector': combined_metrics.get('industry_sector', ''),
+                'company_size': combined_metrics.get('company_size', ''),
+                'has_ecommerce': combined_metrics.get('has_ecommerce', False),
+                'has_local_presence': combined_metrics.get('has_local_presence', False),
+                'business_complexity_score': combined_metrics.get('business_complexity_score', 0),
+                'primary_age_group': combined_metrics.get('primary_age_group', ''),
+                'income_level': combined_metrics.get('income_level', ''),
+                'audience_sophistication': combined_metrics.get('audience_sophistication', ''),
+                'services_offered': combined_metrics.get('services_offered', ''),
+                'has_public_pricing': combined_metrics.get('has_public_pricing', False),
+                'service_count': combined_metrics.get('service_count', 0),
+                'geographic_scope': combined_metrics.get('geographic_scope', ''),
+                'target_locations': combined_metrics.get('target_locations', ''),
+                'is_location_based': combined_metrics.get('is_location_based', False),
+                'business_maturity': combined_metrics.get('business_maturity', ''),
+                'establishment_year': combined_metrics.get('establishment_year', None),
+                'experience_indicators': combined_metrics.get('experience_indicators', False),
+                'platform_detected': combined_metrics.get('platform_detected', ''),
+                'has_advanced_features': combined_metrics.get('has_advanced_features', False),
+                'social_media_integration': combined_metrics.get('social_media_integration', False),
+                'tech_sophistication': combined_metrics.get('tech_sophistication', ''),
+                'has_content_marketing': combined_metrics.get('has_content_marketing', False),
+                'has_lead_generation': combined_metrics.get('has_lead_generation', False),
+                'has_social_proof': combined_metrics.get('has_social_proof', False),
+                'content_maturity': combined_metrics.get('content_maturity', ''),
+                'phone_prominence': combined_metrics.get('phone_prominence', False),
+                'has_contact_forms': combined_metrics.get('has_contact_forms', False),
+                'has_live_chat': combined_metrics.get('has_live_chat', False),
+                'preferred_contact_method': combined_metrics.get('preferred_contact_method', ''),
+                'competitive_positioning': combined_metrics.get('competitive_positioning', ''),
+                'positioning_strength': combined_metrics.get('positioning_strength', ''),
+                'value_proposition': combined_metrics.get('value_proposition', ''),
+                'brand_strength': combined_metrics.get('brand_strength', ''),
+                'trust_indicators': combined_metrics.get('trust_indicators', ''),
+                'business_insights': combined_metrics.get('business_insights', ''),
+                'seo_strategy_recommendations': combined_metrics.get('seo_strategy_recommendations', ''),
+                'analysis_date': analysis_date
+            },
         }
         
         # Update each table
+        successful_updates = 0
+        failed_updates = 0
+        
         for table_name, data in table_data.items():
             try:
-                print(f"\t\tAttempting to update {table_name} with data: {data}")
+                print(f"\n\t\t--- Updating {table_name.upper()} ---")
+                
+                # Debug: Show data types for boolean fields and URL field
+                if table_name == 'business_analysis':
+                    print(f"\t\tDebugging business_analysis data types:")
+                    print(f"\t\t  url: {data.get('url', 'MISSING')} (type: {type(data.get('url', 'MISSING'))})")
+                    for key, value in data.items():
+                        if 'has_' in key or 'is_' in key or key in ['experience_indicators', 'phone_prominence']:
+                            print(f"\t\t  {key}: {value} (type: {type(value)})")
+                
+                # Show key data being sent (abbreviated)
+                key_fields = ['url', 'analysis_date']
+                if table_name == 'core_metrics':
+                    key_fields.extend(['impressions', 'clicks', 'ctr'])
+                elif table_name == 'performance_metrics':
+                    key_fields.extend(['performance_score', 'first_contentful_paint'])
+                elif table_name == 'business_analysis':
+                    key_fields.extend(['business_model', 'target_market', 'has_ecommerce'])
+                
+                print(f"\t\tKey data for {table_name}:")
+                for field in key_fields:
+                    if field in data:
+                        print(f"\t\t  {field}: {data[field]}")
+                
+                print(f"\t\tAttempting to create record in {table_name}...")
                 result = tables[table_name].create(data)
-                print(f"\t\t✓ Updated {table_name} - Record ID: {result['id']}")
+                print(f"\t\t✓ SUCCESS: Updated {table_name} - Record ID: {result['id']}")
+                successful_updates += 1
+                
             except Exception as e:
-                print(f"\t\t✗ Failed to update {table_name}: {e}")
-                print(f"\t\t   Data attempted: {data}")
+                print(f"\t\t✗ FAILED to update {table_name}: {e}")
+                print(f"\t\t   Error type: {type(e).__name__}")
+                
+                # Show the full error details
+                error_str = str(e)
+                if 'INVALID_VALUE_FOR_COLUMN' in error_str:
+                    print(f"\t\t   This is a field type mismatch error!")
+                elif 'UNKNOWN_FIELD_NAME' in error_str:
+                    print(f"\t\t   This is a field name error!")
+                elif 'NOT_FOUND' in error_str:
+                    print(f"\t\t   This is a table/record not found error!")
+                
+                print(f"\t\t   Full data attempted: {data}")
+                failed_updates += 1
                 # Continue with other tables even if one fails
+        
+        print(f"\n\t\tUpdate Summary: {successful_updates} successful, {failed_updates} failed")
         
         # Update last analyzed timestamp in main websites table
         try:
@@ -888,7 +1006,14 @@ def update_airtable_organized(tables, url, combined_metrics):
         except Exception as e:
             print(f"\t\t✗ Failed to update last_analyzed timestamp: {e}")
         
-        return True
+        # Return success only if at least some tables were updated
+        success = successful_updates > 0
+        if success:
+            print(f"\t\t🎉 OVERALL SUCCESS: {successful_updates} tables updated!")
+        else:
+            print(f"\t\t💥 OVERALL FAILURE: No tables were updated!")
+        
+        return success
         
     except Exception as e:
         print(f"\t\t✗ Error updating organized tables: {e}")
@@ -960,7 +1085,7 @@ def get_url_inspection(service, url):
             'coverage_state': str(coverage_state).replace('"', '').strip(),
             'robots_txt_state': str(robots_txt_state).replace('"', '').strip(),
             'indexing_state': str(indexing_state).replace('"', '').strip(),
-            'last_crawl_time': str(last_crawl_time).strip(),
+            'last_crawl_time': str(last_crawl_time).strip() if last_crawl_time else None,
             'page_fetch_state': str(page_fetch_state).replace('"', '').strip()
         }
         
@@ -971,7 +1096,7 @@ def get_url_inspection(service, url):
             'coverage_state': 'ERROR',
             'robots_txt_state': 'ERROR', 
             'indexing_state': 'ERROR',
-            'last_crawl_time': '',
+            'last_crawl_time': None,
             'page_fetch_state': 'ERROR'
         }
 
@@ -1037,7 +1162,20 @@ def main():
                     print(f"\tFound as URL prefix property: {url}")
                 
                 # Get metrics from GSC
+                print(f"\t🔍 Fetching GSC metrics...")
                 metrics = get_gsc_metrics(service, url)
+                
+                # Check if GSC returned any data
+                if not metrics or all(v == 0 for v in [metrics.get('impressions', 0), metrics.get('clicks', 0)]):
+                    print(f"\t⚠️  No GSC data found for {url} - using default values")
+                    metrics = {
+                        'impressions': 0,
+                        'clicks': 0, 
+                        'ctr': 0,
+                        'average_position': 0
+                    }
+                else:
+                    print(f"\t✅ GSC data found: {metrics.get('impressions', 0)} impressions, {metrics.get('clicks', 0)} clicks")
                 
                 # Get PSI metrics
                 print(f"\nFetching PageSpeed Insights metrics for {url}...")
@@ -1063,27 +1201,49 @@ def main():
                 print(f"\nFetching keyword performance for {url}...")
                 keyword_performance = get_keyword_performance(service, url)
                 print(f"\tFetched keyword performance for {url}: {keyword_performance}")
+                
+                # Perform business analysis
+                print(f"\nPerforming business analysis for {url}...")
+                business_analyzer = BusinessAnalyzer()
+                business_analysis = business_analyzer.analyze_business(url)
+                print(f"\tFetched business analysis for {url}: {business_analysis}")
         
                 
                 # Combine metrics
-                combined_metrics = {**metrics, **psi_metrics, **url_inspection, **sitemaps_status, **mobile_test, **keyword_performance}
-                # Log combined metrics before updating Airtable
-                print(f"\nCombined metrics to update Airtable for {url}: {combined_metrics}")
+                combined_metrics = {**metrics, **psi_metrics, **url_inspection, **sitemaps_status, **mobile_test, **keyword_performance, **business_analysis}
+                
+                # Log summary of metrics collected
+                print(f"\n📊 METRICS SUMMARY for {url}:")
+                print(f"\t📈 GSC Metrics: {metrics.get('impressions', 0)} impressions, {metrics.get('clicks', 0)} clicks")
+                print(f"\t⚡ PSI Score: {psi_metrics.get('performance_score', 0)}")
+                print(f"\t🔍 URL Inspection: {url_inspection.get('index_verdict', 'Unknown')}")
+                print(f"\t🗺️  Sitemap Count: {sitemaps_status.get('sitemap_count', 0)}")
+                print(f"\t📱 Mobile Friendly: {mobile_test.get('mobile_friendly_status', 'Unknown')}")
+                print(f"\t🔑 Keywords: {keyword_performance.get('total_keywords_tracked', 0)}")
+                print(f"\t🏢 Business Model: {business_analysis.get('business_model', 'Unknown')}")
+                print(f"\t📝 Total fields to update: {len(combined_metrics)}")
                 
                 # Update metrics in Airtable
-                print(f"\nUpdating Airtable...")
+                print(f"\n🔄 UPDATING AIRTABLE...")
+                print(f"\tMode: {'Organized Multi-Tables' if use_organized_tables else 'Single Table'}")
+                print(f"\tURL: {url}")
+                print(f"\tMetrics count: {len(combined_metrics)} fields")
+                
                 try:
                     if use_organized_tables:
+                        print(f"\t📊 Using organized multi-table structure...")
                         success = update_airtable_organized(tables, url, combined_metrics)
                         if success:
-                            print(f"\t✓ Successfully updated organized tables")
+                            print(f"\t✅ Successfully updated organized tables")
                         else:
-                            print(f"\t✗ Failed to update organized tables")
+                            print(f"\t❌ Failed to update organized tables")
                     else:
+                        print(f"\t📝 Using single table structure...")
                         table.update(record['id'], combined_metrics)
-                        print(f"\t✓ Successfully updated single table record")
+                        print(f"\t✅ Successfully updated single table record")
                 except Exception as airtable_error:
-                    print(f"\t✗ Airtable update failed: {airtable_error}")
+                    print(f"\t❌ Airtable update failed: {airtable_error}")
+                    print(f"\t   Error type: {type(airtable_error).__name__}")
                     raise airtable_error
                 
                 # Accumulate metrics for summary
