@@ -8,13 +8,29 @@ from core.data_collector import (
     get_mobile_usability_from_psi,
     get_keyword_performance,
     get_url_inspection,
-    get_airtable_multi_tables
+    get_airtable_multi_tables,
+    update_airtable_organized
+)
+from core.analysis_processor import (
+    classify_keyword_intent,
+    calculate_opportunity_score,
+    get_expected_ctr,
+    estimate_traffic_potential,
+    get_priority_level,
+    is_branded_keyword,
+    detect_cannibalization_risk,
+    get_business_analysis,
+    enhance_business_analysis_with_ai,
+    generate_seo_analysis
 )
 
 __all__ = [
+    # Auth functions
     'get_gsc_credentials',
     'check_gsc_access',
     'get_gsc_service',
+    
+    # Data collection functions
     'get_airtable_records',
     'get_site_info',
     'get_gsc_metrics',
@@ -23,5 +39,18 @@ __all__ = [
     'get_mobile_usability_from_psi',
     'get_keyword_performance',
     'get_url_inspection',
-    'get_airtable_multi_tables'
+    'get_airtable_multi_tables',
+    'update_airtable_organized',
+    
+    # Analysis functions
+    'classify_keyword_intent',
+    'calculate_opportunity_score',
+    'get_expected_ctr',
+    'estimate_traffic_potential',
+    'get_priority_level',
+    'is_branded_keyword',
+    'detect_cannibalization_risk',
+    'get_business_analysis',
+    'enhance_business_analysis_with_ai',
+    'generate_seo_analysis'
 ] 
