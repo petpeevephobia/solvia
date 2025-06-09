@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from datetime import datetime, timedelta
 import pandas as pd
 from dotenv import load_dotenv
@@ -11,9 +12,10 @@ from pyairtable import Api
 import pickle
 from urllib.parse import urlparse, quote
 import requests
-import json
 from datetime import datetime, timedelta
 from modules.business_analysis import BusinessAnalyzer
+from modules.report_generator import ReportGenerator
+import openai
 
 # Load environment variables
 load_dotenv()
@@ -24,9 +26,499 @@ SCOPES = [
     'https://www.googleapis.com/auth/webmasters'
 ]
 
-
-
-
+def map_ai_values_to_airtable_options(enhanced_data):
+    """
+    Intelligently map AI-generated values to valid Airtable select options using semantic analysis.
+    No fallbacks - the AI should make smart decisions about its own output.
+    
+    Args:
+        enhanced_data (dict): Enhanced business analysis data from AI
+        
+    Returns:
+        dict: Data with values mapped to valid Airtable options
+    """
+    
+    # Define valid Airtable select options for each field
+    airtable_mappings = {
+        'business_model': {
+            'valid_options': ['E-commerce', 'SaaS', 'Professional Services', 'Local Services', 'Information/Content', 'Non-profit', 'Marketplace', 'Subscription'],
+            'mappings': {
+                'Service-Based Agency': 'Professional Services',
+                'Agency': 'Professional Services',
+                'Consulting': 'Professional Services',
+                'Digital Agency': 'Professional Services',
+                'Marketing Agency': 'Professional Services',
+                'Service-Based Information Agency': 'Information/Content',
+                'Information Agency': 'Information/Content',
+                'Content Agency': 'Information/Content',
+                'Software': 'SaaS',
+                'Technology': 'SaaS',
+                'Platform': 'SaaS',
+                'Online Store': 'E-commerce',
+                'Retail': 'E-commerce',
+                'Shop': 'E-commerce',
+                'Blog': 'Information/Content',
+                'News': 'Information/Content',
+                'Media': 'Information/Content',
+                'Local Business': 'Local Services',
+                'Service Business': 'Local Services'
+            }
+        },
+        'target_market': {
+            'valid_options': ['B2B', 'B2C'],
+            'mappings': {
+                'Business-to-Business': 'B2B',
+                'Business to Business': 'B2B',
+                'Enterprise': 'B2B',
+                'Corporate': 'B2B',
+                'Consumer': 'B2C',
+                'Business-to-Consumer': 'B2C',
+                'Business to Consumer': 'B2C',
+                'Individual': 'B2C',
+                'Personal': 'B2C',
+                'B2B with potential B2C elements': 'B2B',
+                'B2B/B2C': 'B2B',
+                'Mixed': 'B2B',
+                'Both': 'B2B',
+                'Hybrid': 'B2B'
+            }
+        },
+        'company_size': {
+            'valid_options': ['Startup', 'Small', 'Medium', 'Large', 'Enterprise'],
+            'mappings': {
+                'Solo': 'Startup',
+                'Individual': 'Startup',
+                'Micro': 'Startup',
+                'Small Business': 'Small',
+                'SMB': 'Small',
+                'SME': 'Medium',
+                'Mid-size': 'Medium',
+                'Mid-sized': 'Medium',
+                'Growing': 'Medium',
+                'Corporation': 'Large',
+                'Big': 'Large',
+                'Fortune 500': 'Enterprise',
+                'Global': 'Enterprise',
+                'Multinational': 'Enterprise'
+            }
+        },
+        'geographic_scope': {
+            'valid_options': ['Local', 'Regional', 'National', 'Global'],
+            'mappings': {
+                'City': 'Local',
+                'Local Area': 'Local',
+                'Metropolitan': 'Regional',
+                'State': 'Regional',
+                'Multi-state': 'Regional',
+                'Country': 'National',
+                'Nationwide': 'National',
+                'Singapore': 'National',
+                'USA': 'Global',
+                'International': 'Global',
+                'Worldwide': 'Global',
+                'Multi-country': 'Global'
+            }
+        },
+        'business_maturity': {
+            'valid_options': ['Startup', 'Growing', 'Established', 'Mature'],
+            'mappings': {
+                'New': 'Startup',
+                'Early-stage': 'Startup',
+                'Young': 'Startup',
+                'Developing': 'Growing',
+                'Expanding': 'Growing',
+                'Scaling': 'Growing',
+                'Stable': 'Established',
+                'Well-established': 'Established',
+                'Experienced': 'Established',
+                'Legacy': 'Mature',
+                'Industry Leader': 'Mature',
+                'Veteran': 'Mature'
+            }
+        },
+        'tech_sophistication': {
+            'valid_options': ['Basic', 'Medium', 'High', 'Advanced'],
+            'mappings': {
+                'Low': 'Basic',
+                'Simple': 'Basic',
+                'Minimal': 'Basic',
+                'Standard': 'Medium',
+                'Average': 'Medium',
+                'Moderate': 'Medium',
+                'Strong': 'High',
+                'Good': 'High',
+                'Sophisticated': 'Advanced',
+                'Expert': 'Advanced',
+                'Cutting-edge': 'Advanced'
+            }
+        },
+        'content_maturity': {
+            'valid_options': ['Basic', 'Developing', 'Mature', 'Advanced'],
+            'mappings': {
+                'Low': 'Basic',
+                'Simple': 'Basic',
+                'Minimal': 'Basic',
+                'Growing': 'Developing',
+                'Improving': 'Developing',
+                'Established': 'Mature',
+                'Strong': 'Mature',
+                'Sophisticated': 'Advanced',
+                'Expert': 'Advanced',
+                'Professional': 'Advanced'
+            }
+        },
+        'competitive_positioning': {
+            'valid_options': ['Leader', 'Challenger', 'Follower', 'Niche'],
+            'mappings': {
+                'Market Leader': 'Leader',
+                'Industry Leader': 'Leader',
+                'Top Player': 'Leader',
+                'Competitor': 'Challenger',
+                'Alternative': 'Challenger',
+                'Contender': 'Challenger',
+                'Me-too': 'Follower',
+                'Copycat': 'Follower',
+                'Standard': 'Follower',
+                'Specialized': 'Niche',
+                'Boutique': 'Niche',
+                'Specialist': 'Niche'
+            }
+        },
+        'positioning_strength': {
+            'valid_options': ['Weak', 'Medium', 'Strong', 'Dominant'],
+            'mappings': {
+                'Low': 'Weak',
+                'Poor': 'Weak',
+                'Unclear': 'Weak',
+                'Average': 'Medium',
+                'Moderate': 'Medium',
+                'Good': 'Medium',
+                'High': 'Strong',
+                'Powerful': 'Strong',
+                'Clear': 'Strong',
+                'Market Leader': 'Dominant',
+                'Unbeatable': 'Dominant',
+                'Monopolistic': 'Dominant'
+            }
+        },
+        'brand_strength': {
+            'valid_options': ['Weak', 'Medium', 'Strong', 'Very Strong'],
+            'mappings': {
+                'Low': 'Weak',
+                'Poor': 'Weak',
+                'Unknown': 'Weak',
+                'Average': 'Medium',
+                'Moderate': 'Medium',
+                'Good': 'Medium',
+                'High': 'Strong',
+                'Powerful': 'Strong',
+                'Excellent': 'Very Strong',
+                'Outstanding': 'Very Strong',
+                'World-class': 'Very Strong'
+            }
+        },
+        'income_level': {
+            'valid_options': ['Budget', 'Mid-Range', 'Premium', 'Luxury'],
+            'mappings': {
+                'Low': 'Budget',
+                'Affordable': 'Budget',
+                'Cheap': 'Budget',
+                'Economy': 'Budget',
+                'Standard': 'Mid-Range',
+                'Average': 'Mid-Range',
+                'Middle': 'Mid-Range',
+                'High': 'Premium',
+                'Expensive': 'Premium',
+                'Upscale': 'Premium',
+                'Elite': 'Luxury',
+                'High-end': 'Luxury',
+                'Exclusive': 'Luxury'
+            }
+        },
+        'audience_sophistication': {
+            'valid_options': ['Basic', 'General', 'Advanced', 'Expert'],
+            'mappings': {
+                'Low': 'Basic',
+                'Simple': 'Basic',
+                'Beginner': 'Basic',
+                'Standard': 'General',
+                'Average': 'General',
+                'Mainstream': 'General',
+                'High': 'Advanced',
+                'Professional': 'Advanced',
+                'Technical': 'Advanced',
+                'Specialist': 'Expert',
+                'Expert-level': 'Expert',
+                'Highly Technical': 'Expert'
+            }
+        },
+        'preferred_contact_method': {
+            'valid_options': ['Phone', 'Email', 'Form', 'Chat', 'Social'],
+            'mappings': {
+                'Telephone': 'Phone',
+                'Call': 'Phone',
+                'Contact Form': 'Form',
+                'Web Form': 'Form',
+                'Online Form': 'Form',
+                'Live Chat': 'Chat',
+                'Chat Widget': 'Chat',
+                'Messaging': 'Chat',
+                'Social Media': 'Social',
+                'Facebook': 'Social',
+                'Twitter': 'Social'
+            }
+        },
+        'industry_sector': {
+            'valid_options': ['Technology', 'Healthcare', 'Finance', 'Education', 'Retail', 'Real Estate', 'Marketing', 'Manufacturing', 'Professional Services', 'Government', 'Non-profit', 'General'],
+            'mappings': {
+                'Tech': 'Technology',
+                'IT': 'Technology',
+                'Software': 'Technology',
+                'Digital': 'Technology',
+                'Medical': 'Healthcare',
+                'Health': 'Healthcare',
+                'Banking': 'Finance',
+                'Financial Services': 'Finance',
+                'Insurance': 'Finance',
+                'School': 'Education',
+                'University': 'Education',
+                'Learning': 'Education',
+                'E-commerce': 'Retail',
+                'Shopping': 'Retail',
+                'Store': 'Retail',
+                'Property': 'Real Estate',
+                'Construction': 'Real Estate',
+                'Advertising': 'Marketing',
+                'Digital Marketing': 'Marketing',
+                'Agency': 'Marketing',
+                'Consulting': 'Professional Services',
+                'Legal': 'Professional Services',
+                'Accounting': 'Professional Services',
+                'Business Services': 'Professional Services',
+                'Public Sector': 'Government',
+                'Municipal': 'Government',
+                'Charity': 'Non-profit',
+                'Foundation': 'Non-profit'
+            }
+        },
+        'primary_age_group': {
+            'valid_options': ['Young Adults', 'Middle Age', 'Seniors', 'General'],
+            'mappings': {
+                '18-25': 'Young Adults',
+                '18-35': 'Young Adults',
+                '20-30': 'Young Adults',
+                '25-35': 'Young Adults',
+                '25-45': 'Middle Age',
+                '30-45': 'Middle Age',
+                '35-50': 'Middle Age',
+                '40-55': 'Middle Age',
+                '45-65': 'Middle Age',
+                '50+': 'Seniors',
+                '55+': 'Seniors',
+                '60+': 'Seniors',
+                '65+': 'Seniors',
+                'Adults': 'General',
+                'All Ages': 'General',
+                'Mixed': 'General',
+                'Broad': 'General',
+                'Millennials': 'Young Adults',
+                'Gen Z': 'Young Adults',
+                'Gen X': 'Middle Age',
+                'Baby Boomers': 'Seniors'
+            }
+        }
+    }
+    
+    def find_best_semantic_match(ai_value, valid_options, field_name):
+        """
+        Find the best semantic match for an AI-generated value using intelligent analysis.
+        """
+        ai_value_lower = ai_value.lower().strip()
+        
+        # For business model, use semantic reasoning
+        if field_name == 'business_model':
+            if any(word in ai_value_lower for word in ['service', 'agency', 'consulting', 'professional']):
+                return 'Professional Services'
+            elif any(word in ai_value_lower for word in ['information', 'content', 'news', 'media', 'blog']):
+                return 'Information/Content'
+            elif any(word in ai_value_lower for word in ['software', 'saas', 'platform', 'tech']):
+                return 'SaaS'
+            elif any(word in ai_value_lower for word in ['store', 'shop', 'retail', 'ecommerce', 'e-commerce']):
+                return 'E-commerce'
+            elif any(word in ai_value_lower for word in ['local', 'neighborhood']):
+                return 'Local Services'
+            elif any(word in ai_value_lower for word in ['subscription', 'recurring']):
+                return 'Subscription'
+            elif any(word in ai_value_lower for word in ['marketplace', 'platform']):
+                return 'Marketplace'
+            elif any(word in ai_value_lower for word in ['non-profit', 'nonprofit', 'charity']):
+                return 'Non-profit'
+        
+        # For target market, use context clues
+        elif field_name == 'target_market':
+            if any(phrase in ai_value_lower for phrase in ['b2c', 'consumer', 'individual', 'personal']):
+                return 'B2C'
+            else:
+                # Default to B2B for mixed/hybrid cases or when B2B indicators are present
+                return 'B2B'
+        
+        # For company size, analyze scale indicators
+        elif field_name == 'company_size':
+            if any(word in ai_value_lower for word in ['startup', 'new', 'early', 'solo', 'individual']):
+                return 'Startup'
+            elif any(word in ai_value_lower for word in ['small', 'smb', 'local']):
+                return 'Small'
+            elif any(word in ai_value_lower for word in ['medium', 'mid', 'growing', 'sme']):
+                return 'Medium'
+            elif any(word in ai_value_lower for word in ['large', 'big', 'corporation']):
+                return 'Large'
+            elif any(word in ai_value_lower for word in ['enterprise', 'global', 'multinational', 'fortune']):
+                return 'Enterprise'
+        
+        # For geographic scope, analyze reach indicators
+        elif field_name == 'geographic_scope':
+            if any(word in ai_value_lower for word in ['local', 'city', 'neighborhood']):
+                return 'Local'
+            elif any(word in ai_value_lower for word in ['regional', 'state', 'metro']):
+                return 'Regional'
+            elif any(word in ai_value_lower for word in ['national', 'country', 'singapore']):
+                return 'National'
+            elif any(word in ai_value_lower for word in ['global', 'international', 'worldwide', 'usa']):
+                return 'Global'
+        
+        # For maturity levels, analyze stage indicators
+        elif field_name in ['business_maturity', 'content_maturity']:
+            if any(word in ai_value_lower for word in ['startup', 'new', 'early', 'young']):
+                return 'Startup' if field_name == 'business_maturity' else 'Basic'
+            elif any(word in ai_value_lower for word in ['growing', 'developing', 'improving', 'expanding']):
+                return 'Growing' if field_name == 'business_maturity' else 'Developing'
+            elif any(word in ai_value_lower for word in ['established', 'stable', 'mature', 'strong']):
+                return 'Established' if field_name == 'business_maturity' else 'Mature'
+            elif any(word in ai_value_lower for word in ['mature', 'legacy', 'veteran', 'advanced', 'sophisticated']):
+                return 'Mature' if field_name == 'business_maturity' else 'Advanced'
+        
+        # For sophistication levels, analyze complexity indicators  
+        elif field_name in ['tech_sophistication', 'audience_sophistication']:
+            if any(word in ai_value_lower for word in ['basic', 'low', 'simple', 'minimal', 'beginner']):
+                return 'Basic'
+            elif any(word in ai_value_lower for word in ['medium', 'standard', 'average', 'moderate', 'general']):
+                return 'Medium' if field_name == 'tech_sophistication' else 'General'
+            elif any(word in ai_value_lower for word in ['high', 'strong', 'good', 'professional', 'advanced']):
+                return 'High' if field_name == 'tech_sophistication' else 'Advanced'
+            elif any(word in ai_value_lower for word in ['advanced', 'expert', 'sophisticated', 'cutting']):
+                return 'Advanced' if field_name == 'tech_sophistication' else 'Expert'
+        
+        # For strength/positioning fields, analyze power indicators
+        elif field_name in ['positioning_strength', 'brand_strength']:
+            if any(word in ai_value_lower for word in ['weak', 'low', 'poor', 'unclear', 'unknown']):
+                return 'Weak'
+            elif any(word in ai_value_lower for word in ['medium', 'average', 'moderate', 'good']):
+                return 'Medium'
+            elif any(word in ai_value_lower for word in ['strong', 'high', 'powerful', 'clear']):
+                return 'Strong'
+            elif any(word in ai_value_lower for word in ['dominant', 'leader', 'unbeatable', 'excellent', 'outstanding']):
+                return 'Dominant' if field_name == 'positioning_strength' else 'Very Strong'
+        
+        # For competitive positioning, analyze market position
+        elif field_name == 'competitive_positioning':
+            if any(word in ai_value_lower for word in ['leader', 'top', 'market leader', 'industry leader']):
+                return 'Leader'
+            elif any(word in ai_value_lower for word in ['challenger', 'competitor', 'alternative', 'contender']):
+                return 'Challenger'
+            elif any(word in ai_value_lower for word in ['niche', 'specialized', 'boutique', 'specialist']):
+                return 'Niche'
+            elif any(word in ai_value_lower for word in ['follower', 'standard', 'copycat']):
+                return 'Follower'
+        
+        # For income level, analyze price indicators
+        elif field_name == 'income_level':
+            if any(word in ai_value_lower for word in ['budget', 'low', 'affordable', 'cheap', 'economy']):
+                return 'Budget'
+            elif any(word in ai_value_lower for word in ['mid', 'standard', 'average', 'middle']):
+                return 'Mid-Range'
+            elif any(word in ai_value_lower for word in ['premium', 'high', 'expensive', 'upscale']):
+                return 'Premium'
+            elif any(word in ai_value_lower for word in ['luxury', 'elite', 'exclusive']):
+                return 'Luxury'
+        
+        # For contact method, analyze communication preferences  
+        elif field_name == 'preferred_contact_method':
+            if any(word in ai_value_lower for word in ['phone', 'call', 'telephone']):
+                return 'Phone'
+            elif any(word in ai_value_lower for word in ['email', 'mail']):
+                return 'Email'
+            elif any(word in ai_value_lower for word in ['form', 'contact form', 'web form']):
+                return 'Form'
+            elif any(word in ai_value_lower for word in ['chat', 'messaging', 'live chat']):
+                return 'Chat'
+            elif any(word in ai_value_lower for word in ['social', 'facebook', 'twitter']):
+                return 'Social'
+        
+        # For industry sector, analyze business domain
+        elif field_name == 'industry_sector':
+            if any(word in ai_value_lower for word in ['technology', 'tech', 'software', 'digital', 'it', 'computing']):
+                return 'Technology'
+            elif any(word in ai_value_lower for word in ['healthcare', 'health', 'medical', 'wellness', 'fitness']):
+                return 'Healthcare'
+            elif any(word in ai_value_lower for word in ['finance', 'financial', 'banking', 'insurance', 'investment']):
+                return 'Finance'
+            elif any(word in ai_value_lower for word in ['education', 'school', 'university', 'learning', 'training']):
+                return 'Education'
+            elif any(word in ai_value_lower for word in ['retail', 'shopping', 'store', 'ecommerce', 'e-commerce']):
+                return 'Retail'
+            elif any(word in ai_value_lower for word in ['real estate', 'property', 'construction', 'housing']):
+                return 'Real Estate'
+            elif any(word in ai_value_lower for word in ['marketing', 'advertising', 'agency', 'promotion']):
+                return 'Marketing'
+            elif any(word in ai_value_lower for word in ['manufacturing', 'production', 'industrial', 'factory']):
+                return 'Manufacturing'
+            elif any(word in ai_value_lower for word in ['consulting', 'professional services', 'legal', 'accounting']):
+                return 'Professional Services'
+            elif any(word in ai_value_lower for word in ['government', 'public', 'municipal', 'civic']):
+                return 'Government'
+            elif any(word in ai_value_lower for word in ['non-profit', 'nonprofit', 'charity', 'foundation']):
+                return 'Non-profit'
+        
+        # For primary age group, analyze age indicators
+        elif field_name == 'primary_age_group':
+            # Check for specific age ranges
+            if any(age_range in ai_value_lower for age_range in ['18-25', '18-35', '20-30', '25-35']) or any(word in ai_value_lower for word in ['young', 'millennials', 'gen z']):
+                return 'Young Adults'
+            elif any(age_range in ai_value_lower for age_range in ['25-45', '30-45', '35-50', '40-55', '45-65']) or any(word in ai_value_lower for word in ['middle', 'gen x', 'working']):
+                return 'Middle Age'
+            elif any(age_range in ai_value_lower for age_range in ['50+', '55+', '60+', '65+']) or any(word in ai_value_lower for word in ['senior', 'elderly', 'retired', 'baby boomers']):
+                return 'Seniors'
+            elif any(word in ai_value_lower for word in ['general', 'all ages', 'broad', 'mixed', 'adults']):
+                return 'General'
+        
+        # If no semantic match found, return the most general/neutral option
+        if len(valid_options) >= 2:
+            return valid_options[1]  # Usually the second option is more neutral
+        return valid_options[0]  # Fallback to first option
+    
+    mapped_data = enhanced_data.copy()
+    
+    # Apply intelligent mappings for each field
+    for field_name, config in airtable_mappings.items():
+        if field_name in mapped_data:
+            current_value = str(mapped_data[field_name]).strip()
+            
+            # First check if it's already a valid option
+            if current_value in config['valid_options']:
+                continue
+                
+            # Try to find a predefined mapping
+            mapped_value = config['mappings'].get(current_value)
+            if mapped_value:
+                mapped_data[field_name] = mapped_value
+                print(f"    🔄 Mapped '{current_value}' -> '{mapped_value}' for {field_name}")
+            else:
+                # Use intelligent semantic matching
+                smart_match = find_best_semantic_match(current_value, config['valid_options'], field_name)
+                mapped_data[field_name] = smart_match
+                print(f"    🧠 Smart match '{current_value}' -> '{smart_match}' for {field_name}")
+    
+    return mapped_data
 
 def get_gsc_credentials():
     """Gets valid credentials for Google Search Console API."""
@@ -837,165 +1329,196 @@ def update_airtable_organized(tables, url, combined_metrics):
         
         website_id = website_record['id']
         print(f"\t\tUsing website ID: {website_id}")
-        print(f"\t\tWebsite record fields: {list(website_record['fields'].keys())}")
-        print(f"\t\tWebsite URL from record: {website_record['fields'].get('url', 'NO URL')}")
         
         # Prepare data for each table
         print(f"\t\tPreparing data for {len(combined_metrics)} metrics across 7 organized tables...")
         
-        table_data = {
-            'core_metrics': {
-                'url': [website_id],
-                'impressions': combined_metrics.get('impressions', 0),
-                'clicks': combined_metrics.get('clicks', 0),
-                'ctr': combined_metrics.get('ctr', 0),
-                'average_position': combined_metrics.get('average_position', 0),
-                'analysis_date': analysis_date
-            },
-            'performance_metrics': {
-                'url': [website_id],
-                'performance_score': combined_metrics.get('performance_score', 0),
-                'first_contentful_paint': combined_metrics.get('first_contentful_paint', 0),
-                'largest_contentful_paint': combined_metrics.get('largest_contentful_paint', 0),
-                'speed_index': combined_metrics.get('speed_index', 0),
-                'time_to_interactive': combined_metrics.get('time_to_interactive', 0),
-                'total_blocking_time': combined_metrics.get('total_blocking_time', 0),
-                'cumulative_layout_shift': combined_metrics.get('cumulative_layout_shift', 0),
-                'analysis_date': analysis_date
-            },
-            'index_technical': {
-                'url': [website_id],
-                'index_verdict': combined_metrics.get('index_verdict', ''),
-                'coverage_state': combined_metrics.get('coverage_state', ''),
-                'robots_txt_state': combined_metrics.get('robots_txt_state', ''),
-                'indexing_state': combined_metrics.get('indexing_state', ''),
-                'last_crawl_time': combined_metrics.get('last_crawl_time', ''),
-                'page_fetch_state': combined_metrics.get('page_fetch_state', ''),
-                'analysis_date': analysis_date
-            },
-            'sitemap_data': {
-                'url': [website_id],
-                'sitemaps_submitted': combined_metrics.get('sitemaps_submitted', ''),
-                'sitemap_count': combined_metrics.get('sitemap_count', 0),
-                'sitemap_errors': combined_metrics.get('sitemap_errors', 0),
-                'sitemap_warnings': combined_metrics.get('sitemap_warnings', 0),
-                'last_submission': combined_metrics.get('last_submission', ''),
-                'analysis_date': analysis_date
-            },
-            'mobile_usability': {
-                'url': [website_id],
-                'mobile_friendly_status': combined_metrics.get('mobile_friendly_status', ''),
-                'mobile_friendly_issues_count': combined_metrics.get('mobile_friendly_issues_count', 0),
-                'mobile_friendly_issues': combined_metrics.get('mobile_friendly_issues', ''),
-                'mobile_test_loading_state': combined_metrics.get('mobile_test_loading_state', ''),
-                'mobile_passed': combined_metrics.get('mobile_passed', ''),
-                'analysis_date': analysis_date
-            },
-            'keyword_analysis': {
-                'url': [website_id],
-                'top_keywords': combined_metrics.get('top_keywords', ''),
-                'total_keywords_tracked': combined_metrics.get('total_keywords_tracked', 0),
-                'avg_keyword_position': combined_metrics.get('avg_keyword_position', 0),
-                'high_opportunity_keywords': combined_metrics.get('high_opportunity_keywords', 0),
-                'branded_keywords_count': combined_metrics.get('branded_keywords_count', 0),
-                'keyword_cannibalization_risk': combined_metrics.get('keyword_cannibalization_risk', ''),
-                'analysis_date': analysis_date
-            },
-            'business_analysis': {
-                'url': [website_id],
-                'business_model': combined_metrics.get('business_model', ''),
-                'target_market': combined_metrics.get('target_market', ''),
-                'industry_sector': combined_metrics.get('industry_sector', ''),
-                'company_size': combined_metrics.get('company_size', ''),
-                'has_ecommerce': combined_metrics.get('has_ecommerce', False),
-                'has_local_presence': combined_metrics.get('has_local_presence', False),
-                'business_complexity_score': combined_metrics.get('business_complexity_score', 0),
-                'primary_age_group': combined_metrics.get('primary_age_group', ''),
-                'income_level': combined_metrics.get('income_level', ''),
-                'audience_sophistication': combined_metrics.get('audience_sophistication', ''),
-                'services_offered': combined_metrics.get('services_offered', ''),
-                'has_public_pricing': combined_metrics.get('has_public_pricing', False),
-                'service_count': combined_metrics.get('service_count', 0),
-                'geographic_scope': combined_metrics.get('geographic_scope', ''),
-                'target_locations': combined_metrics.get('target_locations', ''),
-                'is_location_based': combined_metrics.get('is_location_based', False),
-                'business_maturity': combined_metrics.get('business_maturity', ''),
-                'establishment_year': combined_metrics.get('establishment_year', None),
-                'experience_indicators': combined_metrics.get('experience_indicators', False),
-                'platform_detected': combined_metrics.get('platform_detected', ''),
-                'has_advanced_features': combined_metrics.get('has_advanced_features', False),
-                'social_media_integration': combined_metrics.get('social_media_integration', False),
-                'tech_sophistication': combined_metrics.get('tech_sophistication', ''),
-                'has_content_marketing': combined_metrics.get('has_content_marketing', False),
-                'has_lead_generation': combined_metrics.get('has_lead_generation', False),
-                'has_social_proof': combined_metrics.get('has_social_proof', False),
-                'content_maturity': combined_metrics.get('content_maturity', ''),
-                'phone_prominence': combined_metrics.get('phone_prominence', False),
-                'has_contact_forms': combined_metrics.get('has_contact_forms', False),
-                'has_live_chat': combined_metrics.get('has_live_chat', False),
-                'preferred_contact_method': combined_metrics.get('preferred_contact_method', ''),
-                'competitive_positioning': combined_metrics.get('competitive_positioning', ''),
-                'positioning_strength': combined_metrics.get('positioning_strength', ''),
-                'value_proposition': combined_metrics.get('value_proposition', ''),
-                'brand_strength': combined_metrics.get('brand_strength', ''),
-                'trust_indicators': combined_metrics.get('trust_indicators', ''),
-                'business_insights': combined_metrics.get('business_insights', ''),
-                'seo_strategy_recommendations': combined_metrics.get('seo_strategy_recommendations', ''),
-                'analysis_date': analysis_date
-            },
+        # Core Metrics
+        core_metrics_data = {
+            'url': [website_id],  # Link to Websites table
+            'impressions': int(combined_metrics.get('impressions', 0)),
+            'clicks': int(combined_metrics.get('clicks', 0)),
+            'ctr': float(combined_metrics.get('ctr', 0)),
+            'average_position': float(combined_metrics.get('average_position', 0)),
+            'analysis_date': analysis_date
+        }
+        
+        # Performance Metrics
+        performance_data = {
+            'url': [website_id],
+            'performance_score': float(combined_metrics.get('performance_score', 0)),
+            'first_contentful_paint': float(combined_metrics.get('first_contentful_paint', 0)),
+            'largest_contentful_paint': float(combined_metrics.get('largest_contentful_paint', 0)),
+            'speed_index': float(combined_metrics.get('speed_index', 0)),
+            'time_to_interactive': float(combined_metrics.get('time_to_interactive', 0)),
+            'total_blocking_time': float(combined_metrics.get('total_blocking_time', 0)),
+            'cumulative_layout_shift': float(combined_metrics.get('cumulative_layout_shift', 0)),
+            'analysis_date': analysis_date
+        }
+        
+        # Keyword Analysis
+        keyword_data = {
+            'url': [website_id],
+            'top_keywords': str(combined_metrics.get('top_keywords', '')),
+            'total_keywords_tracked': int(combined_metrics.get('total_keywords_tracked', 0)),
+            'avg_keyword_position': float(combined_metrics.get('avg_keyword_position', 0)),
+            'high_opportunity_keywords': int(combined_metrics.get('high_opportunity_keywords', 0)),
+            'branded_keywords_count': int(combined_metrics.get('branded_keywords_count', 0)),
+            'keyword_cannibalization_risk': str(combined_metrics.get('keyword_cannibalization_risk', '')),
+            'analysis_date': analysis_date
+        }
+
+        # Mobile Usability
+        mobile_data = {
+            'url': [website_id],
+            'mobile_friendly_status': str(combined_metrics.get('mobile_friendly_status', '')),
+            'mobile_friendly_issues_count': int(combined_metrics.get('mobile_friendly_issues_count', 0)),
+            'mobile_friendly_issues': str(combined_metrics.get('mobile_friendly_issues', '')),
+            'mobile_test_loading_state': str(combined_metrics.get('mobile_test_loading_state', '')),
+            'mobile_passed': str(combined_metrics.get('mobile_passed', '')),
+            'analysis_date': analysis_date
+        }
+
+        # Sitemap Data
+        sitemap_data = {
+            'url': [website_id],
+            'sitemaps_submitted': str(combined_metrics.get('sitemaps_submitted', '')),
+            'sitemap_count': int(combined_metrics.get('sitemap_count', 0)),
+            'sitemap_errors': int(combined_metrics.get('sitemap_errors', 0)),
+            'sitemap_warnings': int(combined_metrics.get('sitemap_warnings', 0)),
+            'last_submission': str(combined_metrics.get('last_submission', '')),
+            'analysis_date': analysis_date
+        }
+
+        # Index Technical
+        index_data = {
+            'url': [website_id],
+            'index_verdict': str(combined_metrics.get('index_verdict', '')),
+            'coverage_state': str(combined_metrics.get('coverage_state', '')),
+            'robots_txt_state': str(combined_metrics.get('robots_txt_state', '')),
+            'indexing_state': str(combined_metrics.get('indexing_state', '')),
+            'last_crawl_time': str(combined_metrics.get('last_crawl_time', '')),
+            'page_fetch_state': str(combined_metrics.get('page_fetch_state', '')),
+            'analysis_date': analysis_date
+        }
+
+        # Business Analysis
+        business_data = {
+            'url': [website_id],
+            'business_model': str(combined_metrics.get('business_model', '')),
+            'target_market': str(combined_metrics.get('target_market', '')),
+            'industry_sector': str(combined_metrics.get('industry_sector', '')),
+            'company_size': str(combined_metrics.get('company_size', '')),
+            'has_ecommerce': bool(combined_metrics.get('has_ecommerce', False)),
+            'has_local_presence': bool(combined_metrics.get('has_local_presence', False)),
+            'business_complexity_score': float(combined_metrics.get('business_complexity_score', 0)),
+            'primary_age_group': str(combined_metrics.get('primary_age_group', '')),
+            'income_level': str(combined_metrics.get('income_level', '')),
+            'audience_sophistication': str(combined_metrics.get('audience_sophistication', '')),
+            'services_offered': str(combined_metrics.get('services_offered', '')),
+            'has_public_pricing': bool(combined_metrics.get('has_public_pricing', False)),
+            'service_count': int(combined_metrics.get('service_count', 0)),
+            'geographic_scope': str(combined_metrics.get('geographic_scope', '')),
+            'target_locations': str(combined_metrics.get('target_locations', '')),
+            'is_location_based': bool(combined_metrics.get('is_location_based', False)),
+            'business_maturity': str(combined_metrics.get('business_maturity', '')),
+            'establishment_year': int(combined_metrics.get('establishment_year', 0)) if combined_metrics.get('establishment_year') else None,
+            'experience_indicators': bool(combined_metrics.get('experience_indicators', False)),
+            'platform_detected': str(combined_metrics.get('platform_detected', '')),
+            'has_advanced_features': bool(combined_metrics.get('has_advanced_features', False)),
+            'social_media_integration': bool(combined_metrics.get('social_media_integration', False)),
+            'tech_sophistication': str(combined_metrics.get('tech_sophistication', '')),
+            'has_content_marketing': bool(combined_metrics.get('has_content_marketing', False)),
+            'has_lead_generation': bool(combined_metrics.get('has_lead_generation', False)),
+            'has_social_proof': bool(combined_metrics.get('has_social_proof', False)),
+            'content_maturity': str(combined_metrics.get('content_maturity', '')),
+            'phone_prominence': bool(combined_metrics.get('phone_prominence', False)),
+            'has_contact_forms': bool(combined_metrics.get('has_contact_forms', False)),
+            'has_live_chat': bool(combined_metrics.get('has_live_chat', False)),
+            'preferred_contact_method': str(combined_metrics.get('preferred_contact_method', '')),
+            'competitive_positioning': str(combined_metrics.get('competitive_positioning', '')),
+            'positioning_strength': str(combined_metrics.get('positioning_strength', '')),
+            'value_proposition': str(combined_metrics.get('value_proposition', '')),
+            'brand_strength': str(combined_metrics.get('brand_strength', '')),
+            'trust_indicators': str(combined_metrics.get('trust_indicators', '')),
+            'business_insights': str(combined_metrics.get('business_insights', '')),
+            'seo_strategy_recommendations': str(combined_metrics.get('seo_strategy_recommendations', '')),
+            'analysis_date': analysis_date
         }
         
         # Update each table
         successful_updates = 0
         failed_updates = 0
         
-        for table_name, data in table_data.items():
-            try:
-                print(f"\n\t\t--- Updating {table_name.upper()} ---")
-                
-                # Debug: Show data types for boolean fields and URL field
-                if table_name == 'business_analysis':
-                    print(f"\t\tDebugging business_analysis data types:")
-                    print(f"\t\t  url: {data.get('url', 'MISSING')} (type: {type(data.get('url', 'MISSING'))})")
-                    for key, value in data.items():
-                        if 'has_' in key or 'is_' in key or key in ['experience_indicators', 'phone_prominence']:
-                            print(f"\t\t  {key}: {value} (type: {type(value)})")
-                
-                # Show key data being sent (abbreviated)
-                key_fields = ['url', 'analysis_date']
-                if table_name == 'core_metrics':
-                    key_fields.extend(['impressions', 'clicks', 'ctr'])
-                elif table_name == 'performance_metrics':
-                    key_fields.extend(['performance_score', 'first_contentful_paint'])
-                elif table_name == 'business_analysis':
-                    key_fields.extend(['business_model', 'target_market', 'has_ecommerce'])
-                
-                print(f"\t\tKey data for {table_name}:")
-                for field in key_fields:
-                    if field in data:
-                        print(f"\t\t  {field}: {data[field]}")
-                
-                print(f"\t\tAttempting to create record in {table_name}...")
-                result = tables[table_name].create(data)
-                print(f"\t\t✓ SUCCESS: Updated {table_name} - Record ID: {result['id']}")
-                successful_updates += 1
-                
-            except Exception as e:
-                print(f"\t\t✗ FAILED to update {table_name}: {e}")
-                print(f"\t\t   Error type: {type(e).__name__}")
-                
-                # Show the full error details
-                error_str = str(e)
-                if 'INVALID_VALUE_FOR_COLUMN' in error_str:
-                    print(f"\t\t   This is a field type mismatch error!")
-                elif 'UNKNOWN_FIELD_NAME' in error_str:
-                    print(f"\t\t   This is a field name error!")
-                elif 'NOT_FOUND' in error_str:
-                    print(f"\t\t   This is a table/record not found error!")
-                
-                print(f"\t\t   Full data attempted: {data}")
-                failed_updates += 1
-                # Continue with other tables even if one fails
+        # Update Core Metrics
+        try:
+            print(f"\n\t\t--- Updating CORE_METRICS ---")
+            result = tables['core_metrics'].create(core_metrics_data)
+            print(f"\t\t✓ SUCCESS: Updated Core Metrics - Record ID: {result['id']}")
+            successful_updates += 1
+        except Exception as e:
+            print(f"\t\t✗ FAILED to update Core Metrics: {e}")
+            failed_updates += 1
+        
+        # Update Performance Metrics
+        try:
+            print(f"\n\t\t--- Updating PERFORMANCE_METRICS ---")
+            result = tables['performance_metrics'].create(performance_data)
+            print(f"\t\t✓ SUCCESS: Updated Performance Metrics - Record ID: {result['id']}")
+            successful_updates += 1
+        except Exception as e:
+            print(f"\t\t✗ FAILED to update Performance Metrics: {e}")
+            failed_updates += 1
+        
+        # Update Keyword Analysis
+        try:
+            print(f"\n\t\t--- Updating KEYWORD_ANALYSIS ---")
+            result = tables['keyword_analysis'].create(keyword_data)
+            print(f"\t\t✓ SUCCESS: Updated Keyword Analysis - Record ID: {result['id']}")
+            successful_updates += 1
+        except Exception as e:
+            print(f"\t\t✗ FAILED to update Keyword Analysis: {e}")
+            failed_updates += 1
+
+        # Update Mobile Usability
+        try:
+            print(f"\n\t\t--- Updating MOBILE_USABILITY ---")
+            result = tables['mobile_usability'].create(mobile_data)
+            print(f"\t\t✓ SUCCESS: Updated Mobile Usability - Record ID: {result['id']}")
+            successful_updates += 1
+        except Exception as e:
+            print(f"\t\t✗ FAILED to update Mobile Usability: {e}")
+            failed_updates += 1
+
+        # Update Sitemap Data
+        try:
+            print(f"\n\t\t--- Updating SITEMAP_DATA ---")
+            result = tables['sitemap_data'].create(sitemap_data)
+            print(f"\t\t✓ SUCCESS: Updated Sitemap Data - Record ID: {result['id']}")
+            successful_updates += 1
+        except Exception as e:
+            print(f"\t\t✗ FAILED to update Sitemap Data: {e}")
+            failed_updates += 1
+
+        # Update Index Technical
+        try:
+            print(f"\n\t\t--- Updating INDEX_TECHNICAL ---")
+            result = tables['index_technical'].create(index_data)
+            print(f"\t\t✓ SUCCESS: Updated Index Technical - Record ID: {result['id']}")
+            successful_updates += 1
+        except Exception as e:
+            print(f"\t\t✗ FAILED to update Index Technical: {e}")
+            failed_updates += 1
+
+        # Update Business Analysis
+        try:
+            print(f"\n\t\t--- Updating BUSINESS_ANALYSIS ---")
+            result = tables['business_analysis'].create(business_data)
+            print(f"\t\t✓ SUCCESS: Updated Business Analysis - Record ID: {result['id']}")
+            successful_updates += 1
+        except Exception as e:
+            print(f"\t\t✗ FAILED to update Business Analysis: {e}")
+            failed_updates += 1
         
         print(f"\n\t\tUpdate Summary: {successful_updates} successful, {failed_updates} failed")
         
@@ -1100,17 +1623,136 @@ def get_url_inspection(service, url):
             'page_fetch_state': 'ERROR'
         }
 
+def get_business_analysis(url):
+    """
+    Analyze a website's business context using the BusinessAnalyzer class.
+    
+    Args:
+        url (str): The URL of the website to analyze
+        
+    Returns:
+        dict: Business analysis data including model, target market, and recommendations
+    """
+    try:
+        analyzer = BusinessAnalyzer()
+        business_data = analyzer.analyze_business(url)
+        return business_data
+    except Exception as e:
+        print(f"Error analyzing business context: {str(e)}")
+        return analyzer._get_default_business_data()
+
+def enhance_business_analysis_with_ai(initial_business_data, technical_metrics):
+    """
+    Enhance business analysis using GPT-4o-mini to make intelligent assumptions
+    and improve data quality for Airtable storage.
+    
+    Args:
+        initial_business_data (dict): Initial business analysis from BusinessAnalyzer
+        technical_metrics (dict): Technical performance and feature data
+        
+    Returns:
+        dict: Enhanced business analysis with AI improvements
+    """
+    try:
+        print(f"\n🤖 Enhancing business analysis with AI...")
+        
+        # Load enhancement prompt template
+        prompt_file_path = os.path.join(os.path.dirname(__file__), 'prompts', 'business_analysis_enhancement.txt')
+        
+        with open(prompt_file_path, 'r', encoding='utf-8') as f:
+            prompt_template = f.read()
+        
+        # Format the prompt with available data
+        prompt = prompt_template.format(
+            url=technical_metrics.get('url', 'N/A'),
+            
+            # Initial business analysis
+            business_model=initial_business_data.get('business_model', 'Unknown'),
+            target_market=initial_business_data.get('target_market', 'Unknown'),
+            industry_sector=initial_business_data.get('industry_sector', 'Unknown'),
+            company_size=initial_business_data.get('company_size', 'Unknown'),
+            geographic_scope=initial_business_data.get('geographic_scope', 'Unknown'),
+            business_maturity=initial_business_data.get('business_maturity', 'Unknown'),
+            platform_detected=initial_business_data.get('platform_detected', 'Unknown'),
+            tech_sophistication=initial_business_data.get('tech_sophistication', 'Unknown'),
+            content_maturity=initial_business_data.get('content_maturity', 'Unknown'),
+            competitive_positioning=initial_business_data.get('competitive_positioning', 'Unknown'),
+            services_offered=initial_business_data.get('services_offered', 'Not specified'),
+            
+            # Technical context
+            performance_score=technical_metrics.get('performance_score', 'N/A'),
+            mobile_friendly_status=technical_metrics.get('mobile_friendly_status', 'N/A'),
+            has_ecommerce=initial_business_data.get('has_ecommerce', False),
+            has_local_presence=initial_business_data.get('has_local_presence', False),
+            has_content_marketing=initial_business_data.get('has_content_marketing', False),
+            has_lead_generation=initial_business_data.get('has_lead_generation', False),
+            has_social_proof=initial_business_data.get('has_social_proof', False),
+            social_media_integration=initial_business_data.get('social_media_integration', False),
+            has_advanced_features=initial_business_data.get('has_advanced_features', False)
+        )
+        
+        # Call OpenAI API
+        client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a business intelligence analyst. Respond only with valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,  # Lower temperature for more consistent analysis
+            max_tokens=2500
+        )
+        
+        # Parse JSON response
+        ai_analysis = response.choices[0].message.content
+        
+        # Clean up the response to ensure it's valid JSON
+        if ai_analysis.startswith('```json'):
+            ai_analysis = ai_analysis.replace('```json', '').replace('```', '').strip()
+        
+        try:
+            enhanced_data = json.loads(ai_analysis)
+            print(f"✓ AI enhancement completed successfully")
+            
+            # Merge enhanced data back into the original structure
+            enhanced_business_data = initial_business_data.copy()
+            
+            # Update with AI enhancements (remove reasoning fields for storage)
+            for key, value in enhanced_data.items():
+                if not key.endswith('_reasoning'):
+                    enhanced_business_data[key] = value
+            
+            # Add special AI insights
+            if 'business_insights' in enhanced_data:
+                enhanced_business_data['business_insights'] = enhanced_data['business_insights']
+            if 'seo_strategy_recommendations' in enhanced_data:
+                enhanced_business_data['seo_strategy_recommendations'] = enhanced_data['seo_strategy_recommendations']
+            
+            return enhanced_business_data
+            
+        except json.JSONDecodeError as e:
+            print(f"⚠️ Failed to parse AI response as JSON: {e}")
+            print(f"Raw response: {ai_analysis[:200]}...")
+            return initial_business_data
+            
+    except FileNotFoundError:
+        print(f"Error: Enhancement prompt file not found at {prompt_file_path}")
+        return initial_business_data
+    except Exception as e:
+        print(f"❌ Error enhancing business analysis: {str(e)}")
+        return initial_business_data
+
 def main():
     # Check for required environment variables
     required_vars = [
         'AIRTABLE_API_KEY',
-        'AIRTABLE_BASE_ID'
+        'AIRTABLE_BASE_ID',
+        'OPENAI_API_KEY'  # Add OpenAI API key requirement
     ]
     
     # Check if using organized multi-table structure
     use_organized_tables = os.getenv('USE_ORGANIZED_TABLES', 'false').lower() == 'true'
     print(f"Organized tables mode: {use_organized_tables}")
-    print(f"Environment variable USE_ORGANIZED_TABLES = '{os.getenv('USE_ORGANIZED_TABLES', 'NOT SET')}')")
     
     if not use_organized_tables:
         required_vars.append('AIRTABLE_TABLE_NAME')
@@ -1124,6 +1766,9 @@ def main():
         return
 
     try:
+        # Initialize OpenAI
+        openai.api_key = os.getenv('OPENAI_API_KEY')
+        
         # Get GSC credentials and create service
         print("Getting Google Search Console credentials...")
         credentials = get_gsc_credentials()
@@ -1139,148 +1784,299 @@ def main():
             table, records = get_airtable_records()
             print(f"Found {len(records)} records")
         
-        # Process each record
-        print("\nVerifying URLs and fetching GSC metrics...")
-        total_metrics = {'impressions': 0, 'clicks': 0, 'ctr': [], 'average_position': []}
-        permission_errors = []
+        # Initialize report generator
+        report_generator = ReportGenerator()
         
-        for i, record in enumerate(records, 1):
-            # Check if there is "url" column in Airtable
-            if 'url' not in record['fields']:
-                print(f"Skipping record {i}: No 'url' field found")
+        # Process each record
+        for record in records:
+            url = record['fields'].get('url')
+            if not url:
+                print("Skipping record with no URL")
                 continue
                 
-            url = record['fields']['url']
-            print(f"\tProcessing {i}/{len(records)}: {url}")
+            print(f"\nProcessing: {url}")
             
+            # Collect all metrics
+            gsc_metrics = get_gsc_metrics(service, url)
+            psi_metrics = get_psi_metrics(url)
+            sitemaps_status = get_sitemaps_status(service, url)
+            mobile_test = get_mobile_usability_from_psi(url)
+            keyword_performance = get_keyword_performance(service, url)
+            business_analysis = get_business_analysis(url)
+            
+            # Enhance business analysis with AI
+            technical_context = {
+                'url': url,
+                'performance_score': psi_metrics.get('performance_score', 0),
+                'mobile_friendly_status': mobile_test.get('mobile_friendly_status', 'Unknown')
+            }
+            enhanced_business_analysis = enhance_business_analysis_with_ai(business_analysis, technical_context)
+            
+            # Map AI values to valid Airtable options to prevent 422 errors
+            print(f"  🔧 Mapping enhanced business analysis to Airtable options...")
+            enhanced_business_analysis = map_ai_values_to_airtable_options(enhanced_business_analysis)
+            
+            # Combine all metrics into a flat structure (using enhanced business analysis)
+            combined_metrics = {
+                'url': url,
+                # Core metrics from GSC
+                'impressions': gsc_metrics.get('impressions', 0),
+                'clicks': gsc_metrics.get('clicks', 0),
+                'ctr': gsc_metrics.get('ctr', 0),
+                'average_position': gsc_metrics.get('average_position', 0),
+                
+                # Performance metrics from PSI
+                'performance_score': psi_metrics.get('performance_score', 0),
+                'first_contentful_paint': psi_metrics.get('first_contentful_paint', 0),
+                'largest_contentful_paint': psi_metrics.get('largest_contentful_paint', 0),
+                'speed_index': psi_metrics.get('speed_index', 0),
+                'time_to_interactive': psi_metrics.get('time_to_interactive', 0),
+                'total_blocking_time': psi_metrics.get('total_blocking_time', 0),
+                'cumulative_layout_shift': psi_metrics.get('cumulative_layout_shift', 0),
+                
+                # Keyword metrics
+                'top_keywords': keyword_performance.get('top_keywords', ''),
+                'total_keywords_tracked': keyword_performance.get('total_keywords_tracked', 0),
+                'avg_keyword_position': keyword_performance.get('avg_keyword_position', 0),
+                'high_opportunity_keywords': keyword_performance.get('high_opportunity_keywords', 0),
+                'branded_keywords_count': keyword_performance.get('branded_keywords_count', 0),
+                'keyword_cannibalization_risk': keyword_performance.get('keyword_cannibalization_risk', ''),
+                
+                # Mobile usability
+                'mobile_friendly_status': mobile_test.get('mobile_friendly_status', ''),
+                'mobile_friendly_issues_count': mobile_test.get('mobile_friendly_issues_count', 0),
+                'mobile_friendly_issues': mobile_test.get('mobile_friendly_issues', ''),
+                'mobile_test_loading_state': mobile_test.get('mobile_test_loading_state', ''),
+                'mobile_passed': mobile_test.get('mobile_passed', ''),
+                
+                # Sitemap data
+                'sitemaps_submitted': sitemaps_status.get('sitemaps_submitted', ''),
+                'sitemap_count': sitemaps_status.get('sitemap_count', 0),
+                'sitemap_errors': sitemaps_status.get('sitemap_errors', 0),
+                'sitemap_warnings': sitemaps_status.get('sitemap_warnings', 0),
+                'last_submission': sitemaps_status.get('last_submission', ''),
+                
+                # Index technical
+                'index_verdict': get_url_inspection(service, url).get('index_verdict', ''),
+                'coverage_state': get_url_inspection(service, url).get('coverage_state', ''),
+                'robots_txt_state': get_url_inspection(service, url).get('robots_txt_state', ''),
+                'indexing_state': get_url_inspection(service, url).get('indexing_state', ''),
+                'last_crawl_time': get_url_inspection(service, url).get('last_crawl_time', ''),
+                'page_fetch_state': get_url_inspection(service, url).get('page_fetch_state', ''),
+                
+                # Enhanced business analysis (AI-improved)
+                'business_model': enhanced_business_analysis.get('business_model', ''),
+                'target_market': enhanced_business_analysis.get('target_market', ''),
+                'industry_sector': enhanced_business_analysis.get('industry_sector', ''),
+                'company_size': enhanced_business_analysis.get('company_size', ''),
+                'has_ecommerce': enhanced_business_analysis.get('has_ecommerce', False),
+                'has_local_presence': enhanced_business_analysis.get('has_local_presence', False),
+                'business_complexity_score': enhanced_business_analysis.get('business_complexity_score', 0),
+                'primary_age_group': enhanced_business_analysis.get('primary_age_group', ''),
+                'income_level': enhanced_business_analysis.get('income_level', ''),
+                'audience_sophistication': enhanced_business_analysis.get('audience_sophistication', ''),
+                'services_offered': enhanced_business_analysis.get('services_offered', ''),
+                'has_public_pricing': enhanced_business_analysis.get('has_public_pricing', False),
+                'service_count': enhanced_business_analysis.get('service_count', 0),
+                'geographic_scope': enhanced_business_analysis.get('geographic_scope', ''),
+                'target_locations': enhanced_business_analysis.get('target_locations', ''),
+                'is_location_based': enhanced_business_analysis.get('is_location_based', False),
+                'business_maturity': enhanced_business_analysis.get('business_maturity', ''),
+                'establishment_year': enhanced_business_analysis.get('establishment_year', 0) if enhanced_business_analysis.get('establishment_year') else None,
+                'experience_indicators': enhanced_business_analysis.get('experience_indicators', False),
+                'platform_detected': enhanced_business_analysis.get('platform_detected', ''),
+                'has_advanced_features': enhanced_business_analysis.get('has_advanced_features', False),
+                'social_media_integration': enhanced_business_analysis.get('social_media_integration', False),
+                'tech_sophistication': enhanced_business_analysis.get('tech_sophistication', ''),
+                'has_content_marketing': enhanced_business_analysis.get('has_content_marketing', False),
+                'has_lead_generation': enhanced_business_analysis.get('has_lead_generation', False),
+                'has_social_proof': enhanced_business_analysis.get('has_social_proof', False),
+                'content_maturity': enhanced_business_analysis.get('content_maturity', ''),
+                'phone_prominence': enhanced_business_analysis.get('phone_prominence', False),
+                'has_contact_forms': enhanced_business_analysis.get('has_contact_forms', False),
+                'has_live_chat': enhanced_business_analysis.get('has_live_chat', False),
+                'preferred_contact_method': enhanced_business_analysis.get('preferred_contact_method', ''),
+                'competitive_positioning': enhanced_business_analysis.get('competitive_positioning', ''),
+                'positioning_strength': enhanced_business_analysis.get('positioning_strength', ''),
+                'value_proposition': enhanced_business_analysis.get('value_proposition', ''),
+                'brand_strength': enhanced_business_analysis.get('brand_strength', ''),
+                'trust_indicators': enhanced_business_analysis.get('trust_indicators', ''),
+                'business_insights': enhanced_business_analysis.get('business_insights', 'No specific insights available'),
+                'seo_strategy_recommendations': enhanced_business_analysis.get('seo_strategy_recommendations', 'No existing recommendations'),
+            }
+            
+            # Generate OpenAI analysis (using enhanced business data)
             try:
-                # First verify the URL exists in GSC
-                site_url, is_domain_property, original_is_domain = get_site_info(service, url)
-                if original_is_domain:
-                    print(f"\tFound as domain property: {url}")
+                openai_analysis = generate_seo_analysis(combined_metrics, enhanced_business_analysis)
+                
+                # Generate and send report
+                recipient_email = record['fields'].get('contact_email')
+                recipient_name = record['fields'].get('contact_name', 'Valued Client')
+                
+                if recipient_email:
+                    print(f"\nGenerating and sending report to {recipient_email}...")
+                    report_generator.generate_and_send_report(
+                        website_data=combined_metrics,
+                        openai_analysis=openai_analysis,
+                        recipient_email=recipient_email,
+                        recipient_name=recipient_name
+                    )
+                    print("✅ Report sent successfully!")
                 else:
-                    print(f"\tFound as URL prefix property: {url}")
-                
-                # Get metrics from GSC
-                print(f"\t🔍 Fetching GSC metrics...")
-                metrics = get_gsc_metrics(service, url)
-                
-                # Check if GSC returned any data
-                if not metrics or all(v == 0 for v in [metrics.get('impressions', 0), metrics.get('clicks', 0)]):
-                    print(f"\t⚠️  No GSC data found for {url} - using default values")
-                    metrics = {
-                        'impressions': 0,
-                        'clicks': 0, 
-                        'ctr': 0,
-                        'average_position': 0
-                    }
-                else:
-                    print(f"\t✅ GSC data found: {metrics.get('impressions', 0)} impressions, {metrics.get('clicks', 0)} clicks")
-                
-                # Get PSI metrics
-                print(f"\nFetching PageSpeed Insights metrics for {url}...")
-                psi_metrics = get_psi_metrics(url)
-                # Log the PSI metrics for debugging
-                print(f"\tFetched PageSpeed Insights metrics for {url}: {psi_metrics}")
-                
-                # Get URL inspection data
-                print(f"\nFetching URL inspection data for {url}...")
-                url_inspection = get_url_inspection(service, url)
-                print(f"\tFetched URL inspection for {url}: {url_inspection}")
-                
-                # Get sitemaps status
-                print(f"\nFetching sitemap submission data for {url}...")
-                sitemaps_status = get_sitemaps_status(service, url)
-                print(f"\tFetched sitemaps status for {url}: {sitemaps_status}")
-                
-                # Get mobile usability from PSI
-                mobile_test = get_mobile_usability_from_psi(url)
-                print(f"\tFetched mobile usability results for {url}: {mobile_test}")
-                
-                # Get keyword performance
-                print(f"\nFetching keyword performance for {url}...")
-                keyword_performance = get_keyword_performance(service, url)
-                print(f"\tFetched keyword performance for {url}: {keyword_performance}")
-                
-                # Perform business analysis
-                print(f"\nPerforming business analysis for {url}...")
-                business_analyzer = BusinessAnalyzer()
-                business_analysis = business_analyzer.analyze_business(url)
-                print(f"\tFetched business analysis for {url}: {business_analysis}")
+                    print("⚠️  No contact email found for report delivery")
         
-                
-                # Combine metrics
-                combined_metrics = {**metrics, **psi_metrics, **url_inspection, **sitemaps_status, **mobile_test, **keyword_performance, **business_analysis}
-                
-                # Log summary of metrics collected
-                print(f"\n📊 METRICS SUMMARY for {url}:")
-                print(f"\t📈 GSC Metrics: {metrics.get('impressions', 0)} impressions, {metrics.get('clicks', 0)} clicks")
-                print(f"\t⚡ PSI Score: {psi_metrics.get('performance_score', 0)}")
-                print(f"\t🔍 URL Inspection: {url_inspection.get('index_verdict', 'Unknown')}")
-                print(f"\t🗺️  Sitemap Count: {sitemaps_status.get('sitemap_count', 0)}")
-                print(f"\t📱 Mobile Friendly: {mobile_test.get('mobile_friendly_status', 'Unknown')}")
-                print(f"\t🔑 Keywords: {keyword_performance.get('total_keywords_tracked', 0)}")
-                print(f"\t🏢 Business Model: {business_analysis.get('business_model', 'Unknown')}")
-                print(f"\t📝 Total fields to update: {len(combined_metrics)}")
-                
-                # Update metrics in Airtable
-                print(f"\n🔄 UPDATING AIRTABLE...")
-                print(f"\tMode: {'Organized Multi-Tables' if use_organized_tables else 'Single Table'}")
-                print(f"\tURL: {url}")
-                print(f"\tMetrics count: {len(combined_metrics)} fields")
-                
-                try:
-                    if use_organized_tables:
-                        print(f"\t📊 Using organized multi-table structure...")
-                        success = update_airtable_organized(tables, url, combined_metrics)
-                        if success:
-                            print(f"\t✅ Successfully updated organized tables")
-                        else:
-                            print(f"\t❌ Failed to update organized tables")
-                    else:
-                        print(f"\t📝 Using single table structure...")
-                        table.update(record['id'], combined_metrics)
-                        print(f"\t✅ Successfully updated single table record")
-                except Exception as airtable_error:
-                    print(f"\t❌ Airtable update failed: {airtable_error}")
-                    print(f"\t   Error type: {type(airtable_error).__name__}")
-                    raise airtable_error
-                
-                # Accumulate metrics for summary
-                if metrics['impressions'] > 0:  # Only include non-zero metrics
-                    total_metrics['impressions'] += metrics['impressions']
-                    total_metrics['clicks'] += metrics['clicks']
-                    total_metrics['ctr'].append(metrics['ctr'])
-                    total_metrics['average_position'].append(metrics['average_position'])
-                
-                print(f"\t✓ Updated metrics for {url}")
-                
             except Exception as e:
-                print(f"\tError processing {url}: {str(e)}")
-                permission_errors.append(url)
-        
-        if permission_errors:
-            print("\nSites with errors:")
-            for url in permission_errors:
-                print(f"\t- {url}")
-            print("To fix errors:")
-            print("1. Verify the sites are properly set up in GSC")
-            print("2. Check if they are domain properties or URL prefix properties")
-            print("3. Make sure you have proper access permissions")
-        
-        print("\nProcess completed!")
+                print(f"❌ Error generating report: {str(e)}")
+            
+            # Update Airtable with organized data
+            if os.getenv('AIRTABLE_API_KEY') and os.getenv('AIRTABLE_BASE_ID'):
+                try:
+                    print("\n📊 Updating Airtable with organized data...")
+                    update_airtable_organized(tables, url, combined_metrics)
+                    print("✅ Airtable update completed")
+                except Exception as e:
+                    print(f"❌ Error updating Airtable: {str(e)}")
+            else:
+                print("⚠️ Skipping Airtable update - API key or base ID not configured")
+                print("   Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID in your .env file")
         
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        print(f"Error in main process: {str(e)}")
+        raise
 
-
-
-
-
-
-
-
-
+def generate_seo_analysis(metrics, business_analysis):
+    """Generate SEO analysis using OpenAI."""
+    try:
+        # Load prompt template from file
+        prompt_file_path = os.path.join(os.path.dirname(__file__), 'prompts', 'seo_analysis_prompt.txt')
+        
+        with open(prompt_file_path, 'r', encoding='utf-8') as f:
+            prompt_template = f.read()
+        
+        # Format the prompt with actual data
+        prompt = prompt_template.format(
+            # Website Overview
+            url=metrics['url'],
+            
+            # Core SEO Metrics
+            impressions=metrics.get('impressions', 'N/A'),
+            clicks=metrics.get('clicks', 'N/A'),
+            ctr=metrics.get('ctr', 'N/A'),
+            average_position=metrics.get('average_position', 'N/A'),
+            
+            # Technical Performance
+            performance_score=metrics.get('performance_score', 'N/A'),
+            first_contentful_paint=metrics.get('first_contentful_paint', 'N/A'),
+            largest_contentful_paint=metrics.get('largest_contentful_paint', 'N/A'),
+            speed_index=metrics.get('speed_index', 'N/A'),
+            time_to_interactive=metrics.get('time_to_interactive', 'N/A'),
+            total_blocking_time=metrics.get('total_blocking_time', 'N/A'),
+            cumulative_layout_shift=metrics.get('cumulative_layout_shift', 'N/A'),
+            
+            # Mobile Usability
+            mobile_friendly_status=metrics.get('mobile_friendly_status', 'N/A'),
+            mobile_friendly_issues_count=metrics.get('mobile_friendly_issues_count', 'N/A'),
+            mobile_friendly_issues=metrics.get('mobile_friendly_issues', 'N/A'),
+            mobile_test_loading_state=metrics.get('mobile_test_loading_state', 'N/A'),
+            mobile_passed=metrics.get('mobile_passed', 'N/A'),
+            
+            # Keyword Analysis
+            top_keywords=metrics.get('top_keywords', 'N/A'),
+            total_keywords_tracked=metrics.get('total_keywords_tracked', 'N/A'),
+            avg_keyword_position=metrics.get('avg_keyword_position', 'N/A'),
+            high_opportunity_keywords=metrics.get('high_opportunity_keywords', 'N/A'),
+            branded_keywords_count=metrics.get('branded_keywords_count', 'N/A'),
+            keyword_cannibalization_risk=metrics.get('keyword_cannibalization_risk', 'N/A'),
+            
+            # Sitemap & Indexing
+            sitemaps_submitted=metrics.get('sitemaps_submitted', 'N/A'),
+            sitemap_count=metrics.get('sitemap_count', 'N/A'),
+            sitemap_errors=metrics.get('sitemap_errors', 'N/A'),
+            sitemap_warnings=metrics.get('sitemap_warnings', 'N/A'),
+            last_submission=metrics.get('last_submission', 'N/A'),
+            index_verdict=metrics.get('index_verdict', 'N/A'),
+            coverage_state=metrics.get('coverage_state', 'N/A'),
+            robots_txt_state=metrics.get('robots_txt_state', 'N/A'),
+            indexing_state=metrics.get('indexing_state', 'N/A'),
+            last_crawl_time=metrics.get('last_crawl_time', 'N/A'),
+            page_fetch_state=metrics.get('page_fetch_state', 'N/A'),
+            
+            # Business Intelligence
+            business_model=metrics.get('business_model', 'Unknown'),
+            target_market=metrics.get('target_market', 'Unknown'),
+            industry_sector=metrics.get('industry_sector', 'Unknown'),
+            company_size=metrics.get('company_size', 'Unknown'),
+            geographic_scope=metrics.get('geographic_scope', 'Unknown'),
+            target_locations=metrics.get('target_locations', 'Unknown'),
+            has_ecommerce=metrics.get('has_ecommerce', 'Unknown'),
+            has_local_presence=metrics.get('has_local_presence', 'Unknown'),
+            is_location_based=metrics.get('is_location_based', 'Unknown'),
+            business_complexity_score=metrics.get('business_complexity_score', 'Unknown'),
+            primary_age_group=metrics.get('primary_age_group', 'Unknown'),
+            income_level=metrics.get('income_level', 'Unknown'),
+            audience_sophistication=metrics.get('audience_sophistication', 'Unknown'),
+            services_offered=metrics.get('services_offered', 'Not specified'),
+            service_count=metrics.get('service_count', 'Unknown'),
+            has_public_pricing=metrics.get('has_public_pricing', 'Unknown'),
+            business_maturity=metrics.get('business_maturity', 'Unknown'),
+            establishment_year=metrics.get('establishment_year', 'Unknown'),
+            experience_indicators=metrics.get('experience_indicators', 'Unknown'),
+            platform_detected=metrics.get('platform_detected', 'Unknown'),
+            has_advanced_features=metrics.get('has_advanced_features', 'Unknown'),
+            social_media_integration=metrics.get('social_media_integration', 'Unknown'),
+            tech_sophistication=metrics.get('tech_sophistication', 'Unknown'),
+            has_content_marketing=metrics.get('has_content_marketing', 'Unknown'),
+            has_lead_generation=metrics.get('has_lead_generation', 'Unknown'),
+            has_social_proof=metrics.get('has_social_proof', 'Unknown'),
+            content_maturity=metrics.get('content_maturity', 'Unknown'),
+            phone_prominence=metrics.get('phone_prominence', 'Unknown'),
+            has_contact_forms=metrics.get('has_contact_forms', 'Unknown'),
+            has_live_chat=metrics.get('has_live_chat', 'Unknown'),
+            preferred_contact_method=metrics.get('preferred_contact_method', 'Unknown'),
+            competitive_positioning=metrics.get('competitive_positioning', 'Unknown'),
+            positioning_strength=metrics.get('positioning_strength', 'Unknown'),
+            value_proposition=metrics.get('value_proposition', 'Unknown'),
+            brand_strength=metrics.get('brand_strength', 'Unknown'),
+            trust_indicators=metrics.get('trust_indicators', 'Unknown'),
+            business_insights=metrics.get('business_insights', 'No specific insights available'),
+            seo_strategy_recommendations=metrics.get('seo_strategy_recommendations', 'No existing recommendations')
+        )
+        
+        # Call OpenAI API
+        client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a business intelligence analyst. Respond only with valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,  # Lower temperature for more consistent analysis
+            max_tokens=2500
+        )
+        
+        # Parse JSON response
+        ai_analysis = response.choices[0].message.content
+        
+        # Clean up the response to ensure it's valid JSON
+        if ai_analysis.startswith('```json'):
+            ai_analysis = ai_analysis.replace('```json', '').replace('```', '').strip()
+        
+        try:
+            seo_analysis = json.loads(ai_analysis)
+            print(f"✓ SEO analysis generated successfully")
+            return seo_analysis
+            
+        except json.JSONDecodeError as e:
+            print(f"⚠️ Failed to parse AI response as JSON: {e}")
+            print(f"Raw response: {ai_analysis[:200]}...")
+            return {"error": "Failed to parse AI analysis"}
+            
+    except FileNotFoundError:
+        print(f"Error: SEO analysis prompt file not found at {prompt_file_path}")
+        return {"error": "Prompt file not found"}
+    except Exception as e:
+        print(f"❌ Error generating SEO analysis: {str(e)}")
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     main()

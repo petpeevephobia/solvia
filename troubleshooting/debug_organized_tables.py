@@ -16,7 +16,7 @@ def debug_organized_tables():
     """Debug the organized tables setup and identify issues."""
     print("🔍 ORGANIZED TABLES DEBUG TOOL")
     print("=" * 60)
-    
+     
     # Check environment
     api_key = os.getenv('AIRTABLE_API_KEY')
     base_id = os.getenv('AIRTABLE_BASE_ID')
