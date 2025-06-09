@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from modules.business_analysis import BusinessAnalyzer
 from modules.report_generator import ReportGenerator
 import openai
+from core.auth_setup import get_gsc_credentials, check_gsc_access, get_gsc_service
 
 # Load environment variables
 load_dotenv()
@@ -520,43 +521,6 @@ def map_ai_values_to_airtable_options(enhanced_data):
     
     return mapped_data
 
-def get_gsc_credentials():
-    """Gets valid credentials for Google Search Console API."""
-    credentials = None
-    
-    if os.path.exists('config/token.pickle'):
-        with open('config/token.pickle', 'rb') as token:
-            credentials = pickle.load(token)
-    
-    if not credentials or not credentials.valid:
-        if credentials and credentials.expired and credentials.refresh_token:
-            credentials.refresh(Request())
-        else:
-            if not os.path.exists('credentials.json'):
-                raise FileNotFoundError(
-                    "credentials.json file not found. Please download it from Google Cloud Console."
-                )
-            
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', 
-                SCOPES,
-                redirect_uri='http://localhost:8085/'
-            )
-            credentials = flow.run_local_server(
-                port=8085,
-                success_message='Authentication successful! You may close this window.',
-                open_browser=True
-            )
-        
-        with open('config/token.pickle', 'wb') as token:
-            pickle.dump(credentials, token)
-    
-    return credentials
-
-
-
-
-
 def get_airtable_records():
     """Fetch records from Airtable."""
     try:
@@ -761,35 +725,6 @@ def get_gsc_metrics(service, url, days=30):
             'ctr': 0,
             'average_position': 0
         }
-
-
-
-
-
-def check_gsc_access(service):
-    """Check GSC access and list available sites."""
-    try:
-        print("\nChecking Google Search Console access...")
-        # Get list of sites user has access to
-        sites = service.sites().list().execute()
-        
-        if not sites.get('siteEntry', []):
-            print("No sites found in your Google Search Console account.")
-            return []
-        
-        print("\nYou have access to these sites in GSC:")
-        available_sites = []
-        for site in sites['siteEntry']:
-            permission_level = site.get('permissionLevel', 'Unknown')
-            site_url = site.get('siteUrl', 'Unknown URL')
-            available_sites.append(site_url)
-            print(f"- {site_url} (Permission: {permission_level})")
-            
-        return available_sites
-            
-    except Exception as e:
-        print(f"Error checking GSC access: {str(e)}")
-        return []
 
 
 
