@@ -279,6 +279,15 @@ def update_airtable_organized(tables, url, combined_metrics):
         website_id = website_record['id']
         print(f"\t\tUsing website ID: {website_id}")
         
+        # Map AI values to Airtable options
+        try:
+            from core.data_mapper import map_ai_values_to_airtable_options
+            combined_metrics = map_ai_values_to_airtable_options(combined_metrics)
+            print("\t\t✓ Successfully mapped AI values to Airtable options")
+        except Exception as e:
+            print(f"\t\t⚠ Warning: Failed to map AI values: {e}")
+            print("\t\t  Continuing with original values...")
+        
         # Prepare data for each table
         print(f"\t\tPreparing data for {len(combined_metrics)} metrics across 7 organized tables...")
         
@@ -398,76 +407,37 @@ def update_airtable_organized(tables, url, combined_metrics):
         # Update each table
         successful_updates = 0
         failed_updates = 0
+        update_results = {}
         
-        # Update Core Metrics
-        try:
-            print(f"\n\t\t--- Updating CORE_METRICS ---")
-            result = tables['Core_Metrics'].create(core_metrics_data)
-            print(f"\t\t✓ SUCCESS: Updated Core Metrics - Record ID: {result['id']}")
-            successful_updates += 1
-        except Exception as e:
-            print(f"\t\t✗ FAILED to update Core Metrics: {e}")
-            failed_updates += 1
+        # Helper function to safely update a table
+        def safe_update_table(table_name, data):
+            try:
+                print(f"\n\t\t--- Updating {table_name} ---")
+                result = tables[table_name].create(data)
+                print(f"\t\t✓ SUCCESS: Updated {table_name} - Record ID: {result['id']}")
+                return True, result['id']
+            except Exception as e:
+                print(f"\t\t✗ FAILED to update {table_name}: {e}")
+                return False, str(e)
         
-        # Update Performance Metrics
-        try:
-            print(f"\n\t\t--- Updating PERFORMANCE_METRICS ---")
-            result = tables['Performance_Metrics'].create(performance_data)
-            print(f"\t\t✓ SUCCESS: Updated Performance Metrics - Record ID: {result['id']}")
-            successful_updates += 1
-        except Exception as e:
-            print(f"\t\t✗ FAILED to update Performance Metrics: {e}")
-            failed_updates += 1
+        # Update all tables
+        tables_to_update = {
+            'Core_Metrics': core_metrics_data,
+            'Performance_Metrics': performance_data,
+            'Keyword_Analysis': keyword_data,
+            'Mobile_Usability': mobile_data,
+            'Sitemap_Data': sitemap_data,
+            'Index_Technical': index_data,
+            'Business_Analysis': business_data
+        }
         
-        # Update Keyword Analysis
-        try:
-            print(f"\n\t\t--- Updating KEYWORD_ANALYSIS ---")
-            result = tables['Keyword_Analysis'].create(keyword_data)
-            print(f"\t\t✓ SUCCESS: Updated Keyword Analysis - Record ID: {result['id']}")
-            successful_updates += 1
-        except Exception as e:
-            print(f"\t\t✗ FAILED to update Keyword Analysis: {e}")
-            failed_updates += 1
-
-        # Update Mobile Usability
-        try:
-            print(f"\n\t\t--- Updating MOBILE_USABILITY ---")
-            result = tables['Mobile_Usability'].create(mobile_data)
-            print(f"\t\t✓ SUCCESS: Updated Mobile Usability - Record ID: {result['id']}")
-            successful_updates += 1
-        except Exception as e:
-            print(f"\t\t✗ FAILED to update Mobile Usability: {e}")
-            failed_updates += 1
-
-        # Update Sitemap Data
-        try:
-            print(f"\n\t\t--- Updating SITEMAP_DATA ---")
-            result = tables['Sitemap_Data'].create(sitemap_data)
-            print(f"\t\t✓ SUCCESS: Updated Sitemap Data - Record ID: {result['id']}")
-            successful_updates += 1
-        except Exception as e:
-            print(f"\t\t✗ FAILED to update Sitemap Data: {e}")
-            failed_updates += 1
-
-        # Update Index Technical
-        try:
-            print(f"\n\t\t--- Updating INDEX_TECHNICAL ---")
-            result = tables['Index_Technical'].create(index_data)
-            print(f"\t\t✓ SUCCESS: Updated Index Technical - Record ID: {result['id']}")
-            successful_updates += 1
-        except Exception as e:
-            print(f"\t\t✗ FAILED to update Index Technical: {e}")
-            failed_updates += 1
-
-        # Update Business Analysis
-        try:
-            print(f"\n\t\t--- Updating BUSINESS_ANALYSIS ---")
-            result = tables['Business_Analysis'].create(business_data)
-            print(f"\t\t✓ SUCCESS: Updated Business Analysis - Record ID: {result['id']}")
-            successful_updates += 1
-        except Exception as e:
-            print(f"\t\t✗ FAILED to update Business Analysis: {e}")
-            failed_updates += 1
+        for table_name, data in tables_to_update.items():
+            success, result = safe_update_table(table_name, data)
+            if success:
+                successful_updates += 1
+            else:
+                failed_updates += 1
+            update_results[table_name] = {'success': success, 'result': result}
         
         print(f"\n\t\tUpdate Summary: {successful_updates} successful, {failed_updates} failed")
         
@@ -485,8 +455,8 @@ def update_airtable_organized(tables, url, combined_metrics):
         else:
             print(f"\t\t💥 OVERALL FAILURE: No tables were updated!")
         
-        return success
+        return success, update_results
         
     except Exception as e:
         print(f"\t\t✗ Error updating organized tables: {e}")
-        return False 
+        return False, {'error': str(e)} 
