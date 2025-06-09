@@ -11,6 +11,10 @@ from core.data_collector import (
     get_airtable_multi_tables,
     update_airtable_organized
 )
+from core.data_mapper import (
+    map_ai_values_to_airtable_options,
+    find_best_semantic_match
+)
 from core.analysis_processor import (
     classify_keyword_intent,
     calculate_opportunity_score,
@@ -41,6 +45,10 @@ __all__ = [
     'get_url_inspection',
     'get_airtable_multi_tables',
     'update_airtable_organized',
+    
+    # Data mapping functions
+    'map_ai_values_to_airtable_options',
+    'find_best_semantic_match',
     
     # Analysis functions
     'classify_keyword_intent',

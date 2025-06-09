@@ -245,8 +245,9 @@ def enhance_business_analysis_with_ai(initial_business_data, technical_metrics):
         5. Strategic recommendations
         """
         
-        # Get AI analysis
-        response = openai.ChatCompletion.create(
+        # Get AI analysis using new API format
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a business analysis expert."},
@@ -306,8 +307,9 @@ def generate_seo_analysis(metrics, business_analysis):
         - priority_actions: List of objects with 'title', 'priority', 'impact', 'effort'
         """
         
-        # Get AI analysis
-        response = openai.ChatCompletion.create(
+        # Get AI analysis using new API format
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are an SEO analysis expert. Respond only with valid JSON."},
