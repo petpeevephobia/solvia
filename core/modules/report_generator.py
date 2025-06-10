@@ -13,6 +13,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import logging
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +38,12 @@ class ReportGenerator:
     def generate_report(self, website_data, openai_analysis):
         """Generate PDF report from website data and OpenAI analysis."""
         try:
+            # Debug logging
+            logger.info("Starting report generation...")
+            logger.info(f"Website data keys: {website_data.keys()}")
+            logger.info(f"OpenAI analysis keys: {openai_analysis.keys()}")
+            logger.info(f"OpenAI analysis content: {json.dumps(openai_analysis, indent=2)}")
+            
             # Create PDF document
             pdf_path = os.path.join(self.output_dir, f"seo_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
             doc = SimpleDocTemplate(pdf_path, pagesize=letter)
@@ -59,7 +66,10 @@ class ReportGenerator:
             
             # Executive Summary
             content.append(Paragraph("Executive Summary", styles['Heading1']))
-            content.append(Paragraph(openai_analysis['executive_summary'], styles['Normal']))
+            if 'executive_summary' in openai_analysis and openai_analysis['executive_summary']:
+                content.append(Paragraph(openai_analysis['executive_summary'], styles['Normal']))
+            else:
+                content.append(Paragraph("No executive summary available.", styles['Normal']))
             content.append(Spacer(1, 20))
             
             # Core Metrics
@@ -115,37 +125,25 @@ class ReportGenerator:
             content.append(Spacer(1, 20))
             
             # Recommendations
-            content.append(Paragraph("Recommendations", styles['Heading1']))
-            for rec in openai_analysis['recommendations']:
-                content.append(Paragraph(rec['title'], styles['Heading2']))
-                content.append(Paragraph(rec['description'], styles['Normal']))
-                content.append(Spacer(1, 10))
+            content.append(Paragraph("Automated Recommendations", styles['Heading1']))
+            content.append(Spacer(1, 10))
             
-            # Priority Actions
-            content.append(Paragraph("Priority Actions", styles['Heading1']))
-            actions_data = [['Action', 'Priority', 'Impact', 'Effort']]
-            for action in openai_analysis['priority_actions']:
-                actions_data.append([
-                    action['title'],
-                    action['priority'],
-                    action['impact'],
-                    action['effort']
-                ])
-            actions_table = Table(actions_data, colWidths=[2.5*inch, 1*inch, 1*inch, 1*inch])
-            actions_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 14),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -1), 12),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            content.append(actions_table)
+            # Debug logging for recommendations
+            recommendations = openai_analysis.get('recommendations', [])
+            logger.info(f"Processing {len(recommendations)} recommendations")
+            
+            if recommendations:
+                for rec in recommendations:
+                    logger.info(f"Processing recommendation: {rec.get('title', 'No title')}")
+                    content.append(Paragraph(rec['title'], styles['Heading2']))
+                    content.append(Paragraph(rec['description'], styles['Normal']))
+                    content.append(Paragraph(f"Action Type: {rec['action_type']}", styles['Normal']))
+                    content.append(Paragraph("Implementation Steps:", styles['Normal']))
+                    for step in rec['implementation_steps']:
+                        content.append(Paragraph(f"• {step}", styles['Normal']))
+                    content.append(Spacer(1, 10))
+            else:
+                content.append(Paragraph("No automated recommendations available.", styles['Normal']))
             
             # Build PDF
             doc.build(content)
@@ -155,6 +153,7 @@ class ReportGenerator:
             
         except Exception as e:
             logger.error(f"Error generating report: {str(e)}")
+            logger.exception("Full traceback:")
             raise
 
     def send_report_email(self, recipient_email, recipient_name, website_url, pdf_path, key_findings):
@@ -208,58 +207,41 @@ class ReportGenerator:
                 pdf_attachment = MIMEApplication(f.read(), _subtype='pdf')
                 pdf_attachment.add_header('Content-Disposition', 'attachment', filename=os.path.basename(pdf_path))
                 msg.attach(pdf_attachment)
-            print("   ✓ Attached PDF report")
+            print("   ✓ Attached PDF")
             
             # Send email
-            print("   Connecting to SMTP server...")
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                print("   Starting TLS...")
                 server.starttls()
-                print("   Logging in...")
                 server.login(self.smtp_username, self.smtp_password)
-                print("   Sending message...")
                 server.send_message(msg)
-                print("   ✓ Message sent successfully")
+            print("   ✓ Email sent successfully")
             
-            print(f"✅ Report email sent successfully to {recipient_email}")
             return True
             
         except Exception as e:
-            print(f"❌ Error sending report email: {str(e)}")
-            print(f"   Error type: {type(e).__name__}")
-            if hasattr(e, 'smtp_error'):
-                print(f"   SMTP error: {e.smtp_error}")
+            print(f"   ✗ Error sending email: {str(e)}")
             raise
 
     def generate_and_send_report(self, website_data, openai_analysis, recipient_email, recipient_name):
-        """Generate report and send it via email in one step."""
+        """Generate and send the SEO report."""
         try:
-            print("\n📊 Generating report...")
             # Generate PDF report
             pdf_path = self.generate_report(website_data, openai_analysis)
-            print(f"✓ Report generated: {pdf_path}")
             
-            # Extract key findings for email
-            key_findings = [
-                f"Performance Score: {website_data.get('performance_score', 'N/A')}%",
-                f"Mobile Friendly: {website_data.get('mobile_friendly_status', 'N/A')}",
-                f"Total Keywords: {website_data.get('total_keywords_tracked', 'N/A')}",
-                f"Top Recommendation: {openai_analysis['recommendations'][0]['title'] if openai_analysis.get('recommendations') else 'N/A'}"
-            ]
+            # Extract key findings from analysis
+            key_findings = []
+            if 'executive_summary' in openai_analysis:
+                key_findings.append(openai_analysis['executive_summary'])
             
-            print("\n📧 Sending report email...")
+            # Add top recommendations
+            for rec in openai_analysis.get('recommendations', [])[:3]:
+                key_findings.append(f"{rec['title']}: {rec['description']}")
+            
             # Send email
-            self.send_report_email(
-                recipient_email=recipient_email,
-                recipient_name=recipient_name,
-                website_url=website_data['url'],
-                pdf_path=pdf_path,
-                key_findings=key_findings
-            )
+            self.send_report_email(recipient_email, recipient_name, website_data['url'], pdf_path, key_findings)
             
-            return True
+            return pdf_path
             
         except Exception as e:
-            print(f"❌ Error in generate_and_send_report: {str(e)}")
-            print(f"   Error type: {type(e).__name__}")
+            print(f"Error in generate_and_send_report: {str(e)}")
             raise 

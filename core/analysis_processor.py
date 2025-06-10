@@ -248,91 +248,147 @@ def enhance_business_analysis_with_ai(initial_business_data, technical_metrics):
         # Get AI analysis using new API format
         client = openai.OpenAI()
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a business analysis expert."},
+                {"role": "system", "content": "You are a business analyst specializing in digital strategy and market positioning."},
                 {"role": "user", "content": prompt}
             ]
         )
         
-        # Parse and structure the AI response
-        ai_insights = json.loads(response.choices[0].message.content)
-        
-        # Combine with initial analysis
-        enhanced_analysis = {
-            **initial_business_data,
-            'ai_insights': ai_insights
-        }
-        
-        return enhanced_analysis
+        # Extract and parse the analysis
+        analysis_text = response.choices[0].message.content
+        return json.loads(analysis_text)
     except Exception as e:
         print(f"Error enhancing business analysis: {str(e)}")
-        return initial_business_data
+        return {}
 
-def generate_seo_analysis(metrics, business_analysis):
+def load_prompt(filename):
     """
-    Generates comprehensive SEO analysis report.
+    Load a prompt template from the prompts directory.
     
     Args:
-        metrics (dict): SEO performance metrics
-        business_analysis (dict): Business analysis data
+        filename (str): Name of the prompt file
         
     Returns:
-        dict: Comprehensive SEO analysis report with the following structure:
-            {
-                'executive_summary': str,
-                'recommendations': list of dicts with 'title' and 'description',
-                'priority_actions': list of dicts with 'title', 'priority', 'impact', 'effort'
-            }
+        str: The prompt template content
     """
     try:
-        # Prepare the prompt for AI
-        prompt = f"""
-        Analyze this website data and provide SEO insights:
+        prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', filename)
+        with open(prompt_path, 'r') as f:
+            return f.read()
+    except Exception as e:
+        print(f"Error loading prompt {filename}: {str(e)}")
+        return ""
+
+def generate_seo_analysis(website_data, business_context):
+    """
+    Generate SEO analysis using OpenAI.
+    
+    Args:
+        website_data (dict): Website performance data
+        business_context (dict): Business context data
         
-        Website Metrics:
-        {json.dumps(metrics, indent=2)}
+    Returns:
+        dict: SEO analysis results
+    """
+    try:
+        # Load the prompt template
+        prompt_template = load_prompt('seo_analysis_prompt.txt')
+        if not prompt_template:
+            raise ValueError("Failed to load SEO analysis prompt template")
+            
+        # Prepare the analysis data
+        analysis_data = {
+            'url': website_data.get('url', ''),
+            'impressions': website_data.get('impressions', 0),
+            'clicks': website_data.get('clicks', 0),
+            'ctr': website_data.get('ctr', 0),
+            'average_position': website_data.get('average_position', 0),
+            'performance_score': website_data.get('performance_score', 0),
+            'first_contentful_paint': website_data.get('first_contentful_paint', 0),
+            'largest_contentful_paint': website_data.get('largest_contentful_paint', 0),
+            'speed_index': website_data.get('speed_index', 0),
+            'time_to_interactive': website_data.get('time_to_interactive', 0),
+            'total_blocking_time': website_data.get('total_blocking_time', 0),
+            'cumulative_layout_shift': website_data.get('cumulative_layout_shift', 0),
+            'mobile_friendly_status': website_data.get('mobile_friendly_status', ''),
+            'mobile_friendly_issues_count': website_data.get('mobile_friendly_issues_count', 0),
+            'mobile_friendly_issues': website_data.get('mobile_friendly_issues', ''),
+            'mobile_test_loading_state': website_data.get('mobile_test_loading_state', ''),
+            'mobile_passed': website_data.get('mobile_passed', ''),
+            'top_keywords': website_data.get('top_keywords', ''),
+            'total_keywords_tracked': website_data.get('total_keywords_tracked', 0),
+            'avg_keyword_position': website_data.get('avg_keyword_position', 0),
+            'high_opportunity_keywords': website_data.get('high_opportunity_keywords', 0),
+            'branded_keywords_count': website_data.get('branded_keywords_count', 0),
+            'keyword_cannibalization_risk': website_data.get('keyword_cannibalization_risk', ''),
+            'sitemaps_submitted': website_data.get('sitemaps_submitted', ''),
+            'sitemap_count': website_data.get('sitemap_count', 0),
+            'sitemap_errors': website_data.get('sitemap_errors', 0),
+            'sitemap_warnings': website_data.get('sitemap_warnings', 0),
+            'last_submission': website_data.get('last_submission', ''),
+            'index_verdict': website_data.get('index_verdict', ''),
+            'coverage_state': website_data.get('coverage_state', ''),
+            'robots_txt_state': website_data.get('robots_txt_state', ''),
+            'indexing_state': website_data.get('indexing_state', ''),
+            'last_crawl_time': website_data.get('last_crawl_time', ''),
+            'page_fetch_state': website_data.get('page_fetch_state', ''),
+            'business_model': business_context.get('business_model', ''),
+            'target_market': business_context.get('target_market', ''),
+            'industry_sector': business_context.get('industry_sector', ''),
+            'company_size': business_context.get('company_size', ''),
+            'geographic_scope': business_context.get('geographic_scope', ''),
+            'target_locations': business_context.get('target_locations', ''),
+            'has_ecommerce': business_context.get('has_ecommerce', False),
+            'has_local_presence': business_context.get('has_local_presence', False),
+            'is_location_based': business_context.get('is_location_based', False),
+            'business_complexity_score': business_context.get('business_complexity_score', 0),
+            'primary_age_group': business_context.get('primary_age_group', ''),
+            'income_level': business_context.get('income_level', ''),
+            'audience_sophistication': business_context.get('audience_sophistication', ''),
+            'services_offered': business_context.get('services_offered', ''),
+            'service_count': business_context.get('service_count', 0),
+            'has_public_pricing': business_context.get('has_public_pricing', False),
+            'business_maturity': business_context.get('business_maturity', ''),
+            'establishment_year': business_context.get('establishment_year', 0),
+            'experience_indicators': business_context.get('experience_indicators', False),
+            'platform_detected': business_context.get('platform_detected', ''),
+            'has_advanced_features': business_context.get('has_advanced_features', False),
+            'social_media_integration': business_context.get('social_media_integration', False),
+            'tech_sophistication': business_context.get('tech_sophistication', ''),
+            'has_content_marketing': business_context.get('has_content_marketing', False),
+            'has_lead_generation': business_context.get('has_lead_generation', False),
+            'has_social_proof': business_context.get('has_social_proof', False),
+            'content_maturity': business_context.get('content_maturity', ''),
+            'phone_prominence': business_context.get('phone_prominence', False),
+            'has_contact_forms': business_context.get('has_contact_forms', False),
+            'has_live_chat': business_context.get('has_live_chat', False),
+            'preferred_contact_method': business_context.get('preferred_contact_method', ''),
+            'competitive_positioning': business_context.get('competitive_positioning', ''),
+            'positioning_strength': business_context.get('positioning_strength', ''),
+            'value_proposition': business_context.get('value_proposition', ''),
+            'brand_strength': business_context.get('brand_strength', ''),
+            'trust_indicators': business_context.get('trust_indicators', ''),
+            'business_insights': business_context.get('business_insights', ''),
+            'seo_strategy_recommendations': business_context.get('seo_strategy_recommendations', '')
+        }
         
-        Business Analysis:
-        {json.dumps(business_analysis, indent=2)}
-        
-        Provide a comprehensive SEO analysis with:
-        1. Executive Summary
-        2. Key Recommendations
-        3. Priority Actions
-        
-        Format the response as a JSON object with these fields:
-        - executive_summary: A concise overview of the website's SEO status
-        - recommendations: List of objects with 'title' and 'description'
-        - priority_actions: List of objects with 'title', 'priority', 'impact', 'effort'
-        """
+        # Format the prompt with the analysis data
+        prompt = prompt_template.format(**analysis_data)
         
         # Get AI analysis using new API format
         client = openai.OpenAI()
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are an SEO analysis expert. Respond only with valid JSON."},
+                {"role": "system", "content": "You are an SEO strategist and SaaS product assistant for early-stage founders."},
                 {"role": "user", "content": prompt}
-            ],
-            temperature=0.3
+            ]
         )
         
-        # Parse and structure the AI response
-        ai_analysis = json.loads(response.choices[0].message.content)
-        
-        # Ensure all required fields are present
-        required_fields = ['executive_summary', 'recommendations', 'priority_actions']
-        for field in required_fields:
-            if field not in ai_analysis:
-                ai_analysis[field] = [] if field in ['recommendations', 'priority_actions'] else "No analysis available"
-        
-        return ai_analysis
-        
+        # Extract and parse the analysis
+        analysis_text = response.choices[0].message.content
+        return json.loads(analysis_text)
     except Exception as e:
         print(f"Error generating SEO analysis: {str(e)}")
-        return {
-            'executive_summary': "Error generating analysis",
-            'recommendations': [],
-            'priority_actions': []
-        } 
+        return {}

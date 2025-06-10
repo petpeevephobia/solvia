@@ -132,32 +132,18 @@ Business Insights: {business_insights}
 Current SEO Strategy Recommendations: {seo_strategy_recommendations}
 
 **REQUIRED OUTPUT FORMAT (JSON):**
-{{
+{
   "executive_summary": "1-2 sentence summary of current SEO status",
   "recommendations": [
-    {{
+    {
       "title": "Recommendation title",
-      "description": "Detailed explanation of what to do and why"
-    }},
-    {{
-      "title": "Another recommendation title",
-      "description": "Another detailed explanation"
-    }}
-  ],
-  "priority_actions": [
-    {{
-      "title": "High-impact action",
-      "priority": "High",
-      "impact": "High",
-      "effort": "Medium"
-    }},
-    {{
-      "title": "Another priority action",
-      "priority": "Medium",
-      "impact": "Medium",
-      "effort": "Low"
-    }}
+      "description": "Detailed explanation of what to do and why",
+      "action_type": "Technical|Content|On-page|Off-page",
+      "implementation_steps": [
+        "Step 1: Do this first",
+        "Step 2: Then do this",
+        "Step 3: Finally, do this"
+      ]
+    }
   ]
-}}
-
-Provide 3-5 recommendations and 3-5 priority actions. Keep language founder-friendly and action-oriented. 
+} 
