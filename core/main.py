@@ -55,6 +55,8 @@ SCOPES = [
     'https://www.googleapis.com/auth/webmasters'
 ]
 
+model = "gpt-4o-mini"
+
 def get_airtable_records():
     """Fetch records from Airtable."""
     try:
@@ -646,11 +648,24 @@ def get_url_inspection(service, url):
         # Get last crawl time
         last_crawl_time = index_status_result.get('lastCrawlTime', '')
         
-        # Get page fetch state
+        # Get page fetch state with better handling
         page_fetch_result = inspection_result.get('pageFetchResult', {})
-        page_fetch_state = page_fetch_result.get('fetchState', 'UNKNOWN')
+        fetch_state = page_fetch_result.get('fetchState', '')
+        
+        # Map fetch states to more meaningful values
+        fetch_state_mapping = {
+            'SUCCESSFUL': 'Successfully Fetched',
+            'PARTIAL': 'Partially Fetched',
+            'FAILED': 'Failed to Fetch',
+            'NOT_FETCHED': 'Not Yet Fetched',
+            '': 'Not Available',
+            'UNKNOWN': 'Not Available'
+        }
+        
+        page_fetch_state = fetch_state_mapping.get(fetch_state, 'Not Available')
         
         print(f"\t✓ URL inspection completed: {verdict}")
+        print(f"\t  Page fetch state: {page_fetch_state}")
         
         # Clean up values for Airtable field types
         return {
@@ -659,18 +674,18 @@ def get_url_inspection(service, url):
             'robots_txt_state': str(robots_txt_state).replace('"', '').strip(),
             'indexing_state': str(indexing_state).replace('"', '').strip(),
             'last_crawl_time': str(last_crawl_time).strip() if last_crawl_time else None,
-            'page_fetch_state': str(page_fetch_state).replace('"', '').strip()
+            'page_fetch_state': page_fetch_state
         }
         
     except Exception as e:
         print(f"\t✗ Error fetching URL inspection for {url}: {e}")
         return {
-            'index_verdict': 'ERROR',
-            'coverage_state': 'ERROR',
-            'robots_txt_state': 'ERROR', 
-            'indexing_state': 'ERROR',
+            'index_verdict': 'Error',
+            'coverage_state': 'Error',
+            'robots_txt_state': 'Error', 
+            'indexing_state': 'Error',
             'last_crawl_time': None,
-            'page_fetch_state': 'ERROR'
+            'page_fetch_state': 'Error Fetching Data'
         }
 
 def get_business_analysis(url):
@@ -683,13 +698,9 @@ def get_business_analysis(url):
     Returns:
         dict: Business analysis data including model, target market, and recommendations
     """
-    try:
-        analyzer = BusinessAnalyzer()
-        business_data = analyzer.analyze_business(url)
-        return business_data
-    except Exception as e:
-        print(f"Error analyzing business context: {str(e)}")
-        return analyzer._get_default_business_data()
+    analyzer = BusinessAnalyzer()
+    business_data = analyzer.analyze_business(url)
+    return business_data
 
 def enhance_business_analysis_with_ai(initial_business_data, technical_metrics):
     """
@@ -703,94 +714,81 @@ def enhance_business_analysis_with_ai(initial_business_data, technical_metrics):
     Returns:
         dict: Enhanced business analysis with AI improvements
     """
-    try:
-        print(f"\n🤖 Enhancing business analysis with AI...")
+    print(f"\n🤖 Enhancing business analysis with AI...")
+    
+    # Load enhancement prompt template
+    prompt_file_path = os.path.join(os.path.dirname(__file__), 'prompts', 'business_analysis_enhancement.txt')
+    
+    with open(prompt_file_path, 'r', encoding='utf-8') as f:
+        prompt_template = f.read()
+    
+    # Format the prompt with available data
+    prompt = prompt_template.format(
+        url=technical_metrics.get('url', 'N/A'),
         
-        # Load enhancement prompt template
-        prompt_file_path = os.path.join(os.path.dirname(__file__), 'prompts', 'business_analysis_enhancement.txt')
+        # Initial business analysis
+        business_model=initial_business_data.get('business_model', 'Unknown'),
+        target_market=initial_business_data.get('target_market', 'Unknown'),
+        industry_sector=initial_business_data.get('industry_sector', 'Unknown'),
+        company_size=initial_business_data.get('company_size', 'Unknown'),
+        geographic_scope=initial_business_data.get('geographic_scope', 'Unknown'),
+        business_maturity=initial_business_data.get('business_maturity', 'Unknown'),
+        platform_detected=initial_business_data.get('platform_detected', 'Unknown'),
+        tech_sophistication=initial_business_data.get('tech_sophistication', 'Unknown'),
+        content_maturity=initial_business_data.get('content_maturity', 'Unknown'),
+        competitive_positioning=initial_business_data.get('competitive_positioning', 'Unknown'),
+        services_offered=initial_business_data.get('services_offered', 'Not specified'),
         
-        with open(prompt_file_path, 'r', encoding='utf-8') as f:
-            prompt_template = f.read()
-        
-        # Format the prompt with available data
-        prompt = prompt_template.format(
-            url=technical_metrics.get('url', 'N/A'),
-            
-            # Initial business analysis
-            business_model=initial_business_data.get('business_model', 'Unknown'),
-            target_market=initial_business_data.get('target_market', 'Unknown'),
-            industry_sector=initial_business_data.get('industry_sector', 'Unknown'),
-            company_size=initial_business_data.get('company_size', 'Unknown'),
-            geographic_scope=initial_business_data.get('geographic_scope', 'Unknown'),
-            business_maturity=initial_business_data.get('business_maturity', 'Unknown'),
-            platform_detected=initial_business_data.get('platform_detected', 'Unknown'),
-            tech_sophistication=initial_business_data.get('tech_sophistication', 'Unknown'),
-            content_maturity=initial_business_data.get('content_maturity', 'Unknown'),
-            competitive_positioning=initial_business_data.get('competitive_positioning', 'Unknown'),
-            services_offered=initial_business_data.get('services_offered', 'Not specified'),
-            
-            # Technical context
-            performance_score=technical_metrics.get('performance_score', 'N/A'),
-            mobile_friendly_status=technical_metrics.get('mobile_friendly_status', 'N/A'),
-            has_ecommerce=initial_business_data.get('has_ecommerce', False),
-            has_local_presence=initial_business_data.get('has_local_presence', False),
-            has_content_marketing=initial_business_data.get('has_content_marketing', False),
-            has_lead_generation=initial_business_data.get('has_lead_generation', False),
-            has_social_proof=initial_business_data.get('has_social_proof', False),
-            social_media_integration=initial_business_data.get('social_media_integration', False),
-            has_advanced_features=initial_business_data.get('has_advanced_features', False)
-        )
-        
-        # Call OpenAI API
-        client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a business intelligence analyst. Respond only with valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,  # Lower temperature for more consistent analysis
-            max_tokens=2500
-        )
-        
-        # Parse JSON response
-        ai_analysis = response.choices[0].message.content
-        
-        # Clean up the response to ensure it's valid JSON
-        if ai_analysis.startswith('```json'):
-            ai_analysis = ai_analysis.replace('```json', '').replace('```', '').strip()
-        
-        try:
-            enhanced_data = json.loads(ai_analysis)
-            print(f"✓ AI enhancement completed successfully")
-            
-            # Merge enhanced data back into the original structure
-            enhanced_business_data = initial_business_data.copy()
-            
-            # Update with AI enhancements (remove reasoning fields for storage)
-            for key, value in enhanced_data.items():
-                if not key.endswith('_reasoning'):
-                    enhanced_business_data[key] = value
-            
-            # Add special AI insights
-            if 'business_insights' in enhanced_data:
-                enhanced_business_data['business_insights'] = enhanced_data['business_insights']
-            if 'seo_strategy_recommendations' in enhanced_data:
-                enhanced_business_data['seo_strategy_recommendations'] = enhanced_data['seo_strategy_recommendations']
-            
-            return enhanced_business_data
-            
-        except json.JSONDecodeError as e:
-            print(f"⚠️ Failed to parse AI response as JSON: {e}")
-            print(f"Raw response: {ai_analysis[:200]}...")
-            return initial_business_data
-            
-    except FileNotFoundError:
-        print(f"Error: Enhancement prompt file not found at {prompt_file_path}")
-        return initial_business_data
-    except Exception as e:
-        print(f"❌ Error enhancing business analysis: {str(e)}")
-        return initial_business_data
+        # Technical context
+        performance_score=technical_metrics.get('performance_score', 'N/A'),
+        mobile_friendly_status=technical_metrics.get('mobile_friendly_status', 'N/A'),
+        has_ecommerce=initial_business_data.get('has_ecommerce', False),
+        has_local_presence=initial_business_data.get('has_local_presence', False),
+        has_content_marketing=initial_business_data.get('has_content_marketing', False),
+        has_lead_generation=initial_business_data.get('has_lead_generation', False),
+        has_social_proof=initial_business_data.get('has_social_proof', False),
+        social_media_integration=initial_business_data.get('social_media_integration', False),
+        has_advanced_features=initial_business_data.get('has_advanced_features', False)
+    )
+    
+    # Call OpenAI API
+    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "You are a business intelligence analyst. Respond only with valid JSON."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3,  # Lower temperature for more consistent analysis
+        max_tokens=2500
+    )
+    
+    # Parse JSON response
+    ai_analysis = response.choices[0].message.content
+    
+    # Clean up the response to ensure it's valid JSON
+    if ai_analysis.startswith('```json'):
+        ai_analysis = ai_analysis.replace('```json', '').replace('```', '').strip()
+    
+    # Parse and validate JSON
+    enhanced_data = json.loads(ai_analysis)
+    print(f"✓ AI enhancement completed successfully")
+    
+    # Merge enhanced data back into the original structure
+    enhanced_business_data = initial_business_data.copy()
+    
+    # Update with AI enhancements (remove reasoning fields for storage)
+    for key, value in enhanced_data.items():
+        if not key.endswith('_reasoning'):
+            enhanced_business_data[key] = value
+    
+    # Add special AI insights
+    if 'business_insights' in enhanced_data:
+        enhanced_business_data['business_insights'] = enhanced_data['business_insights']
+    if 'seo_strategy_recommendations' in enhanced_data:
+        enhanced_business_data['seo_strategy_recommendations'] = enhanced_data['seo_strategy_recommendations']
+    
+    return enhanced_business_data
 
 def main():
     # Check for required environment variables
@@ -956,27 +954,23 @@ def main():
             }
             
             # Generate OpenAI analysis (using enhanced business data)
-            try:
-                openai_analysis = generate_seo_analysis(combined_metrics, enhanced_business_analysis)
-                
-                # Generate and send report
-                recipient_email = record['fields'].get('contact_email')
-                recipient_name = record['fields'].get('contact_name', 'Valued Client')
-                
-                if recipient_email:
-                    print(f"\nGenerating and sending report to {recipient_email}...")
-                    report_generator.generate_and_send_report(
-                        website_data=combined_metrics,
-                        openai_analysis=openai_analysis,
-                        recipient_email=recipient_email,
-                        recipient_name=recipient_name
-                    )
-                    print("✅ Report sent successfully!")
-                else:
-                    print("⚠️  No contact email found for report delivery")
-        
-            except Exception as e:
-                print(f"❌ Error generating report: {str(e)}")
+            openai_analysis = generate_seo_analysis(combined_metrics, enhanced_business_analysis)
+            
+            # Generate and send reportS
+            recipient_email = record['fields'].get('contact_email')
+            recipient_name = record['fields'].get('contact_name', 'Valued Client')
+            
+            if recipient_email:
+                print(f"\nGenerating and sending report to {recipient_email}...")
+                report_generator.generate_and_send_report(
+                    website_data=combined_metrics,
+                    openai_analysis=openai_analysis,
+                    recipient_email=recipient_email,
+                    recipient_name=recipient_name
+                )
+                print("✅ Report sent successfully!")
+            else:
+                print("⚠️  No contact email found for report delivery")
             
             # Update Airtable with organized data
             if os.getenv('AIRTABLE_API_KEY') and os.getenv('AIRTABLE_BASE_ID'):

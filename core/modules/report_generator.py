@@ -39,10 +39,10 @@ class ReportGenerator:
         """Generate PDF report from website data and OpenAI analysis."""
         try:
             # Debug logging
-            logger.info("Starting report generation...")
-            logger.info(f"Website data keys: {website_data.keys()}")
-            logger.info(f"OpenAI analysis keys: {openai_analysis.keys()}")
-            logger.info(f"OpenAI analysis content: {json.dumps(openai_analysis, indent=2)}")
+            # logger.info("Starting report generation...")
+            # logger.info(f"Website data keys: {website_data.keys()}")
+            # logger.info(f"OpenAI analysis keys: {openai_analysis.keys()}")
+            # logger.info(f"OpenAI analysis content: {json.dumps(openai_analysis, indent=2)}")
             
             # Create PDF document
             pdf_path = os.path.join(self.output_dir, f"seo_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
@@ -130,7 +130,7 @@ class ReportGenerator:
             
             # Debug logging for recommendations
             recommendations = openai_analysis.get('recommendations', [])
-            logger.info(f"Processing {len(recommendations)} recommendations")
+            # logger.info(f"Processing {len(recommendations)} recommendations")
             
             if recommendations:
                 for rec in recommendations:

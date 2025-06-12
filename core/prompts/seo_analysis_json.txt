@@ -1,0 +1,15 @@
+{
+  "executive_summary": "1-2 sentence summary of current SEO status",
+  "recommendations": [
+    {
+      "title": "Recommendation title",
+      "description": "Detailed explanation of what to do and why",
+      "action_type": "Technical|Content|On-page|Off-page",
+      "implementation_steps": [
+        "Step 1: Do this first",
+        "Step 2: Then do this",
+        "Step 3: Finally, do this"
+      ]
+    }
+  ]
+}

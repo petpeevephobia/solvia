@@ -21,35 +21,30 @@ class BusinessAnalyzer:
         """Complete business intelligence analysis of a website."""
         print(f"\t🔍 Analyzing business intelligence for {url}...")
         
-        try:
-            # Get website content
-            response = self.session.get(url, timeout=15)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Extract all business intelligence
-            business_data = {
-                **self._analyze_business_model(soup, url),
-                **self._analyze_target_audience(soup),
-                **self._analyze_services_products(soup),
-                **self._analyze_geographic_focus(soup),
-                **self._analyze_business_maturity(soup),
-                **self._analyze_technology_platform(soup),
-                **self._analyze_content_marketing(soup),
-                **self._analyze_contact_communication(soup),
-                **self._analyze_competitive_position(soup)
-            }
-            
-            # Generate insights and recommendations
-            business_data['business_insights'] = self._generate_business_insights(business_data)
-            business_data['seo_strategy_recommendations'] = self._generate_seo_strategy(business_data)
-            
-            print(f"\t\t✓ Business analysis completed - Model: {business_data.get('business_model', 'Unknown')}")
-            return business_data
-            
-        except Exception as e:
-            print(f"\t\t✗ Error analyzing business: {e}")
-            return self._get_default_business_data()
+        # Get website content
+        response = self.session.get(url, timeout=15)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Extract all business intelligence
+        business_data = {
+            **self._analyze_business_model(soup, url),
+            **self._analyze_target_audience(soup),
+            **self._analyze_services_products(soup),
+            **self._analyze_geographic_focus(soup),
+            **self._analyze_business_maturity(soup),
+            **self._analyze_technology_platform(soup),
+            **self._analyze_content_marketing(soup),
+            **self._analyze_contact_communication(soup),
+            **self._analyze_competitive_position(soup)
+        }
+        
+        # Generate insights and recommendations
+        business_data['business_insights'] = self._generate_business_insights(business_data)
+        business_data['seo_strategy_recommendations'] = self._generate_seo_strategy(business_data)
+        
+        print(f"\t\t✓ Business analysis completed - Model: {business_data.get('business_model', 'Unknown')}")
+        return business_data
     
     def _analyze_business_model(self, soup, url):
         """Determine business model and target market."""

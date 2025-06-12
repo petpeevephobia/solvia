@@ -131,19 +131,5 @@ Competitive Positioning:
 Business Insights: {business_insights}
 Current SEO Strategy Recommendations: {seo_strategy_recommendations}
 
+IMPORTANT: You must respond with a valid JSON object that exactly matches this structure. Do not add any extra text, newlines, or formatting outside the JSON object.
 **REQUIRED OUTPUT FORMAT (JSON):**
-{
-  "executive_summary": "1-2 sentence summary of current SEO status",
-  "recommendations": [
-    {
-      "title": "Recommendation title",
-      "description": "Detailed explanation of what to do and why",
-      "action_type": "Technical|Content|On-page|Off-page",
-      "implementation_steps": [
-        "Step 1: Do this first",
-        "Step 2: Then do this",
-        "Step 3: Finally, do this"
-      ]
-    }
-  ]
-} 
