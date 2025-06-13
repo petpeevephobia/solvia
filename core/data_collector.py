@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from pyairtable import Api
 from core.auth_setup import get_gsc_service
+import re
 
 def get_airtable_records():
     """
@@ -207,7 +208,8 @@ def get_airtable_multi_tables():
             'Sitemap_Data',
             'Mobile_Usability',
             'Keyword_Analysis',
-            'Business_Analysis'
+            'Business_Analysis',
+            'SEO_Reports'  # Add SEO_Reports table
         ]
         
         for table_name in table_names:
@@ -459,4 +461,130 @@ def update_airtable_organized(tables, url, combined_metrics):
         
     except Exception as e:
         print(f"\t\t✗ Error updating organized tables: {e}")
-        return False, {'error': str(e)} 
+        return False, {'error': str(e)}
+
+def get_next_report_id(seo_reports_table):
+    """
+    Get the next report_id in the format 'REP-001', 'REP-002', etc.
+    """
+    records = seo_reports_table.all()
+    max_num = 0
+    pattern = re.compile(r"REP-(\d+)")
+    for record in records:
+        report_id = record['fields'].get('report_id', '')
+        match = pattern.match(str(report_id))
+        if match:
+            num = int(match.group(1))
+            if num > max_num:
+                max_num = num
+    next_num = max_num + 1
+    return f"REP-{next_num:03d}"
+
+def get_website_record_id(tables, url):
+    """
+    Get the record ID of a website from the Websites table based on its URL.
+    
+    Args:
+        tables (dict): Dictionary of Airtable table objects
+        url (str): The website URL to look up
+        
+    Returns:
+        str: The record ID if found, None otherwise
+    """
+    try:
+        if 'Websites' not in tables:
+            print("❌ Websites table not found in tables dictionary")
+            return None
+            
+        websites_table = tables['Websites']
+        records = websites_table.all()
+        
+        for record in records:
+            if record['fields'].get('url') == url:
+                return record['id']
+                
+        print(f"❌ No record found for URL: {url}")
+        return None
+        
+    except Exception as e:
+        print(f"❌ Error getting website record ID: {str(e)}")
+        return None
+
+def map_to_seo_reports(website_data, openai_analysis, business_context, tables):
+    """
+    Map existing data to SEO_Reports table structure.
+    
+    Args:
+        website_data (dict): Website metrics and data
+        openai_analysis (dict): Analysis results from OpenAI
+        business_context (dict): Business context data
+        tables (dict): Dictionary of Airtable table objects
+        
+    Returns:
+        dict: Data formatted for SEO_Reports table
+    """
+    # Convert key_findings list to a formatted string
+    key_findings = openai_analysis.get('key_findings', [])
+    key_findings_text = '\n'.join([f"• {finding}" for finding in key_findings]) if key_findings else ''
+    
+    # Get the website record ID for the URL
+    url = website_data.get('url', '')
+    website_record_id = get_website_record_id(tables, url)
+    
+    if not website_record_id:
+        print(f"❌ Could not find record ID for URL: {url}")
+        return None
+
+    return {
+        # Report Details
+        'report_id': None,  # Will be set in update_seo_reports_table
+        'url': [website_record_id],  # Send as array of record IDs for linked record
+        'report_date': datetime.now().isoformat(),
+        'executive_summary': openai_analysis.get('executive_summary', ''),
+        'key_findings': key_findings_text,
+        
+        # Core Metrics
+        'impressions': website_data.get('impressions', 0),
+        'clicks': website_data.get('clicks', 0),
+        'ctr': website_data.get('ctr', 0),
+        'average_position': website_data.get('average_position', 0),
+        
+        # Technical Metrics
+        'performance_score': website_data.get('performance_score', 0),
+        'first_contentful_paint': website_data.get('first_contentful_paint', 0),
+        'largest_contentful_paint': website_data.get('largest_contentful_paint', 0),
+        'cumulative_layout_shift': website_data.get('cumulative_layout_shift', 0),
+        
+        # Analysis & Recommendations
+        'seo_strategy_recommendations': business_context.get('seo_strategy_recommendations', '')
+    }
+
+def update_seo_reports_table(tables, seo_report_data):
+    """
+    Update the SEO_Reports table with the mapped data.
+    
+    Args:
+        tables (dict): Dictionary of Airtable table objects
+        seo_report_data (dict): Data formatted for SEO_Reports table
+        
+    Returns:
+        bool: True if update was successful, False otherwise
+    """
+    try:
+        if 'SEO_Reports' not in tables:
+            print("❌ SEO_Reports table not found in tables dictionary")
+            return False
+        seo_reports_table = tables['SEO_Reports']
+        # Generate and add the next report_id
+        seo_report_data['report_id'] = get_next_report_id(seo_reports_table)
+        # Create new record
+        record = seo_reports_table.create(seo_report_data)
+        if record:
+            print(f"✅ Successfully created SEO report for {seo_report_data['url']}")
+            return True
+        else:
+            print("❌ Failed to create SEO report record")
+            return False
+    except Exception as e:
+        print(f"❌ Error updating SEO_Reports table: {str(e)}")
+        return False 

@@ -432,7 +432,6 @@ def generate_seo_analysis(website_data, business_context):
     # Format the prompt with the analysis data
     print("Formatting prompt...")
     prompt = prompt_template.format(**analysis_data)
-    print(f"\tPrompt: {prompt}")
 
     # Get AI analysis using new API format
     print("Calling OpenAI API...")
@@ -479,6 +478,10 @@ def generate_seo_analysis(website_data, business_context):
         raise ValueError("Analysis must be a dictionary")
     if "executive_summary" not in analysis:
         raise ValueError("Missing required field: executive_summary")
+    if "key_findings" not in analysis:
+        raise ValueError("Missing required field: key_findings")
+    if not isinstance(analysis["key_findings"], list):
+        raise ValueError("Key findings must be a list")
     if "recommendations" not in analysis:
         raise ValueError("Missing required field: recommendations")
     if not isinstance(analysis["recommendations"], list):

@@ -33,6 +33,11 @@ from core.data_mapper import (
     map_ai_values_to_airtable_options,
     find_best_semantic_match
 )
+from core.data_collector import (
+    get_airtable_multi_tables,
+    map_to_seo_reports,
+    update_seo_reports_table
+)
 from core.analysis_processor import (
     classify_keyword_intent,
     calculate_opportunity_score,
@@ -956,7 +961,12 @@ def main():
             # Generate OpenAI analysis (using enhanced business data)
             openai_analysis = generate_seo_analysis(combined_metrics, enhanced_business_analysis)
             
-            # Generate and send reportS
+            # Map data to SEO_Reports format and update table
+            seo_report_data = map_to_seo_reports(combined_metrics, openai_analysis, enhanced_business_analysis, tables)
+            if seo_report_data:  # Only update if we got valid data
+                update_seo_reports_table(tables, seo_report_data)
+            
+            # Generate and send reports
             recipient_email = record['fields'].get('contact_email')
             recipient_name = record['fields'].get('contact_name', 'Valued Client')
             

@@ -1,5 +1,10 @@
 {
   "executive_summary": "1-2 sentence summary of current SEO status",
+  "key_findings": [
+    "Key finding 1: Description of the finding",
+    "Key finding 2: Description of the finding",
+    "Key finding 3: Description of the finding"
+  ],
   "recommendations": [
     {
       "title": "Recommendation title",
