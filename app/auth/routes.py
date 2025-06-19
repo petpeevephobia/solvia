@@ -16,7 +16,7 @@ from app.auth.utils import (
 )
 from app.database import db
 from app.config import settings
-
+import uuid
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 
@@ -36,7 +36,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return email
 
 
-@router.post("/register", response_model=dict)
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate):
     """Register a new user."""
     # Validate password strength
@@ -51,7 +51,7 @@ async def register(user: UserCreate):
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail="User with this email already exists"
         )
     
     # Hash password and create user
@@ -65,12 +65,15 @@ async def register(user: UserCreate):
             detail="Failed to create user"
         )
     
-    # TODO: Send verification email
-    # For now, just return success message
-    return {
-        "message": "User registered successfully. Please check your email for verification.",
-        "verification_token": verification_token  # Remove this in production
-    }
+    # Generate a user ID (since we don't store it in the current DB structure)
+    user_id = str(uuid.uuid4())
+    
+    return UserResponse(
+        id=user_id,
+        email=user.email,
+        message="User registered successfully",
+        created_at=datetime.utcnow().isoformat()
+    )
 
 
 @router.post("/login", response_model=Token)
@@ -81,14 +84,14 @@ async def login(user_credentials: UserLogin):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Invalid email or password"
         )
     
     # Verify password
     if not verify_password(user_credentials.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Invalid email or password"
         )
     
     # Check if email is verified
@@ -172,8 +175,8 @@ async def logout(current_user: str = Depends(get_current_user)):
     return {"message": "Successfully logged out"}
 
 
-@router.get("/profile", response_model=UserResponse)
-async def get_profile(current_user: str = Depends(get_current_user)):
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(current_user: str = Depends(get_current_user)):
     """Get current user profile."""
     user = db.get_user_by_email(current_user)
     if not user:
@@ -182,9 +185,12 @@ async def get_profile(current_user: str = Depends(get_current_user)):
             detail="User not found"
         )
     
+    # Generate a user ID (since we don't store it in the current DB structure)
+    user_id = str(uuid.uuid4())
+    
     return UserResponse(
+        id=user_id,
         email=user.email,
-        created_at=user.created_at,
-        last_login=user.last_login,
-        is_verified=user.is_verified
+        is_verified=user.is_verified,
+        created_at=user.created_at.isoformat() if user.created_at else None
     ) 

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solvia - Authentication Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            background: white;
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+        }
+
+        .form-container {
+            padding: 30px;
+        }
+
+        .form {
+            display: none;
+        }
+
+        .form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .user-info h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .user-info p {
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .password-requirements {
+            font-size: 12px;
+            margin-top: 5px;
+            color: #666;
+        }
+
+        .requirement {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+
+        .requirement.met {
+            color: #28a745;
+        }
+
+        .requirement.not-met {
+            color: #dc3545;
+        }
+
+        .requirement-icon {
+            margin-right: 5px;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Solvia</h1>
+            <p>Authentication Test Interface</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('register')">Register</div>
+            <div class="tab" onclick="switchTab('login')">Login</div>
+        </div>
+
+        <div class="form-container">
+            <!-- Register Form -->
+            <form class="form active" id="registerForm">
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" required placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" required placeholder="Enter your password (min 8 chars)">
+                    <div class="password-requirements" id="passwordRequirements" style="display: none;">
+                        <div class="requirement" id="req-length">
+                            <span class="requirement-icon">⭕</span>
+                            At least 8 characters
+                        </div>
+                        <div class="requirement" id="req-uppercase">
+                            <span class="requirement-icon">⭕</span>
+                            One uppercase letter
+                        </div>
+                        <div class="requirement" id="req-lowercase">
+                            <span class="requirement-icon">⭕</span>
+                            One lowercase letter
+                        </div>
+                        <div class="requirement" id="req-number">
+                            <span class="requirement-icon">⭕</span>
+                            One number
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn" id="registerBtn">
+                    <span class="btn-text">Create Account</span>
+                    <span class="loading" style="display: none;"></span>
+                </button>
+            </form>
+
+            <!-- Login Form -->
+            <form class="form" id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required placeholder="Enter your password">
+                </div>
+                <button type="submit" class="btn" id="loginBtn">
+                    <span class="btn-text">Sign In</span>
+                    <span class="loading" style="display: none;"></span>
+                </button>
+            </form>
+
+            <!-- Alerts -->
+            <div id="alerts"></div>
+
+            <!-- User Info (shown after login) -->
+            <div id="userInfo" class="user-info" style="display: none;">
+                <h3>👤 User Information</h3>
+                <p><strong>ID:</strong> <span id="userId"></span></p>
+                <p><strong>Email:</strong> <span id="userEmail"></span></p>
+                <p><strong>Verified:</strong> <span id="userVerified"></span></p>
+                <p><strong>Created:</strong> <span id="userCreated"></span></p>
+                <button class="btn logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        const API_BASE = 'http://localhost:8000';
+
+        function switchTab(tab) {
+            // Update tabs
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update forms
+            document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
+            if (tab === 'register') {
+                document.getElementById('registerForm').classList.add('active');
+            } else {
+                document.getElementById('loginForm').classList.add('active');
+            }
+
+            // Clear alerts
+            clearAlerts();
+        }
+
+        function showAlert(message, type = 'info') {
+            const alerts = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alerts.appendChild(alert);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        function clearAlerts() {
+            document.getElementById('alerts').innerHTML = '';
+        }
+
+        function setLoading(buttonId, loading) {
+            const btn = document.getElementById(buttonId);
+            const btnText = btn.querySelector('.btn-text');
+            const loadingSpinner = btn.querySelector('.loading');
+
+            if (loading) {
+                btn.disabled = true;
+                btnText.style.display = 'none';
+                loadingSpinner.style.display = 'inline-block';
+            } else {
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        function validatePassword(password) {
+            const requirements = {
+                length: password.length >= 8,
+                uppercase: /[A-Z]/.test(password),
+                lowercase: /[a-z]/.test(password),
+                number: /\d/.test(password)
+            };
+
+            // Update requirement indicators
+            document.getElementById('req-length').className = `requirement ${requirements.length ? 'met' : 'not-met'}`;
+            document.getElementById('req-uppercase').className = `requirement ${requirements.uppercase ? 'met' : 'not-met'}`;
+            document.getElementById('req-lowercase').className = `requirement ${requirements.lowercase ? 'met' : 'not-met'}`;
+            document.getElementById('req-number').className = `requirement ${requirements.number ? 'met' : 'not-met'}`;
+
+            // Update icons
+            document.querySelector('#req-length .requirement-icon').textContent = requirements.length ? '✅' : '⭕';
+            document.querySelector('#req-uppercase .requirement-icon').textContent = requirements.uppercase ? '✅' : '⭕';
+            document.querySelector('#req-lowercase .requirement-icon').textContent = requirements.lowercase ? '✅' : '⭕';
+            document.querySelector('#req-number .requirement-icon').textContent = requirements.number ? '✅' : '⭕';
+
+            return requirements.length && requirements.uppercase && requirements.lowercase && requirements.number;
+        }
+
+        async function register(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            setLoading('registerBtn', true);
+            clearAlerts();
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('✅ Registration successful! You can now login.', 'success');
+                    document.getElementById('registerForm').reset();
+                    // Switch to login tab
+                    document.querySelectorAll('.tab')[1].click();
+                } else {
+                    // Handle specific error cases with friendly messages
+                    let errorMessage = data.detail;
+                    
+                    if (typeof data.detail === 'string') {
+                        if (data.detail.includes('Password must be at least 8 characters')) {
+                            errorMessage = '🔒 Password must be at least 8 characters long and contain uppercase, lowercase, and number';
+                        } else if (data.detail.includes('already exists')) {
+                            errorMessage = '📧 This email is already registered. Please try logging in instead.';
+                        } else if (data.detail.includes('Invalid email')) {
+                            errorMessage = '📧 Please enter a valid email address.';
+                        }
+                    }
+                    
+                    showAlert(`❌ ${errorMessage}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Network error: ${error.message}`, 'error');
+            } finally {
+                setLoading('registerBtn', false);
+            }
+        }
+
+        async function login(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            setLoading('loginBtn', true);
+            clearAlerts();
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store token
+                    localStorage.setItem('authToken', data.access_token);
+                    currentUser = { email, token: data.access_token };
+                    
+                    showAlert('✅ Login successful!', 'success');
+                    await loadUserInfo();
+                } else {
+                    showAlert(`❌ Login failed: ${data.detail}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Network error: ${error.message}`, 'error');
+            } finally {
+                setLoading('loginBtn', false);
+            }
+        }
+
+        async function loadUserInfo() {
+            const token = localStorage.getItem('authToken');
+            if (!token) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    
+                    // Display user info
+                    document.getElementById('userId').textContent = userData.id;
+                    document.getElementById('userEmail').textContent = userData.email;
+                    document.getElementById('userVerified').textContent = userData.is_verified ? 'Yes' : 'No';
+                    document.getElementById('userCreated').textContent = new Date(userData.created_at).toLocaleString();
+                    
+                    document.getElementById('userInfo').style.display = 'block';
+                } else {
+                    // Token might be expired
+                    localStorage.removeItem('authToken');
+                    showAlert('⚠️ Session expired. Please login again.', 'info');
+                }
+            } catch (error) {
+                showAlert(`❌ Error loading user info: ${error.message}`, 'error');
+            }
+        }
+
+        async function logout() {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                try {
+                    await fetch(`${API_BASE}/auth/logout`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                } catch (error) {
+                    console.log('Logout request failed:', error);
+                }
+            }
+
+            // Clear local storage and UI
+            localStorage.removeItem('authToken');
+            currentUser = null;
+            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('loginForm').reset();
+            
+            showAlert('👋 Logged out successfully!', 'info');
+        }
+
+        // Event listeners
+        document.getElementById('registerForm').addEventListener('submit', register);
+        document.getElementById('loginForm').addEventListener('submit', login);
+
+        // Add password validation on input
+        document.getElementById('registerPassword').addEventListener('input', function() {
+            const password = this.value;
+            const requirementsDiv = document.getElementById('passwordRequirements');
+            
+            if (password.length > 0) {
+                requirementsDiv.style.display = 'block';
+                validatePassword(password);
+            } else {
+                requirementsDiv.style.display = 'none';
+            }
+        });
+
+        // Check if user is already logged in on page load
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                loadUserInfo();
+            }
+        });
+    </script>
+</body>
+</html> 

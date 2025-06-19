@@ -24,9 +24,9 @@ class GoogleSheetsDB:
         )
         self.client = gspread.authorize(self.credentials)
         
-        # Open sheets
-        self.users_sheet = self.client.open_by_key(settings.USERS_SHEET_ID).worksheet('users')
-        self.sessions_sheet = self.client.open_by_key(settings.SESSIONS_SHEET_ID).worksheet('sessions')
+        # Open sheets - use sheet1 for both since they're in the same spreadsheet
+        self.users_sheet = self.client.open_by_key(settings.USERS_SHEET_ID).sheet1
+        self.sessions_sheet = self.client.open_by_key(settings.SESSIONS_SHEET_ID).sheet1
     
     def _find_user_row(self, email: str) -> Optional[int]:
         """Find the row number for a user by email."""
