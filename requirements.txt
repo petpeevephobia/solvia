@@ -1,0 +1,29 @@
+# FastAPI and ASGI server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Authentication and security
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.6
+
+# Google Sheets integration
+gspread==5.12.0
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+
+# Data validation and settings
+pydantic==2.5.0
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# Email sending
+fastapi-mail==1.4.1
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2 
