@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-Test script to check what the registration endpoint returns.
+Test script to check what the login endpoint returns.
 """
 import requests
 import json
 
-def test_registration():
-    """Test the registration endpoint."""
-    url = "http://localhost:8000/auth/register"
+def test_login():
+    """Test the login endpoint."""
+    url = "http://localhost:8000/auth/login"
     data = {
         "email": "solviapteltd@gmail.com",
         "password": "TestPassword123"
     }
     
-    print(f"🔍 Testing registration endpoint...")
+    print(f"🔍 Testing login endpoint...")
     print(f"URL: {url}")
     print(f"Data: {data}")
     
@@ -22,9 +22,9 @@ def test_registration():
         
         print(f"Status Code: {response.status_code}")
         print(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
-        print(f"Response Text: {response.text[:500]}...")  # First 500 chars
+        print(f"Response Text: {response.text}")
         
-        if response.status_code == 200 or response.status_code == 201:
+        if response.status_code == 200:
             print("✅ Success!")
             try:
                 json_data = response.json()
@@ -38,4 +38,4 @@ def test_registration():
         print(f"❌ Request error: {e}")
 
 if __name__ == "__main__":
-    test_registration()
+    test_login() 

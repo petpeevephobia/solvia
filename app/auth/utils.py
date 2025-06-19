@@ -8,6 +8,9 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.config import settings
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -75,3 +78,29 @@ def is_strong_password(password: str) -> bool:
     has_digit = any(c.isdigit() for c in password)
     
     return has_upper and has_lower and has_digit 
+
+
+def send_verification_email(to_email: str, token: str):
+    """Send a verification email with a link containing the token."""
+    verify_url = f"http://localhost:8000/auth/verify-email?token={token}"
+    subject = "Verify your Solvia account"
+    body = f"""
+    <h2>Welcome to Solvia!</h2>
+    <p>Click the link below to verify your account:</p>
+    <a href='{verify_url}'>{verify_url}</a>
+    <p>If you did not sign up, you can ignore this email.</p>
+    """
+    msg = MIMEMultipart()
+    msg['From'] = settings.EMAIL_FROM
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'html'))
+    try:
+        with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
+            server.starttls()
+            server.login(settings.EMAIL_USERNAME, settings.EMAIL_PASSWORD)
+            server.sendmail(settings.EMAIL_FROM, to_email, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"Error sending verification email: {e}")
+        return False 

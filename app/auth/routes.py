@@ -3,16 +3,16 @@ Authentication routes for Solvia.
 """
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.auth.models import (
-    UserCreate, UserLogin, UserResponse, Token, 
+    UserCreate, UserLogin, UserResponse, TokenResponse, 
     PasswordReset, PasswordResetConfirm, EmailVerification
 )
 from app.auth.utils import (
     get_password_hash, verify_password, create_access_token,
     generate_verification_token, generate_reset_token,
-    is_strong_password
+    is_strong_password, send_verification_email
 )
 from app.database import db
 from app.config import settings
@@ -64,23 +64,30 @@ async def register(user: UserCreate):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create user"
         )
-    
+
+    # Send verification email
+    send_verification_email(user.email, verification_token)
+
     # Generate a user ID (since we don't store it in the current DB structure)
     user_id = str(uuid.uuid4())
     
     return UserResponse(
         id=user_id,
         email=user.email,
-        message="User registered successfully",
+        message="User registered successfully. Please check your email to verify your account.",
         created_at=datetime.utcnow().isoformat()
     )
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=TokenResponse)
 async def login(user_credentials: UserLogin):
     """Login user and return access token."""
     # Get user from database
     user = db.get_user_by_email(user_credentials.email)
+    print(f"[DEBUG] User from DB: {user}")
+    print(f"[DEBUG] Password to check: {user_credentials.password}")
+    if user:
+        print(f"[DEBUG] Stored hash: {user.password_hash}")
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -88,7 +95,9 @@ async def login(user_credentials: UserLogin):
         )
     
     # Verify password
-    if not verify_password(user_credentials.password, user.password_hash):
+    is_valid = verify_password(user_credentials.password, user.password_hash)
+    print(f"[DEBUG] Password valid: {is_valid}")
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -105,9 +114,14 @@ async def login(user_credentials: UserLogin):
     db.update_last_login(user.email)
     
     # Create access token
-    access_token = create_access_token(data={"sub": user.email})
+    access_token_expires = timedelta(minutes=30)  # 30 minutes
+    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=access_token_expires.total_seconds()
+    )
 
 
 @router.post("/verify-email")
@@ -192,5 +206,27 @@ async def get_current_user_info(current_user: str = Depends(get_current_user)):
         id=user_id,
         email=user.email,
         is_verified=user.is_verified,
-        created_at=user.created_at.isoformat() if user.created_at else None
-    ) 
+        created_at=user.created_at if user.created_at else None
+    )
+
+
+@router.get("/verify-email")
+async def verify_email(token: str, request: Request):
+    """Verify user email with token from the verification link."""
+    # Find user with this verification token
+    user = None
+    # Search all users for the token
+    all_rows = db.users_sheet.get_all_records()
+    row_num = None
+    for idx, row in enumerate(all_rows, start=2):  # start=2 to account for header row
+        if row.get('verification_token') == token:
+            user = row
+            row_num = idx
+            break
+    if not user:
+        return {"success": False, "message": "Invalid or expired verification token."}
+    # Mark as verified and clear token
+    db.users_sheet.update_cell(row_num, 5, "TRUE")  # is_verified
+    db.users_sheet.update_cell(row_num, 6, "")      # verification_token
+    # Optionally, redirect to a success page or show a message
+    return {"success": True, "message": "Your account has been verified! You can now log in."} 

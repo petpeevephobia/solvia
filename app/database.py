@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from app.config import settings
 from app.auth.models import UserInDB, UserCreate
+import uuid
 
 
 class GoogleSheetsDB:
@@ -58,23 +59,27 @@ class GoogleSheetsDB:
     def get_user_by_email(self, email: str) -> Optional[UserInDB]:
         """Get user by email."""
         try:
-            row = self._find_user_row(email)
-            if row is None:
-                return None
+            # Get all users as records (dictionary format)
+            print(f"[DEBUG] Searching for email: '{email}'")
+            all_users = self.users_sheet.get_all_records()
+            print(f"[DEBUG] Emails in sheet:")
+            for user_record in all_users:
+                print(f"  - '{user_record.get('email')}'")
+            # Find user by email
+            for user_record in all_users:
+                if user_record.get('email') == email:
+                    print(f"[DEBUG] Match found for email: '{email}'")
+                    return UserInDB(
+                        id=str(uuid.uuid4()),  # Generate a UUID for the user
+                        email=user_record.get('email'),
+                        password_hash=user_record.get('password_hash'),
+                        created_at=user_record.get('created_at') if user_record.get('created_at') else datetime.utcnow().isoformat(),
+                        is_verified=user_record.get('is_verified', '').upper() == "TRUE",
+                        verification_token=user_record.get('verification_token'),
+                        reset_token=user_record.get('reset_token')
+                    )
             
-            user_data = self.users_sheet.row_values(row)
-            if len(user_data) < 7:
-                return None
-            
-            return UserInDB(
-                email=user_data[0],
-                password_hash=user_data[1],
-                created_at=datetime.fromisoformat(user_data[2]) if user_data[2] else datetime.utcnow(),
-                last_login=datetime.fromisoformat(user_data[3]) if user_data[3] else None,
-                is_verified=user_data[4].upper() == "TRUE",
-                verification_token=user_data[5] if user_data[5] else None,
-                reset_token=user_data[6] if user_data[6] else None
-            )
+            return None
         except Exception as e:
             print(f"Error getting user: {e}")
             return None

@@ -454,7 +454,9 @@
                     showAlert('✅ Login successful!', 'success');
                     await loadUserInfo();
                 } else {
-                    showAlert(`❌ Login failed: ${data.detail}`, 'error');
+                    // Show the new error format
+                    let errorMessage = data.detail || data.error || 'Unknown error';
+                    showAlert(`❌ Login failed: ${errorMessage}`, 'error');
                 }
             } catch (error) {
                 showAlert(`❌ Network error: ${error.message}`, 'error');
