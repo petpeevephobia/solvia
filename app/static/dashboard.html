@@ -292,6 +292,156 @@
             display: none;
         }
 
+        /* Website URL Collection Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .website-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group .help-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn-primary {
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            padding: 12px;
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .website-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .website-info h3 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .website-info p {
+            color: #666;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .website-url {
+            color: #667eea;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .website-url:hover {
+            text-decoration: underline;
+        }
+
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -321,6 +471,21 @@
         <div class="dashboard-header">
             <h1>Welcome back, <span id="userName">User</span>!</h1>
             <p>Here's your SEO performance overview for the past 30 days.</p>
+        </div>
+
+        <!-- Website Info Section -->
+        <div id="websiteInfo" class="website-info hidden">
+            <h3>📊 Your Website</h3>
+            <p>Currently tracking: <a href="#" id="websiteUrl" class="website-url" target="_blank">example.com</a></p>
+        </div>
+
+        <!-- Add Website Section (shown when no website) -->
+        <div id="addWebsiteSection" class="website-info hidden">
+            <h3>🌐 Add Your Website</h3>
+            <p>To start tracking your SEO performance, add your website URL.</p>
+            <button onclick="showWebsiteModal()" class="btn-primary" style="margin-top: 0.5rem; padding: 8px 16px; font-size: 14px;">
+                Add Website
+            </button>
         </div>
 
         <div class="stats-grid">
@@ -362,7 +527,44 @@
         </div>
     </div>
 
+    <!-- Website URL Collection Modal -->
+    <div id="websiteModal" class="modal-overlay hidden" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>🚀 Welcome to Solvia!</h2>
+                <p>To get started with SEO tracking, please add your website URL below.</p>
+            </div>
+            
+            <form id="websiteForm" class="website-form">
+                <div class="form-group">
+                    <label for="websiteUrlInput">Website URL</label>
+                    <input 
+                        type="url" 
+                        id="websiteUrlInput" 
+                        name="website_url" 
+                        placeholder="https://example.com"
+                        required
+                    >
+                    <div class="help-text">Enter your website's full URL including https://</div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="skipWebsite()">
+                        Skip for now
+                    </button>
+                    <button type="submit" class="btn-primary" id="submitWebsiteBtn">
+                        <span id="submitBtnText">Add Website</span>
+                        <span id="submitBtnLoading" class="loading hidden"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        // Flag to track if we've checked the user's website status
+        let websiteStatusChecked = false;
+        
         function checkAuth() {
             const token = localStorage.getItem('auth_token');
             if (!token) {
@@ -529,9 +731,234 @@
 
         // Initialize charts when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, initializing...'); // Debug log
+            
+            // Ensure modal is hidden on page load
+            hideWebsiteModal();
+            
             checkAuth();
             createCharts();
+            // Don't check user website immediately - wait a bit to avoid race conditions
+            setTimeout(() => {
+                checkUserWebsite();
+            }, 100);
         });
+
+        // Check if user has a website registered
+        async function checkUserWebsite() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            console.log('Checking user website status...'); // Debug log
+
+            try {
+                const response = await fetch('/auth/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Dashboard data:', data); // Debug log
+                    
+                    // Mark that we've checked the website status
+                    websiteStatusChecked = true;
+                    
+                    if (data.has_website && data.website) {
+                        console.log('User has website, displaying info'); // Debug log
+                        // User has a website, display it
+                        displayWebsiteInfo(data.website);
+                        // Ensure modal is hidden
+                        hideWebsiteModal();
+                    } else {
+                        console.log('User has no website, showing modal'); // Debug log
+                        // User doesn't have a website, show modal
+                        showWebsiteModal();
+                    }
+                } else {
+                    console.error('Failed to get dashboard data');
+                }
+            } catch (error) {
+                console.error('Error checking user website:', error);
+            }
+        }
+
+        // Display website info in dashboard
+        function displayWebsiteInfo(website) {
+            console.log('Displaying website info:', website); // Debug log
+            const websiteInfo = document.getElementById('websiteInfo');
+            const addWebsiteSection = document.getElementById('addWebsiteSection');
+            const websiteUrl = document.getElementById('websiteUrl');
+            
+            websiteUrl.textContent = website.website_url;
+            websiteUrl.href = website.website_url;
+            
+            websiteInfo.classList.remove('hidden');
+            addWebsiteSection.classList.add('hidden');
+            
+            // Ensure modal is hidden
+            hideWebsiteModal();
+        }
+
+        // Show add website section (when user skips or doesn't have website)
+        function showAddWebsiteSection() {
+            console.log('Showing add website section'); // Debug log
+            const websiteInfo = document.getElementById('websiteInfo');
+            const addWebsiteSection = document.getElementById('addWebsiteSection');
+            
+            websiteInfo.classList.add('hidden');
+            addWebsiteSection.classList.remove('hidden');
+        }
+
+        // Show website collection modal
+        function showWebsiteModal() {
+            console.log('showWebsiteModal called, websiteStatusChecked:', websiteStatusChecked); // Debug log
+            
+            // Only show modal if we've checked the website status and user doesn't have a website
+            if (!websiteStatusChecked) {
+                console.log('Website status not checked yet, not showing modal');
+                return;
+            }
+            
+            const modal = document.getElementById('websiteModal');
+            if (modal) {
+                console.log('Showing modal'); // Debug log
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex'; // Force show with inline style
+            } else {
+                console.error('Modal element not found'); // Debug log
+            }
+        }
+
+        // Hide website collection modal
+        function hideWebsiteModal() {
+            console.log('hideWebsiteModal called'); // Debug log
+            const modal = document.getElementById('websiteModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none'; // Force hide with inline style
+                console.log('Modal hidden successfully'); // Debug log
+            } else {
+                console.error('Modal element not found'); // Debug log
+            }
+        }
+
+        // Skip website collection
+        function skipWebsite() {
+            console.log('Skip button clicked'); // Debug log
+            hideWebsiteModal();
+            showAddWebsiteSection();
+            // Show a message that they can add it later
+            showAlert('ℹ️ You can add your website later from the dashboard settings.', 'info');
+        }
+
+        // Handle website form submission
+        document.getElementById('websiteForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const websiteUrl = document.getElementById('websiteUrlInput').value;
+            const submitBtn = document.getElementById('submitWebsiteBtn');
+            const submitBtnText = document.getElementById('submitBtnText');
+            const submitBtnLoading = document.getElementById('submitBtnLoading');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtnText.style.display = 'none';
+            submitBtnLoading.classList.remove('hidden');
+            
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/auth/website', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        website_url: websiteUrl
+                    })
+                });
+
+                if (response.ok) {
+                    const website = await response.json();
+                    
+                    // Hide modal
+                    hideWebsiteModal();
+                    
+                    // Display website info
+                    displayWebsiteInfo(website);
+                    
+                    // Show success message
+                    showAlert('✅ Website added successfully!', 'success');
+                } else {
+                    const error = await response.json();
+                    showAlert(`❌ ${error.detail}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Network error: ${error.message}`, 'error');
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtnText.style.display = 'inline';
+                submitBtnLoading.classList.add('hidden');
+            }
+        });
+
+        // Simple alert function for feedback
+        function showAlert(message, type) {
+            // Create alert element
+            const alert = document.createElement('div');
+            alert.textContent = message;
+            
+            // Set styles based on type
+            let backgroundColor = '#17a2b8'; // default info color
+            if (type === 'success') {
+                backgroundColor = '#28a745';
+            } else if (type === 'error') {
+                backgroundColor = '#dc3545';
+            }
+            
+            alert.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 1001;
+                background-color: ${backgroundColor};
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            
+            // Add to page
+            document.body.appendChild(alert);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 3000);
+        }
+
+        // Add CSS animation for alerts
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html> 

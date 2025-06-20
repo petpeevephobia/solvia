@@ -17,6 +17,27 @@ from app.auth.utils import (
 from app.database import db
 from app.config import settings
 import uuid
+
+# New models for website management
+from pydantic import BaseModel, HttpUrl
+
+class WebsiteCreate(BaseModel):
+    website_url: HttpUrl
+
+class WebsiteResponse(BaseModel):
+    email: str
+    website_url: str
+    domain_name: str
+    is_active: bool
+    created_at: str
+    updated_at: str
+
+class DashboardDataResponse(BaseModel):
+    user: Optional[UserResponse]
+    website: Optional[WebsiteResponse]
+    has_website: bool
+    total_metrics: int
+
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 
@@ -229,4 +250,152 @@ async def verify_email(token: str, request: Request):
     db.users_sheet.update_cell(row_num, 5, "TRUE")  # is_verified
     db.users_sheet.update_cell(row_num, 6, "")      # verification_token
     # Optionally, redirect to a success page or show a message
-    return {"success": True, "message": "Your account has been verified! You can now log in."} 
+    return {"success": True, "message": "Your account has been verified! You can now log in."}
+
+
+# Website Management Endpoints
+@router.post("/website", response_model=WebsiteResponse)
+async def add_user_website(
+    website_data: WebsiteCreate,
+    current_user: str = Depends(get_current_user)
+):
+    """Add or update user's website URL."""
+    try:
+        # Convert Pydantic HttpUrl to string
+        website_url = str(website_data.website_url)
+        
+        # Check if user already has a website
+        existing_website = db.get_user_website(current_user)
+        
+        if existing_website:
+            # Update existing website
+            success = db.update_user_website(current_user, website_url)
+        else:
+            # Add new website
+            success = db.add_user_website(current_user, website_url)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to add/update website. Please check the URL format."
+            )
+        
+        # Get the updated website data
+        website = db.get_user_website(current_user)
+        if not website:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Website was added but could not be retrieved"
+            )
+        
+        return WebsiteResponse(
+            email=website['email'],
+            website_url=website['website_url'],
+            domain_name=website['domain_name'],
+            is_active=website['is_active'].upper() == "TRUE",
+            created_at=website['created_at'],
+            updated_at=website['updated_at']
+        )
+        
+    except Exception as e:
+        print(f"Error adding user website: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get("/website", response_model=WebsiteResponse)
+async def get_user_website(current_user: str = Depends(get_current_user)):
+    """Get user's website information."""
+    try:
+        website = db.get_user_website(current_user)
+        if not website:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No website found for this user"
+            )
+        
+        return WebsiteResponse(
+            email=website['email'],
+            website_url=website['website_url'],
+            domain_name=website['domain_name'],
+            is_active=website['is_active'].upper() == "TRUE",
+            created_at=website['created_at'],
+            updated_at=website['updated_at']
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting user website: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.delete("/website")
+async def delete_user_website(current_user: str = Depends(get_current_user)):
+    """Delete user's website."""
+    try:
+        success = db.delete_user_website(current_user)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No website found for this user"
+            )
+        
+        return {"message": "Website deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting user website: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get("/dashboard", response_model=DashboardDataResponse)
+async def get_dashboard_data(current_user: str = Depends(get_current_user)):
+    """Get all data needed for user dashboard."""
+    try:
+        dashboard_data = db.get_dashboard_data(current_user)
+        
+        # Convert user data to response model if exists
+        user_response = None
+        if dashboard_data['user']:
+            user_response = UserResponse(
+                id=dashboard_data['user'].id,
+                email=dashboard_data['user'].email,
+                is_verified=dashboard_data['user'].is_verified,
+                created_at=dashboard_data['user'].created_at
+            )
+        
+        # Convert website data to response model if exists
+        website_response = None
+        if dashboard_data['website']:
+            website_response = WebsiteResponse(
+                email=dashboard_data['website']['email'],
+                website_url=dashboard_data['website']['website_url'],
+                domain_name=dashboard_data['website']['domain_name'],
+                is_active=dashboard_data['website']['is_active'].upper() == "TRUE",
+                created_at=dashboard_data['website']['created_at'],
+                updated_at=dashboard_data['website']['updated_at']
+            )
+        
+        return DashboardDataResponse(
+            user=user_response,
+            website=website_response,
+            has_website=dashboard_data['has_website'],
+            total_metrics=dashboard_data['total_metrics']
+        )
+        
+    except Exception as e:
+        print(f"Error getting dashboard data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        ) 
