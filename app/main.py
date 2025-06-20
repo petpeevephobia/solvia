@@ -3,7 +3,7 @@ Main FastAPI application for Solvia authentication system.
 """
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
@@ -46,7 +46,8 @@ async def root():
         "message": "Welcome to Solvia Authentication API",
         "version": settings.APP_VERSION,
         "docs": "/docs",
-        "ui": "/ui"
+        "ui": "/ui",
+        "dashboard": "/dashboard"
     }
 
 @app.get("/health")
@@ -67,6 +68,18 @@ async def serve_ui():
         return {
             "error": "UI not found",
             "message": "Please ensure the UI files are in the static directory"
+        }
+
+@app.get("/dashboard")
+async def serve_dashboard():
+    """Serve the dashboard UI."""
+    dashboard_file = os.path.join(static_dir, "dashboard.html")
+    if os.path.exists(dashboard_file):
+        return FileResponse(dashboard_file)
+    else:
+        return {
+            "error": "Dashboard not found",
+            "message": "Please ensure the dashboard files are in the static directory"
         }
 
 @app.get("/api/health")

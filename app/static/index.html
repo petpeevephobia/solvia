@@ -448,11 +448,15 @@
 
                 if (response.ok) {
                     // Store token
-                    localStorage.setItem('authToken', data.access_token);
+                    localStorage.setItem('auth_token', data.access_token);
                     currentUser = { email, token: data.access_token };
                     
-                    showAlert('✅ Login successful!', 'success');
-                    await loadUserInfo();
+                    showAlert('✅ Login successful! Redirecting to dashboard...', 'success');
+                    
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
                 } else {
                     // Show the new error format
                     let errorMessage = data.detail || data.error || 'Unknown error';
@@ -466,7 +470,7 @@
         }
 
         async function loadUserInfo() {
-            const token = localStorage.getItem('authToken');
+            const token = localStorage.getItem('auth_token');
             if (!token) return;
 
             try {
@@ -488,7 +492,7 @@
                     document.getElementById('userInfo').style.display = 'block';
                 } else {
                     // Token might be expired
-                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('auth_token');
                     showAlert('⚠️ Session expired. Please login again.', 'info');
                 }
             } catch (error) {
@@ -497,7 +501,7 @@
         }
 
         async function logout() {
-            const token = localStorage.getItem('authToken');
+            const token = localStorage.getItem('auth_token');
             if (token) {
                 try {
                     await fetch(`${API_BASE}/auth/logout`, {
@@ -512,7 +516,7 @@
             }
 
             // Clear local storage and UI
-            localStorage.removeItem('authToken');
+            localStorage.removeItem('auth_token');
             currentUser = null;
             document.getElementById('userInfo').style.display = 'none';
             document.getElementById('loginForm').reset();
@@ -539,9 +543,10 @@
 
         // Check if user is already logged in on page load
         window.addEventListener('load', () => {
-            const token = localStorage.getItem('authToken');
+            const token = localStorage.getItem('auth_token');
             if (token) {
-                loadUserInfo();
+                // If user is already logged in, redirect to dashboard
+                window.location.href = '/dashboard';
             }
         });
     </script>
