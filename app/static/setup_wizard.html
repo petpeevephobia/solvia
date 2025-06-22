@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solvia Setup Wizard - Connect Google Search Console</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=1.3">
+</head>
+<body class="wizard-body">
+    <div class="wizard-container">
+        <div class="wizard-header">
+            <h1>🚀 Welcome to Solvia</h1>
+            <p>Let's connect your Google Search Console to get started.</p>
+        </div>
+
+        <div class="wizard-content">
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="step-dot active" id="step1-dot"></div>
+                <div class="step-dot" id="step2-dot"></div>
+                <div class="step-dot" id="step3-dot"></div>
+            </div>
+
+            <!-- Step 1: Introduction -->
+            <div class="wizard-step active" id="step1">
+                <h2>Connect Your SEO Data</h2>
+                <p>To provide you with accurate SEO insights, we need to connect to your Google Search Console account.</p>
+                
+                <div class="info-box">
+                    <h3>What you need</h3>
+                    <ul>
+                        <li>A Google account with Search Console access</li>
+                        <li>At least one verified website in Search Console</li>
+                        <li>Permission to grant access to Solvia</li>
+                    </ul>
+                </div>
+                <div class="info-box">
+                    <h3>What we'll do</h3>
+                    <ol>
+                        <li>Connect to your Google Search Console</li>
+                        <li>Select which website to track</li>
+                        <li>Collect your SEO performance data</li>
+                        <li>Set up your personalized dashboard</li>
+                    </ol>
+                </div>
+                <div class="btn-group" style="margin-top: 2rem;">
+                    <button class="btn btn-secondary" onclick="skipSetup()">Skip for now</button>
+                    <button class="btn btn-primary" id="auth-btn" onclick="startGoogleAuth()">
+                        <span id="auth-btn-text">Connect</span>
+                        <span id="auth-btn-loading" class="loading hidden"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Select Website -->
+            <div class="wizard-step" id="step2">
+                <h2>Select Your Website</h2>
+                <p>Choose which website you want to track in Solvia:</p>
+                
+                <div id="properties-container">
+                    <div class="loading" style="margin: 2rem auto; display: block;"></div>
+                    <p style="text-align: center; margin-top: 1rem;">Loading your websites...</p>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+                    <button id="select-btn" class="btn btn-primary" onclick="selectProperty()" disabled>
+                        <span id="select-btn-text">Select Website</span>
+                        <span id="select-btn-loading" class="loading hidden"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Setup Complete -->
+            <div class="wizard-step" id="step3">
+                <h2>🎉 Setup Complete!</h2>
+                <p>Your Google Search Console is now connected and we're collecting your SEO data.</p>
+                
+                <div class="success-message">
+                    <strong>What's happening now:</strong>
+                    <p>• We're fetching your latest SEO metrics</p>
+                    <p>• Setting up automated data collection</p>
+                    <p>• Preparing your personalized dashboard</p>
+                </div>
+
+                <div id="setup-progress">
+                    <div class="loading" style="margin: 1rem auto; display: block;"></div>
+                    <p style="text-align: center;">Setting up your dashboard...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let selectedProperty = null;
+        let gscProperties = [];
+
+        // Check authentication on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+        });
+
+        function checkAuth() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/ui';
+                return;
+            }
+        }
+
+        function updateStepIndicator() {
+            // Update step dots
+            for (let i = 1; i <= 3; i++) {
+                const dot = document.getElementById(`step${i}-dot`);
+                if (i < currentStep) {
+                    dot.classList.remove('active');
+                    dot.classList.add('completed');
+                } else if (i === currentStep) {
+                    dot.classList.add('active');
+                    dot.classList.remove('completed');
+                } else {
+                    dot.classList.remove('active', 'completed');
+                }
+            }
+
+            // Show/hide steps
+            for (let i = 1; i <= 3; i++) {
+                const step = document.getElementById(`step${i}`);
+                if (i === currentStep) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.remove('active');
+                }
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < 3) {
+                currentStep++;
+                updateStepIndicator();
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepIndicator();
+            }
+        }
+
+        async function startGoogleAuth() {
+            const authBtn = document.getElementById('auth-btn');
+            const authBtnText = document.getElementById('auth-btn-text');
+            const authBtnLoading = document.getElementById('auth-btn-loading');
+
+            // Set fixed width to prevent resizing
+            const btnWidth = authBtn.offsetWidth;
+            authBtn.style.width = `${btnWidth}px`;
+
+            // Show loading state
+            authBtn.disabled = true;
+            authBtnText.style.display = 'none';
+            authBtnLoading.classList.remove('hidden');
+
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    throw new Error('Authentication token not found. Please log in again.');
+                }
+
+                const response = await fetch('/auth/google/authorize', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    window.location.href = data.auth_url;
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Failed to get authorization URL');
+                }
+            } catch (error) {
+                console.error('Error starting Google auth:', error);
+                showError(error.message || 'Failed to start Google authorization. Please try again.');
+                
+                // Reset button state
+                authBtn.disabled = false;
+                authBtnText.style.display = 'inline';
+                authBtnLoading.classList.add('hidden');
+                authBtn.style.width = ''; // Reset width
+            }
+        }
+
+        async function loadGSCProperties() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                console.log('[DEBUG] Auth token:', token ? token.substring(0, 20) + '...' : 'null');
+                
+                if (!token) {
+                    showError('No authentication token found. Please log in again.');
+                    return;
+                }
+                
+                const response = await fetch('/auth/gsc/properties', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                console.log('[DEBUG] Response status:', response.status);
+                console.log('[DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
+
+                if (response.ok) {
+                    gscProperties = await response.json();
+                    console.log('[DEBUG] GSC properties:', gscProperties);
+                    displayProperties();
+                } else {
+                    const errorText = await response.text();
+                    console.log('[DEBUG] Error response:', errorText);
+                    
+                    // Check if it's a credentials issue
+                    if (response.status === 500 && errorText.includes('credentials')) {
+                        showError(`Google Search Console connection issue detected. <button onclick="clearCredentials()" class="btn-link">Click here to re-authenticate</button>`);
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading GSC properties:', error);
+                showError(`Failed to load your Google Search Console properties: ${error.message}`);
+            }
+        }
+
+        async function clearCredentials() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/auth/gsc/clear-credentials', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    showError('Credentials cleared. Please click "Connect" to re-authenticate.');
+                    // Reset to step 1
+                    currentStep = 1;
+                    showStep(1);
+                } else {
+                    showError('Failed to clear credentials. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error clearing credentials:', error);
+                showError('Failed to clear credentials. Please try again.');
+            }
+        }
+
+        function displayProperties() {
+            const container = document.getElementById('properties-container');
+            
+            if (gscProperties.length === 0) {
+                container.innerHTML = `
+                    <div class="error-message">
+                        <strong>No websites found</strong>
+                        <p>We couldn't find any verified websites in your Google Search Console account.</p>
+                        <p>Please make sure you have:</p>
+                        <ul>
+                            <li>Added your website to Google Search Console</li>
+                            <li>Verified ownership of your website</li>
+                        </ul>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            gscProperties.forEach((property, index) => {
+                const isVerified = property.isVerified ? 'Verified' : 'Not Verified';
+                const permissionLevel = property.permissionLevel === 'siteOwner' ? 'Owner' : 'User';
+                
+                // Clean up the URL for display
+                let displayUrl = property.siteUrl;
+                let propertyType = '';
+                if (displayUrl.startsWith('sc-domain:')) {
+                    displayUrl = displayUrl.replace('sc-domain:', '');
+                    propertyType = ' • Domain Property';
+                }
+
+                html += `
+                    <div class="property-item" onclick="selectPropertyItem(${index})">
+                        <input type="radio" name="selectedProperty" value="${index}" id="property-${index}">
+                        <label for="property-${index}">
+                            <strong>${displayUrl}</strong>
+                            <div class="property-status">
+                                ${isVerified} • ${permissionLevel}${propertyType}
+                            </div>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function selectPropertyItem(index) {
+            // Update radio button
+            document.querySelectorAll('input[name="selectedProperty"]').forEach(radio => {
+                radio.checked = false;
+            });
+            document.getElementById(`property-${index}`).checked = true;
+            
+            // Update selected property
+            selectedProperty = gscProperties[index];
+            
+            // Enable select button
+            document.getElementById('select-btn').disabled = false;
+            
+            // Update visual selection
+            document.querySelectorAll('.property-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            document.querySelectorAll('.property-item')[index].classList.add('selected');
+        }
+
+        async function selectProperty() {
+            if (!selectedProperty) {
+                showError('Please select a website first.');
+                return;
+            }
+
+            const selectBtn = document.getElementById('select-btn');
+            const selectBtnText = document.getElementById('select-btn-text');
+            const selectBtnLoading = document.getElementById('select-btn-loading');
+            
+            // Set fixed width to prevent resizing
+            const btnWidth = selectBtn.offsetWidth;
+            selectBtn.style.width = `${btnWidth}px`;
+
+            // Show loading state
+            selectBtn.disabled = true;
+            selectBtnText.style.display = 'none';
+            selectBtnLoading.classList.remove('hidden');
+            
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/auth/gsc/select-property', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        property_url: selectedProperty.siteUrl
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Property selected successfully:', data);
+                    nextStep();
+                    finishSetup();
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to select property');
+                }
+            } catch (error) {
+                console.error('Error selecting property:', error);
+                showError(error.message || 'Failed to select website. Please try again.');
+                
+                // Reset button state
+                selectBtn.disabled = false;
+                selectBtnText.style.display = 'inline';
+                selectBtnLoading.classList.add('hidden');
+                selectBtn.style.width = ''; // Reset width
+            }
+        }
+
+        function finishSetup() {
+            const progressDiv = document.getElementById('setup-progress');
+            progressDiv.innerHTML = `
+                <div class="success-message" style="margin-top: 2rem; text-align: center; display: block;">
+                    <strong>Setup Complete!</strong>
+                    <p>Redirecting you to the dashboard...</p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 3000);
+        }
+
+        function skipSetup() {
+            // Redirect to dashboard with empty state
+            window.location.href = '/dashboard';
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `<strong>Error:</strong> ${message}`;
+            
+            const currentStepElement = document.getElementById(`step${currentStep}`);
+            currentStepElement.insertBefore(errorDiv, currentStepElement.firstChild);
+            
+            // Remove error after 5 seconds
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        // Handle Google OAuth callback
+        function handleGoogleCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+            const demo = urlParams.get('demo');
+            const oauthSuccess = urlParams.get('oauth_success');
+            const oauthError = urlParams.get('oauth_error');
+            
+            if (error || oauthError) {
+                showError('Google authorization was cancelled or failed.');
+                return;
+            }
+            
+            if (oauthSuccess === 'true') {
+                // OAuth was successful, move to step 2 and load properties
+                console.log('OAuth success detected, loading GSC properties');
+                nextStep();
+                showOAuthSuccess();
+                loadGSCProperties();
+                return;
+            }
+            
+            if (demo === 'true') {
+                // Demo mode - simulate successful connection
+                console.log('Demo mode detected, simulating GSC connection');
+                nextStep();
+                showOAuthSuccess();
+                loadGSCProperties();
+                return;
+            }
+            
+            if (code) {
+                // Direct callback with code - this shouldn't happen with current flow
+                // but handle it just in case
+                console.log('Direct code callback detected');
+                nextStep();
+                loadGSCProperties();
+            }
+        }
+
+        function showOAuthSuccess() {
+            // Add success message to step 2
+            const step2 = document.getElementById('step2');
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.style.backgroundColor = '#f0fdf4'; // Very light green background
+            successDiv.style.color = '#166534'; // Dark green text
+            successDiv.style.border = '1px solid #bbf7d0'; // Light green border
+            successDiv.style.padding = '12px 16px'; // Paragraph-style padding
+            successDiv.style.borderRadius = '6px'; // Rounded corners
+            successDiv.style.marginBottom = '16px'; // Bottom margin
+            successDiv.style.fontSize = '16px'; // 16px font size
+            successDiv.style.fontWeight = 'normal'; // No bold
+            successDiv.style.lineHeight = '1.5'; // Paragraph line height
+            successDiv.innerHTML = `
+                Google Search Console connected successfully!
+            `;
+            
+            // Insert at the beginning of step 2 content
+            step2.insertBefore(successDiv, step2.firstChild);
+            
+            // Don't remove the success message - keep it persistent
+        }
+
+        // Check if this is a callback from Google OAuth
+        if (window.location.search.includes('code=') || 
+            window.location.search.includes('error=') || 
+            window.location.search.includes('demo=') ||
+            window.location.search.includes('oauth_success=') ||
+            window.location.search.includes('oauth_error=')) {
+            handleGoogleCallback();
+        }
+    </script>
+</body>
+</html> 

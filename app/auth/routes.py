@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import RedirectResponse
 from app.auth.models import (
     UserCreate, UserLogin, UserResponse, TokenResponse, 
     PasswordReset, PasswordResetConfirm, EmailVerification
@@ -16,39 +17,57 @@ from app.auth.utils import (
 )
 from app.database import db
 from app.config import settings
+from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher
 import uuid
 
 # New models for website management
 from pydantic import BaseModel, HttpUrl
 
-class WebsiteCreate(BaseModel):
-    website_url: HttpUrl
+# New models for Google OAuth
+class GoogleAuthRequest(BaseModel):
+    state: Optional[str] = None
 
-class WebsiteResponse(BaseModel):
-    email: str
-    website_url: str
-    domain_name: str
-    is_active: bool
-    created_at: str
-    updated_at: str
+class GoogleCallbackRequest(BaseModel):
+    code: str
+
+class GSCPropertyResponse(BaseModel):
+    siteUrl: str
+    permissionLevel: str
+    isVerified: bool
+
+class GSCPropertySelectRequest(BaseModel):
+    property_url: str
+
+class GSCMetricsResponse(BaseModel):
+    summary: dict
+    time_series: dict
+    last_updated: str
+    website_url: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
 
 class DashboardDataResponse(BaseModel):
     user: Optional[UserResponse]
-    website: Optional[WebsiteResponse]
-    has_website: bool
-    total_metrics: int
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 
+# Initialize Google OAuth handler
+google_oauth = GoogleOAuthHandler()
+gsc_fetcher = GSCDataFetcher(google_oauth)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """Get current user from JWT token."""
     from app.auth.utils import verify_token
     
     token = credentials.credentials
+    print(f"[DEBUG] get_current_user called with token: {token[:20] if token else 'None'}...")
+    
     email = verify_token(token)
+    print(f"[DEBUG] Token verification result - email: {email}")
+    
     if email is None:
+        print(f"[DEBUG] Token validation failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -202,12 +221,95 @@ async def reset_password(reset_confirm: PasswordResetConfirm):
 
 @router.post("/logout")
 async def logout(current_user: str = Depends(get_current_user)):
-    """Logout user (invalidate token)."""
-    # In a JWT-based system, logout is typically handled client-side
-    # by removing the token. For additional security, you could maintain
-    # a blacklist of invalidated tokens.
-    
+    """Logout user."""
+    # In a more complex system, you might want to blacklist the token
+    # For now, we'll just return a success message
     return {"message": "Successfully logged out"}
+
+
+@router.post("/refresh")
+async def refresh_token(current_user: str = Depends(get_current_user)):
+    """Refresh the access token."""
+    try:
+        # Create a new access token
+        access_token_expires = timedelta(minutes=30)
+        new_access_token = create_access_token(data={"sub": current_user}, expires_delta=access_token_expires)
+        
+        return TokenResponse(
+            access_token=new_access_token,
+            token_type="bearer",
+            expires_in=access_token_expires.total_seconds()
+        )
+    except Exception as e:
+        print(f"Error refreshing token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to refresh token"
+        )
+
+
+@router.post("/refresh-token")
+async def refresh_token_manual(request: Request):
+    """Refresh the access token without requiring current user validation."""
+    try:
+        # Get the token from the Authorization header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authorization header"
+            )
+        
+        token = auth_header.split(' ')[1]
+        
+        # Manually verify the token (even if expired)
+        from app.auth.utils import verify_token
+        email = verify_token(token)
+        
+        if not email:
+            # Try to decode the token manually to get the email even if expired
+            try:
+                import jwt
+                from app.config import settings
+                # Decode without verification to get payload
+                payload = jwt.decode(token, options={"verify_signature": False})
+                email = payload.get("sub")
+                if not email:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid token"
+                    )
+            except Exception:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token"
+                )
+        
+        # Verify user exists
+        user = db.get_user_by_email(email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+        
+        # Create a new access token
+        access_token_expires = timedelta(minutes=30)
+        new_access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
+        
+        return TokenResponse(
+            access_token=new_access_token,
+            token_type="bearer",
+            expires_in=access_token_expires.total_seconds()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error refreshing token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to refresh token"
+        )
 
 
 @router.get("/me", response_model=UserResponse)
@@ -253,144 +355,24 @@ async def verify_email(token: str, request: Request):
     return {"success": True, "message": "Your account has been verified! You can now log in."}
 
 
-# Website Management Endpoints
-@router.post("/website", response_model=WebsiteResponse)
-async def add_user_website(
-    website_data: WebsiteCreate,
-    current_user: str = Depends(get_current_user)
-):
-    """Add or update user's website URL."""
-    try:
-        # Convert Pydantic HttpUrl to string
-        website_url = str(website_data.website_url)
-        
-        # Check if user already has a website
-        existing_website = db.get_user_website(current_user)
-        
-        if existing_website:
-            # Update existing website
-            success = db.update_user_website(current_user, website_url)
-        else:
-            # Add new website
-            success = db.add_user_website(current_user, website_url)
-        
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to add/update website. Please check the URL format."
-            )
-        
-        # Get the updated website data
-        website = db.get_user_website(current_user)
-        if not website:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Website was added but could not be retrieved"
-            )
-        
-        return WebsiteResponse(
-            email=website['email'],
-            website_url=website['website_url'],
-            domain_name=website['domain_name'],
-            is_active=website['is_active'].upper() == "TRUE",
-            created_at=website['created_at'],
-            updated_at=website['updated_at']
-        )
-        
-    except Exception as e:
-        print(f"Error adding user website: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
-        )
-
-
-@router.get("/website", response_model=WebsiteResponse)
-async def get_user_website(current_user: str = Depends(get_current_user)):
-    """Get user's website information."""
-    try:
-        website = db.get_user_website(current_user)
-        if not website:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No website found for this user"
-            )
-        
-        return WebsiteResponse(
-            email=website['email'],
-            website_url=website['website_url'],
-            domain_name=website['domain_name'],
-            is_active=website['is_active'].upper() == "TRUE",
-            created_at=website['created_at'],
-            updated_at=website['updated_at']
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error getting user website: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
-        )
-
-
-@router.delete("/website")
-async def delete_user_website(current_user: str = Depends(get_current_user)):
-    """Delete user's website."""
-    try:
-        success = db.delete_user_website(current_user)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No website found for this user"
-            )
-        
-        return {"message": "Website deleted successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error deleting user website: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
-        )
-
-
 @router.get("/dashboard", response_model=DashboardDataResponse)
 async def get_dashboard_data(current_user: str = Depends(get_current_user)):
     """Get all data needed for user dashboard."""
     try:
-        dashboard_data = db.get_dashboard_data(current_user)
+        user = db.get_user_by_email(current_user)
         
         # Convert user data to response model if exists
         user_response = None
-        if dashboard_data['user']:
+        if user:
             user_response = UserResponse(
-                id=dashboard_data['user'].id,
-                email=dashboard_data['user'].email,
-                is_verified=dashboard_data['user'].is_verified,
-                created_at=dashboard_data['user'].created_at
-            )
-        
-        # Convert website data to response model if exists
-        website_response = None
-        if dashboard_data['website']:
-            website_response = WebsiteResponse(
-                email=dashboard_data['website']['email'],
-                website_url=dashboard_data['website']['website_url'],
-                domain_name=dashboard_data['website']['domain_name'],
-                is_active=dashboard_data['website']['is_active'].upper() == "TRUE",
-                created_at=dashboard_data['website']['created_at'],
-                updated_at=dashboard_data['website']['updated_at']
+                id=user.id,
+                email=user.email,
+                is_verified=user.is_verified,
+                created_at=user.created_at
             )
         
         return DashboardDataResponse(
-            user=user_response,
-            website=website_response,
-            has_website=dashboard_data['has_website'],
-            total_metrics=dashboard_data['total_metrics']
+            user=user_response
         )
         
     except Exception as e:
@@ -398,4 +380,241 @@ async def get_dashboard_data(current_user: str = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
+        )
+
+
+# Google OAuth and Search Console Integration
+@router.get("/google/authorize")
+async def google_authorize(current_user: str = Depends(get_current_user)):
+    """Generate Google OAuth authorization URL."""
+    try:
+        # The user's email is passed as the 'state' parameter to identify
+        # the user upon callback.
+        print(f"[DEBUG] /google/authorize called for user: '{current_user}'")
+        auth_url = google_oauth.get_auth_url(state=current_user)
+        
+        return {
+            "auth_url": auth_url,
+            "message": "Redirect user to this URL to authorize Google Search Console access"
+        }
+    except Exception as e:
+        print(f"Error generating Google auth URL: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate authorization URL"
+        )
+
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str,
+    state: Optional[str] = None,
+    error: Optional[str] = None
+):
+    """Handle Google OAuth callback and store credentials."""
+    try:
+        print(f"[DEBUG] Google callback received - code: {code[:20]}..., state from URL: '{state}', error: {error}")
+        
+        if error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Google OAuth error: {error}"
+            )
+        
+        # The state parameter MUST contain the user's email.
+        if not state:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing state parameter with user information"
+            )
+        
+        user_email = state
+        
+        # Handle OAuth callback
+        result = await google_oauth.handle_callback(code, user_email)
+        
+        print(f"[DEBUG] OAuth callback result: {result}")
+        
+        # Redirect to setup wizard
+        if result.get("success"):
+            return RedirectResponse(url=f"/setup?oauth_success=true&user={user_email}")
+        else:
+            return RedirectResponse(url=f"/setup?oauth_error=true&user={user_email}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error handling Google callback: {e}")
+        return RedirectResponse(url="/setup?oauth_error=true")
+
+
+@router.get("/google/callback/test")
+async def google_callback_test():
+    """Test endpoint to verify callback route is accessible."""
+    return {"message": "Google callback route is working!"}
+
+
+@router.get("/gsc/properties", response_model=list[GSCPropertyResponse])
+async def get_gsc_properties(current_user: str = Depends(get_current_user)):
+    """Get user's Google Search Console properties."""
+    try:
+        print(f"[DEBUG] get_gsc_properties called for user: {current_user}")
+        
+        # Get GSC properties
+        properties = await google_oauth.get_gsc_properties(current_user)
+        
+        print(f"[DEBUG] Retrieved properties: {properties}")
+        
+        if not properties:
+            print(f"[DEBUG] No properties found for user: {current_user}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No Google Search Console properties found. Please make sure you have verified websites in GSC."
+            )
+        
+        return properties
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching GSC properties: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch Google Search Console properties"
+        )
+
+
+@router.post("/gsc/select-property")
+async def select_gsc_property(
+    property_data: GSCPropertySelectRequest,
+    current_user: str = Depends(get_current_user)
+):
+    """Select a GSC property and start collecting SEO data."""
+    try:
+        # Add website to user's profile
+        website_url = property_data.property_url
+        success = db.add_user_website(current_user, website_url)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to add website to profile"
+            )
+        
+        # Fetch initial SEO metrics
+        metrics = await gsc_fetcher.fetch_metrics(current_user, website_url)
+        
+        if not metrics:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to fetch SEO metrics. Please ensure your website has data in Google Search Console."
+            )
+        
+        return {
+            "success": True,
+            "message": "Website selected and SEO data collected successfully!",
+            "website_url": website_url,
+            "metrics": metrics
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error selecting GSC property: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to select property and collect data"
+        )
+
+
+@router.get("/gsc/metrics", response_model=GSCMetricsResponse)
+async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
+    """Get stored SEO metrics for user's website."""
+    try:
+        # Get user's website
+        website = db.get_user_website(current_user)
+        if not website:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No website found for this user"
+            )
+        
+        # Get stored metrics
+        stored_metrics = await gsc_fetcher.get_stored_metrics(current_user, website['website_url'])
+        
+        if not stored_metrics:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No SEO metrics found. Please connect your Google Search Console first."
+            )
+        
+        metrics_data = stored_metrics.get('metrics', {})
+        return GSCMetricsResponse(
+            summary=metrics_data.get('summary', {}),
+            time_series=metrics_data.get('time_series', {}),
+            last_updated=stored_metrics.get('last_updated'),
+            website_url=website.get('website_url'),
+            start_date=metrics_data.get('start_date'),
+            end_date=metrics_data.get('end_date')
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching GSC metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch SEO metrics"
+        )
+
+
+@router.post("/gsc/refresh")
+async def refresh_gsc_metrics(current_user: str = Depends(get_current_user)):
+    """Refresh SEO metrics from Google Search Console."""
+    try:
+        # Get user's website
+        website = db.get_user_website(current_user)
+        if not website:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No website found for this user"
+            )
+        
+        # Fetch fresh metrics
+        metrics = await gsc_fetcher.fetch_metrics(current_user, website['website_url'])
+        
+        if not metrics:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to refresh SEO metrics"
+            )
+        
+        return {
+            "success": True,
+            "message": "SEO metrics refreshed successfully!",
+            "metrics": metrics
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error refreshing GSC metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to refresh SEO metrics"
+        )
+
+
+@router.post("/gsc/clear-credentials")
+async def clear_gsc_credentials(current_user: str = Depends(get_current_user)):
+    """Clear corrupted GSC credentials and force re-authentication."""
+    try:
+        # Clear credentials
+        google_oauth._clear_credentials(current_user)
+        
+        return {
+            "success": True,
+            "message": "GSC credentials cleared successfully. Please re-authenticate with Google Search Console."
+        }
+    except Exception as e:
+        print(f"Error clearing GSC credentials: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to clear GSC credentials"
         ) 

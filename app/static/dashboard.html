@@ -4,586 +4,437 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solvia Dashboard - SEO on AI Autopilot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=1.2">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8f9fa;
-            color: #333;
-        }
-
-        .navbar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .navbar-brand {
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .navbar-user {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-
-        .logout-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            background: rgba(255,255,255,0.2);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .dashboard-header {
-            margin-bottom: 2rem;
-        }
-
-        .dashboard-header h1 {
-            color: #333;
-            margin-bottom: 0.5rem;
-        }
-
-        .dashboard-header p {
-            color: #666;
-            font-size: 1.1rem;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border-left: 4px solid #667eea;
-        }
-
-        .stat-card h3 {
-            color: #667eea;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .stat-card .value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .stat-card .change {
-            font-size: 0.9rem;
-            color: #28a745;
-            margin-top: 0.5rem;
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 2rem;
-        }
-
-        .content-card {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .card-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid #e9ecef;
-            background: #f8f9fa;
-        }
-
-        .card-header h2 {
-            color: #333;
-            font-size: 1.2rem;
-        }
-
-        .card-body {
-            padding: 1.5rem;
-        }
-
-        .seo-analysis {
-            margin-bottom: 1.5rem;
-        }
-
-        .analysis-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .analysis-item:last-child {
-            border-bottom: none;
-        }
-
-        .analysis-label {
-            font-weight: 500;
-        }
-
-        .analysis-score {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .score-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-        .score-excellent {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .score-good {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .score-poor {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .quick-actions {
-            display: grid;
-            gap: 1rem;
-        }
-
-        .action-btn {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            color: #333;
-        }
-
-        .action-btn:hover {
-            background: #667eea;
-            color: white;
-            transform: translateY(-2px);
-        }
-
-        .action-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            background: #667eea;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.2rem;
-        }
-
-        .action-btn:hover .action-icon {
-            background: white;
-            color: #667eea;
-        }
-
-        .recent-activity {
-            margin-top: 1.5rem;
-        }
-
-        .activity-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-
-        .activity-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: #e9ecef;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9rem;
-        }
-
-        .activity-content h4 {
-            font-size: 0.9rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .activity-content p {
-            font-size: 0.8rem;
-            color: #666;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #667eea;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        /* Website URL Collection Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .modal {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .modal-header {
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-header h2 {
-            color: #333;
-            margin-bottom: 0.5rem;
-        }
-
-        .modal-header p {
-            color: #666;
-            font-size: 0.95rem;
-        }
-
-        .website-form {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .form-group label {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .form-group input {
-            padding: 12px 15px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .form-group .help-text {
-            font-size: 0.85rem;
-            color: #666;
-            margin-top: 0.25rem;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1.5rem;
-        }
-
-        .btn-primary {
-            flex: 1;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-secondary {
-            flex: 1;
-            padding: 12px;
-            background: #f8f9fa;
-            color: #666;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-secondary:hover {
-            background: #e9ecef;
-        }
-
-        .website-info {
-            background: #f8f9fa;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            border-left: 4px solid #667eea;
-        }
-
-        .website-info h3 {
-            color: #333;
-            margin-bottom: 0.5rem;
-            font-size: 1rem;
-        }
-
-        .website-info p {
-            color: #666;
-            margin: 0;
-            font-size: 0.9rem;
-        }
-
-        .website-url {
-            color: #667eea;
-            font-weight: 600;
-            text-decoration: none;
-        }
-
-        .website-url:hover {
-            text-decoration: underline;
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .container {
-                padding: 1rem;
-            }
-        }
-    </style>
 </head>
-<body>
+<body class="dashboard-body">
     <nav class="navbar">
         <div class="navbar-brand">Solvia</div>
         <div class="navbar-user">
-            <div class="user-avatar" id="userAvatar">U</div>
+            <div class="user-avatar" id="userAvatar">S</div>
             <span id="userEmail">user@example.com</span>
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container dashboard-container">
+        <!-- GSC Connection Banner -->
+        <div id="gscBanner" class="gsc-banner hidden">
+            <div class="banner-content">
+                <div class="banner-icon">🚀</div>
+                <div class="banner-text">
+                    <h3>Connect Google Search Console</h3>
+                    <p>Get real SEO data for your dashboard by connecting your Google Search Console account.</p>
+                </div>
+                <div class="banner-actions">
+                    <button onclick="connectGSC()" class="btn-connect">Connect GSC</button>
+                </div>
+            </div>
+        </div>
+
         <div class="dashboard-header">
-            <h1>Welcome back, <span id="userName">User</span>!</h1>
-            <p>Here's your SEO performance overview for the past 30 days.</p>
-        </div>
-
-        <!-- Website Info Section -->
-        <div id="websiteInfo" class="website-info hidden">
-            <h3>📊 Your Website</h3>
-            <p>Currently tracking: <a href="#" id="websiteUrl" class="website-url" target="_blank">example.com</a></p>
-        </div>
-
-        <!-- Add Website Section (shown when no website) -->
-        <div id="addWebsiteSection" class="website-info hidden">
-            <h3>🌐 Add Your Website</h3>
-            <p>To start tracking your SEO performance, add your website URL.</p>
-            <button onclick="showWebsiteModal()" class="btn-primary" style="margin-top: 0.5rem; padding: 8px 16px; font-size: 14px;">
-                Add Website
+            <div>
+                <h1>Your Dashboard</h1>
+                <div id="dateRangeInfo" class="date-range-info hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <span id="dateRange"></span>
+                </div>
+                <div id="websiteInfo" class="website-info hidden">
+                    <span>📊 Tracking: </span>
+                    <span id="trackedWebsite" class="tracked-website"></span>
+                    <button onclick="changeWebsite()" class="btn-link">Change</button>
+                </div>
+            </div>
+            <button onclick="refreshMetrics()" class="btn-refresh" id="refreshBtn" title="Refresh Data">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rotate-cw"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
             </button>
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card">
-                <h3>Overall SEO Score</h3>
-                <div class="value" id="overallSeoScore">87</div>
-                <div class="change">+3 past 30 days</div>
-            </div>
-            <div class="stat-card">
-                <h3>Average Position</h3>
-                <div class="value" id="averagePosition">12.4</div>
-                <div class="change">-1.2 past 30 days</div>
-            </div>
-            <div class="stat-card">
-                <h3>Click-through Rate</h3>
-                <div class="value" id="clickThroughRate">4.2%</div>
-                <div class="change">+0.8% past 30 days</div>
+            <!-- Overall SEO Score Card -->
+            <div class="stat-card overall-score">
+                <div class="score-header">
+                    <h3>Overall SEO Score</h3>
+                    <div class="score-badge" id="seoScore">0</div>
+                </div>
+                <div class="score-change" id="seoScoreChange">+0%</div>
+                <div class="score-description">Based on all metrics</div>
             </div>
         </div>
 
-        <div class="main-content">
-            <div class="content-card">
+        <div class="analysis-grid">
+            <!-- Visibility Performance Section -->
+            <div class="analysis-card">
                 <div class="card-header">
-                    <h2>Organic Traffic</h2>
+                    <div class="header-icon">📊</div>
+                    <h2>Visibility Performance</h2>
+                    <div class="status-indicator" id="visibilityStatus">Good</div>
                 </div>
                 <div class="card-body">
-                    <canvas id="organicTrafficChart" width="400" height="200"></canvas>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Impressions</span>
+                            <span class="metric-value" id="impressionsValue">0</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Clicks</span>
+                            <span class="metric-value" id="clicksValue">0</span>
+                        </div>
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">CTR</span>
+                            <span class="metric-value" id="ctrValue">0%</span>
+                            <span class="metric-change" id="ctrChange">+0%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Avg Position</span>
+                            <span class="metric-value" id="avgPositionValue">N/A</span>
+                            <span class="metric-change" id="avgPositionChange">+0.0</span>
+                        </div>
+                    </div>
+                    <div class="insights" id="visibilityInsights">
+                        <p>Connect Google Search Console to see visibility insights</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="content-card">
+            <!-- Engagement & UX Performance Section -->
+            <div class="analysis-card">
                 <div class="card-header">
-                    <h2>Impressions</h2>
+                    <div class="header-icon">⚡</div>
+                    <h2>Engagement & UX</h2>
+                    <div class="status-indicator" id="uxStatus">Good</div>
                 </div>
                 <div class="card-body">
-                    <canvas id="impressionsChart" width="400" height="200"></canvas>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Performance Score</span>
+                            <span class="metric-value" id="performanceScore">N/A</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">LCP</span>
+                            <span class="metric-value" id="lcpValue">N/A</span>
+                        </div>
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">FCP</span>
+                            <span class="metric-value" id="fcpValue">N/A</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">CLS</span>
+                            <span class="metric-value" id="clsValue">N/A</span>
+                        </div>
+                    </div>
+                    <div class="insights" id="uxInsights">
+                        <p>Performance data will appear when connected</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Usability Section -->
+            <div class="analysis-card">
+                <div class="card-header">
+                    <div class="header-icon">📱</div>
+                    <h2>Mobile Usability</h2>
+                    <div class="status-indicator" id="mobileStatus">Good</div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Mobile Friendly</span>
+                            <span class="metric-value" id="mobileFriendly">N/A</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Issues</span>
+                            <span class="metric-value" id="mobileIssues">0</span>
+                        </div>
+                    </div>
+                    <div class="insights" id="mobileInsights">
+                        <p>Mobile test results will appear here</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Indexing & Crawlability Section -->
+            <div class="analysis-card">
+                <div class="card-header">
+                    <div class="header-icon">🔍</div>
+                    <h2>Indexing & Crawlability</h2>
+                    <div class="status-indicator" id="indexingStatus">Good</div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Sitemap Status</span>
+                            <span class="metric-value" id="sitemapStatus">N/A</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Index Status</span>
+                            <span class="metric-value" id="indexStatus">N/A</span>
+                        </div>
+                    </div>
+                    <div class="insights" id="indexingInsights">
+                        <p>Indexing health will be analyzed</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Business Context Section -->
+            <div class="analysis-card">
+                <div class="card-header">
+                    <div class="header-icon">🏢</div>
+                    <h2>Business Context</h2>
+                    <div class="status-indicator" id="businessStatus">Good</div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Business Type</span>
+                            <span class="metric-value" id="businessType">N/A</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Target Market</span>
+                            <span class="metric-value" id="targetMarket">N/A</span>
+                        </div>
+                    </div>
+                    <div class="insights" id="businessInsights">
+                        <p>Business analysis will provide context</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keyword Trends Section -->
+            <div class="analysis-card">
+                <div class="card-header">
+                    <div class="header-icon">📈</div>
+                    <h2>Keyword Trends</h2>
+                    <div class="status-indicator" id="keywordStatus">Good</div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Total Keywords</span>
+                            <span class="metric-value" id="totalKeywords">0</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Avg Position</span>
+                            <span class="metric-value" id="keywordAvgPosition">N/A</span>
+                        </div>
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Opportunities</span>
+                            <span class="metric-value" id="keywordOpportunities">0</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Branded</span>
+                            <span class="metric-value" id="brandedKeywords">0</span>
+                        </div>
+                    </div>
+                    <div class="insights" id="keywordInsights">
+                        <p>Keyword performance trends will be shown</p>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Website URL Collection Modal -->
-    <div id="websiteModal" class="modal-overlay hidden" style="display: none;">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>🚀 Welcome to Solvia!</h2>
-                <p>To get started with SEO tracking, please add your website URL below.</p>
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Organic Traffic Trends</h2>
+                </div>
+                <div class="card-body">
+                    <canvas id="organicTrafficChart" height="300"></canvas>
+                </div>
             </div>
             
-            <form id="websiteForm" class="website-form">
-                <div class="form-group">
-                    <label for="websiteUrlInput">Website URL</label>
-                    <input 
-                        type="url" 
-                        id="websiteUrlInput" 
-                        name="website_url" 
-                        placeholder="https://example.com"
-                        required
-                    >
-                    <div class="help-text">Enter your website's full URL including https://</div>
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Impressions Trends</h2>
                 </div>
-                
-                <div class="modal-actions">
-                    <button type="button" class="btn-secondary" onclick="skipWebsite()">
-                        Skip for now
-                    </button>
-                    <button type="submit" class="btn-primary" id="submitWebsiteBtn">
-                        <span id="submitBtnText">Add Website</span>
-                        <span id="submitBtnLoading" class="loading hidden"></span>
-                    </button>
+                <div class="card-body">
+                    <canvas id="impressionsChart" height="300"></canvas>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 
     <script>
-        // Flag to track if we've checked the user's website status
-        let websiteStatusChecked = false;
+        // Global chart instances
+        let organicTrafficChart = null;
+        let impressionsChart = null;
+        let isRefreshingToken = false; // Flag to prevent multiple refresh attempts
+        let refreshAttempts = 0; // Track refresh attempts to prevent infinite loops
+        const MAX_REFRESH_ATTEMPTS = 3; // Maximum number of refresh attempts
         
         function checkAuth() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                console.log('No token found, redirecting to login');
+                window.location.href = '/ui';
+                return;
+            }
+
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const userEmail = payload.sub || 'user@example.com';
+                const userName = userEmail ? userEmail.split('@')[0] : 'User';
+                
+                // Check if token is expired
+                const currentTime = Math.floor(Date.now() / 1000);
+                console.log('Token expiration check:', {
+                    currentTime,
+                    tokenExp: payload.exp,
+                    isExpired: payload.exp && payload.exp < currentTime,
+                    isRefreshing: isRefreshingToken,
+                    refreshAttempts
+                });
+                
+                if (payload.exp && payload.exp < currentTime) {
+                    console.log('Token expired, attempting to refresh...');
+                    if (!isRefreshingToken && refreshAttempts < MAX_REFRESH_ATTEMPTS) {
+                        refreshToken();
+                    } else {
+                        console.log('Refresh already in progress or max attempts reached, redirecting to login');
+                        window.location.href = '/ui';
+                    }
+                    return;
+                }
+                
+                console.log('Token is valid, updating UI');
+                document.getElementById('userEmail').textContent = userEmail;
+                document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+            } catch (error) {
+                console.error('Error decoding token:', error);
+                window.location.href = '/ui';
+            }
+        }
+
+        async function refreshToken() {
+            if (isRefreshingToken) {
+                console.log('Token refresh already in progress, skipping...');
+                return;
+            }
+            
+            if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
+                console.log('Max refresh attempts reached, redirecting to login');
+                window.location.href = '/ui';
+                return;
+            }
+            
+            isRefreshingToken = true;
+            refreshAttempts++;
+            
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/auth/refresh-token', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('auth_token', data.access_token);
+                    console.log('Token refreshed successfully');
+                    refreshAttempts = 0; // Reset attempts on success
+                    // Don't call checkAuth() again to avoid infinite loop
+                    // Just update the UI with the user info from the new token
+                    try {
+                        const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+                        const userEmail = payload.sub || 'user@example.com';
+                        const userName = userEmail ? userEmail.split('@')[0] : 'User';
+                        
+                        document.getElementById('userEmail').textContent = userEmail;
+                        document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+                    } catch (error) {
+                        console.error('Error updating UI after token refresh:', error);
+                    }
+                } else {
+                    console.error('Failed to refresh token');
+                    window.location.href = '/ui';
+                }
+            } catch (error) {
+                console.error('Error refreshing token:', error);
+                window.location.href = '/ui';
+            } finally {
+                isRefreshingToken = false;
+            }
+        }
+
+        async function apiCall(url, options = {}) {
             const token = localStorage.getItem('auth_token');
             if (!token) {
                 window.location.href = '/ui';
                 return;
             }
 
-            // Decode JWT token to get user info (basic implementation)
+            // Add authorization header
+            options.headers = {
+                'Authorization': `Bearer ${token}`,
+                ...options.headers
+            };
+
             try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                const userEmail = payload.sub || 'user@example.com';  // Use 'sub' field for email
-                const userName = userEmail ? userEmail.split('@')[0] : 'User';
+                const response = await fetch(url, options);
                 
-                document.getElementById('userEmail').textContent = userEmail;
-                document.getElementById('userName').textContent = userName;
-                document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+                // If token is expired, try to refresh and retry
+                if (response.status === 401) {
+                    console.log('Token expired, refreshing...');
+                    
+                    // Prevent multiple refresh attempts
+                    if (isRefreshingToken) {
+                        console.log('Token refresh already in progress, waiting...');
+                        // Wait a bit and try again
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        return await apiCall(url, options);
+                    }
+                    
+                    // Check if we've exceeded max attempts
+                    if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
+                        console.log('Max refresh attempts reached in apiCall, redirecting to login');
+                        window.location.href = '/ui';
+                        return;
+                    }
+                    
+                    isRefreshingToken = true;
+                    refreshAttempts++;
+                    
+                    try {
+                        const refreshResponse = await fetch('/auth/refresh-token', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        if (refreshResponse.ok) {
+                            const data = await refreshResponse.json();
+                            localStorage.setItem('auth_token', data.access_token);
+                            refreshAttempts = 0; // Reset on success
+                            
+                            // Retry the original request with new token
+                            options.headers['Authorization'] = `Bearer ${data.access_token}`;
+                            return await fetch(url, options);
+                        } else {
+                            // Refresh failed, redirect to login
+                            window.location.href = '/ui';
+                            return;
+                        }
+                    } finally {
+                        isRefreshingToken = false;
+                    }
+                }
+                
+                return response;
             } catch (error) {
-                console.error('Error decoding token:', error);
-                window.location.href = '/ui';
+                console.error('API call error:', error);
+                throw error;
             }
         }
 
@@ -592,373 +443,586 @@
             window.location.href = '/ui';
         }
 
-        // Generate 30 days of data
         function generateLast30DaysData() {
             const dates = [];
-            const today = new Date();
-            
             for (let i = 29; i >= 0; i--) {
-                const date = new Date(today);
+                const date = new Date();
                 date.setDate(date.getDate() - i);
-                dates.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                dates.push(`Day ${30 - i}`);
             }
-            
             return dates;
         }
 
-        // Generate sample organic traffic data (realistic with some variation)
-        function generateOrganicTrafficData() {
-            const data = [];
-            let baseTraffic = 1200;
+        function createCharts(hasGSC = false) {
+            const rootStyles = getComputedStyle(document.documentElement);
+            const primaryColor = rootStyles.getPropertyValue('--color-primary').trim();
             
-            for (let i = 0; i < 30; i++) {
-                // Add some realistic variation
-                const variation = (Math.random() - 0.5) * 200;
-                const dailyTraffic = Math.max(800, baseTraffic + variation);
-                data.push(Math.round(dailyTraffic));
-                
-                // Slight upward trend
-                baseTraffic += Math.random() * 10;
-            }
-            
-            return data;
-        }
-
-        // Generate sample impressions data (higher than traffic, with variation)
-        function generateImpressionsData() {
-            const data = [];
-            let baseImpressions = 8500;
-            
-            for (let i = 0; i < 30; i++) {
-                // Add some realistic variation
-                const variation = (Math.random() - 0.5) * 1500;
-                const dailyImpressions = Math.max(6000, baseImpressions + variation);
-                data.push(Math.round(dailyImpressions));
-                
-                // Slight upward trend
-                baseImpressions += Math.random() * 50;
-            }
-            
-            return data;
-        }
-
-        // Create charts
-        function createCharts() {
             const dates = generateLast30DaysData();
-            const organicTrafficData = generateOrganicTrafficData();
-            const impressionsData = generateImpressionsData();
+            const organicTrafficData = hasGSC ? [10, 15, 12, 18, 22, 25, 20, 23, 28, 33, 30, 35, 38, 40, 37, 42, 45, 48, 50, 47, 52, 55, 58, 60, 57, 62, 65, 68, 70, 72] : new Array(30).fill(0);
+            const impressionsData = hasGSC ? [100, 120, 110, 130, 150, 160, 140, 155, 170, 202, 190, 210, 220, 230, 215, 240, 250, 260, 270, 255, 280, 290, 300, 310, 295, 320, 330, 340, 350, 360] : new Array(30).fill(0);
+            
+            if (organicTrafficChart) organicTrafficChart.destroy();
+            if (impressionsChart) impressionsChart.destroy();
 
-            // Organic Traffic Chart
-            const organicTrafficCtx = document.getElementById('organicTrafficChart').getContext('2d');
-            new Chart(organicTrafficCtx, {
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [{
-                        label: 'Organic Traffic',
-                        data: organicTrafficData,
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
+                    x: { grid: { display: false }, ticks: {
+                        callback: function(value, index, values) {
+                            const label = this.getLabelForValue(value);
+                            if (label === 'Day 1' || label === 'Day 10' || label === 'Day 20' || label === 'Day 30') {
+                                return label;
+                            }
+                            return null;
+                        }
+                    } }
+                },
+                elements: {
+                    line: {
+                        borderColor: primaryColor,
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
                         borderWidth: 2,
                         fill: true,
                         tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
                     }
                 }
+            };
+            
+            const organicTrafficCtx = document.getElementById('organicTrafficChart').getContext('2d');
+            organicTrafficChart = new Chart(organicTrafficCtx, {
+                type: 'line',
+                data: { labels: dates, datasets: [{ data: organicTrafficData }] },
+                options: chartOptions
             });
 
-            // Impressions Chart
             const impressionsCtx = document.getElementById('impressionsChart').getContext('2d');
-            new Chart(impressionsCtx, {
+            impressionsChart = new Chart(impressionsCtx, {
                 type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [{
-                        label: 'Impressions',
-                        data: impressionsData,
-                        borderColor: '#764ba2',
-                        backgroundColor: 'rgba(118, 75, 162, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
-                    }
-                }
+
+                data: { labels: dates, datasets: [{ data: impressionsData }] },
+                options: chartOptions
             });
         }
 
-        // Initialize charts when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Page loaded, initializing...'); // Debug log
+        function updateDashboardMetrics(hasGSC = false) {
+            if (hasGSC) {
+                // Update overall score
+                document.getElementById('seoScore').textContent = '65';
+                document.getElementById('seoScoreChange').textContent = '+5%';
+                document.getElementById('seoScoreChange').className = 'score-change positive';
+
+                // Update visibility performance
+                document.getElementById('impressionsValue').textContent = '21,450';
+                document.getElementById('clicksValue').textContent = '1,234';
+                document.getElementById('ctrValue').textContent = '5.8%';
+                document.getElementById('ctrChange').textContent = '+0.8%';
+                document.getElementById('ctrChange').className = 'metric-change positive';
+                document.getElementById('avgPositionValue').textContent = '2.2';
+                document.getElementById('avgPositionChange').textContent = '+0.5';
+                document.getElementById('avgPositionChange').className = 'metric-change positive';
+                document.getElementById('visibilityInsights').innerHTML = '<p>Good visibility with room for CTR improvement. High-opportunity keywords need optimization.</p>';
+
+                // Update engagement & UX
+                document.getElementById('performanceScore').textContent = '78';
+                document.getElementById('lcpValue').textContent = '2.1s';
+                document.getElementById('fcpValue').textContent = '1.2s';
+                document.getElementById('clsValue').textContent = '0.08';
+                document.getElementById('uxInsights').innerHTML = '<p>Performance is good but LCP could be improved. Consider optimizing images and reducing server response time.</p>';
+
+                // Update mobile usability
+                document.getElementById('mobileFriendly').textContent = 'Pass';
+                document.getElementById('mobileIssues').textContent = '0';
+                document.getElementById('mobileInsights').innerHTML = '<p>Mobile-friendly with no issues detected. Good user experience across devices.</p>';
+
+                // Update indexing & crawlability
+                document.getElementById('sitemapStatus').textContent = 'Healthy';
+                document.getElementById('indexStatus').textContent = 'Good';
+                document.getElementById('indexingInsights').innerHTML = '<p>Sitemap is properly configured and indexed. No crawl issues detected.</p>';
+
+                // Update business context
+                document.getElementById('businessType').textContent = 'SaaS';
+                document.getElementById('targetMarket').textContent = 'B2B';
+                document.getElementById('businessInsights').innerHTML = '<p>B2B SaaS business with technical audience. Focus on educational content and case studies.</p>';
+
+                // Update keyword trends
+                document.getElementById('totalKeywords').textContent = '1,247';
+                document.getElementById('keywordAvgPosition').textContent = '3.2';
+                document.getElementById('keywordOpportunities').textContent = '23';
+                document.getElementById('brandedKeywords').textContent = '156';
+                document.getElementById('keywordInsights').innerHTML = '<p>Strong keyword portfolio with 23 high-opportunity terms. Branded keywords performing well.</p>';
+
+            } else {
+                // Reset all metrics to empty state
+                document.getElementById('seoScore').textContent = '0';
+                document.getElementById('seoScoreChange').textContent = '+0%';
+                
+                // Reset visibility performance
+                document.getElementById('impressionsValue').textContent = '0';
+                document.getElementById('clicksValue').textContent = '0';
+                document.getElementById('ctrValue').textContent = '0%';
+                document.getElementById('ctrChange').textContent = '+0%';
+                document.getElementById('avgPositionValue').textContent = 'N/A';
+                document.getElementById('avgPositionChange').textContent = '+0.0';
+                document.getElementById('visibilityInsights').innerHTML = '<p>Connect Google Search Console to see visibility insights</p>';
+
+                // Reset engagement & UX
+                document.getElementById('performanceScore').textContent = 'N/A';
+                document.getElementById('lcpValue').textContent = 'N/A';
+                document.getElementById('fcpValue').textContent = 'N/A';
+                document.getElementById('clsValue').textContent = 'N/A';
+                document.getElementById('uxInsights').innerHTML = '<p>Performance data will appear when connected</p>';
+
+                // Reset mobile usability
+                document.getElementById('mobileFriendly').textContent = 'N/A';
+                document.getElementById('mobileIssues').textContent = '0';
+                document.getElementById('mobileInsights').innerHTML = '<p>Mobile test results will appear here</p>';
+
+                // Reset indexing & crawlability
+                document.getElementById('sitemapStatus').textContent = 'N/A';
+                document.getElementById('indexStatus').textContent = 'N/A';
+                document.getElementById('indexingInsights').innerHTML = '<p>Indexing health will be analyzed</p>';
+
+                // Reset business context
+                document.getElementById('businessType').textContent = 'N/A';
+                document.getElementById('targetMarket').textContent = 'N/A';
+                document.getElementById('businessInsights').innerHTML = '<p>Business analysis will provide context</p>';
+
+                // Reset keyword trends
+                document.getElementById('totalKeywords').textContent = '0';
+                document.getElementById('keywordAvgPosition').textContent = 'N/A';
+                document.getElementById('keywordOpportunities').textContent = '0';
+                document.getElementById('brandedKeywords').textContent = '0';
+                document.getElementById('keywordInsights').innerHTML = '<p>Keyword performance trends will be shown</p>';
+            }
+        }
+
+        function updateDashboardMetricsWithRealData(metrics) {
+            const summary = metrics.summary;
             
-            // Ensure modal is hidden on page load
-            hideWebsiteModal();
+            // Calculate SEO score based on real metrics
+            const seoScore = calculateSEOScore(summary);
+            const seoScoreChange = '+5%'; // This would need to be calculated from historical data
             
+            // Update overall score
+            document.getElementById('seoScore').textContent = seoScore;
+            document.getElementById('seoScoreChange').textContent = seoScoreChange;
+            document.getElementById('seoScoreChange').className = 'score-change positive';
+
+            // Update visibility performance with real data
+            document.getElementById('impressionsValue').textContent = summary.total_impressions?.toLocaleString() || '0';
+            document.getElementById('clicksValue').textContent = summary.total_clicks?.toLocaleString() || '0';
+            document.getElementById('ctrValue').textContent = `${summary.avg_ctr || 0}%`;
+            document.getElementById('avgPositionValue').textContent = summary.avg_position || 'N/A';
+            
+            // Generate insights based on real data
+            generateVisibilityInsights(summary);
+            generateUXInsights(metrics);
+            generateMobileInsights(metrics);
+            generateIndexingInsights(metrics);
+            generateBusinessInsights(metrics);
+            generateKeywordInsights(metrics);
+        }
+
+        function generateVisibilityInsights(summary) {
+            let insight = '';
+            if (summary.total_impressions > 0) {
+                if (summary.avg_ctr < 2) {
+                    insight = 'CTR is below average. Consider optimizing meta titles and descriptions for better click-through rates.';
+                } else if (summary.avg_position > 10) {
+                    insight = 'Average position needs improvement. Focus on content optimization and backlink building.';
+                } else {
+                    insight = 'Good visibility performance. Continue optimizing for high-opportunity keywords.';
+                }
+            } else {
+                insight = 'No search visibility data yet. This is normal for new websites.';
+            }
+            document.getElementById('visibilityInsights').innerHTML = `<p>${insight}</p>`;
+        }
+
+        function generateUXInsights(metrics) {
+            // This would be populated with real PSI data
+            document.getElementById('uxInsights').innerHTML = '<p>Performance insights will be available when PageSpeed data is connected.</p>';
+        }
+
+        function generateMobileInsights(metrics) {
+            // This would be populated with real mobile test data
+            document.getElementById('mobileInsights').innerHTML = '<p>Mobile usability insights will be available when mobile test data is connected.</p>';
+        }
+
+        function generateIndexingInsights(metrics) {
+            // This would be populated with real indexing data
+            document.getElementById('indexingInsights').innerHTML = '<p>Indexing health insights will be available when crawl data is connected.</p>';
+        }
+
+        function generateBusinessInsights(metrics) {
+            // This would be populated with real business analysis data
+            document.getElementById('businessInsights').innerHTML = '<p>Business context insights will be available when business analysis is completed.</p>';
+        }
+
+        function generateKeywordInsights(metrics) {
+            // This would be populated with real keyword data
+            document.getElementById('keywordInsights').innerHTML = '<p>Keyword performance insights will be available when keyword data is connected.</p>';
+        }
+
+        async function initDashboard() {
             checkAuth();
-            createCharts();
-            // Don't check user website immediately - wait a bit to avoid race conditions
-            setTimeout(() => {
-                checkUserWebsite();
-            }, 100);
-        });
+            const hasGSC = await checkGSCConnection();
+            console.log('[DEBUG] Dashboard init - hasGSC:', hasGSC);
+            
+            if (hasGSC) {
+                // Fetch real metrics from GSC
+                await loadRealMetrics();
+            } else {
+                // Show empty state
+                updateDashboardMetrics(false);
+                createCharts(false);
+            }
+        }
 
-        // Check if user has a website registered
-        async function checkUserWebsite() {
-            const token = localStorage.getItem('auth_token');
-            if (!token) return;
-
-            console.log('Checking user website status...'); // Debug log
-
+        async function checkGSCConnection() {
             try {
-                const response = await fetch('/auth/dashboard', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
+                console.log('[DEBUG] Checking GSC connection...');
+                const response = await apiCall('/auth/gsc/properties');
+
+                console.log('[DEBUG] GSC response status:', response.status);
+
+                if (response.status === 401 || response.status === 404) {
+                    console.log('[DEBUG] Auth error (401/404), showing banner');
+                    showGSCBanner();
+                    return false;
+                }
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.log('[DEBUG] GSC connection error:', errorText);
+                    
+                    // Check if it's a credentials issue
+                    if (response.status === 500 && errorText.includes('credentials')) {
+                        console.log('[DEBUG] Credentials issue, showing reauth banner');
+                        showGSCBannerWithReauth();
+                    } else {
+                        console.log('[DEBUG] Other error, showing regular banner');
+                        showGSCBanner();
                     }
+                    return false;
+                }
+
+                const properties = await response.json();
+                console.log('[DEBUG] GSC properties received:', properties);
+                
+                if (!properties || properties.length === 0) {
+                    console.log('[DEBUG] No properties found, showing banner');
+                    showGSCBanner();
+                    return false;
+                }
+
+                const isDemoMode = properties.some(p => p.siteUrl.includes('example.com') || p.siteUrl.includes('demo-site.com'));
+                console.log('[DEBUG] Is demo mode:', isDemoMode);
+                
+                if (isDemoMode) {
+                    console.log('[DEBUG] Demo mode detected, showing banner');
+                    showGSCBanner();
+                    return false;
+                }
+
+                console.log('[DEBUG] Valid GSC connection found, hiding banner');
+                hideGSCBanner();
+                return true;
+            } catch (error) {
+                console.log('[DEBUG] Exception in checkGSCConnection:', error);
+                showGSCBanner();
+                return false;
+            }
+        }
+
+        function showGSCBanner() {
+            document.getElementById('gscBanner').classList.remove('hidden');
+        }
+
+        function hideGSCBanner() {
+            document.getElementById('gscBanner').classList.add('hidden');
+        }
+
+        function showGSCBannerWithReauth() {
+            const banner = document.getElementById('gscBanner');
+            banner.classList.remove('hidden');
+            
+            // Update banner content to show re-authentication option
+            const bannerText = banner.querySelector('.banner-text p');
+            if (bannerText) {
+                bannerText.innerHTML = 'Your Google Search Console connection has an issue. <button onclick="clearCredentials()" class="btn-link">Click here to re-authenticate</button> or connect a new account.';
+            }
+        }
+
+        async function clearCredentials() {
+            try {
+                const response = await apiCall('/auth/gsc/clear-credentials', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    // Redirect to setup wizard
+                    window.location.href = '/setup';
+                } else {
+                    alert('Failed to clear credentials. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error clearing credentials:', error);
+                alert('Failed to clear credentials. Please try again.');
+            }
+        }
+
+        function connectGSC() {
+            window.location.href = '/setup';
+        }
+
+        async function refreshMetrics() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            
+            // Show loading state
+            refreshBtn.disabled = true;
+            refreshBtn.classList.add('loading');
+            
+            try {
+                const response = await apiCall('/auth/gsc/refresh', {
+                    method: 'POST'
                 });
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Dashboard data:', data); // Debug log
+                    console.log('Metrics refreshed successfully:', data);
                     
-                    // Mark that we've checked the website status
-                    websiteStatusChecked = true;
-                    
-                    if (data.has_website && data.website) {
-                        console.log('User has website, displaying info'); // Debug log
-                        // User has a website, display it
-                        displayWebsiteInfo(data.website);
-                        // Ensure modal is hidden
-                        hideWebsiteModal();
-                    } else {
-                        console.log('User has no website, showing modal'); // Debug log
-                        // User doesn't have a website, show modal
-                        showWebsiteModal();
-                    }
-                } else {
-                    console.error('Failed to get dashboard data');
-                }
-            } catch (error) {
-                console.error('Error checking user website:', error);
-            }
-        }
-
-        // Display website info in dashboard
-        function displayWebsiteInfo(website) {
-            console.log('Displaying website info:', website); // Debug log
-            const websiteInfo = document.getElementById('websiteInfo');
-            const addWebsiteSection = document.getElementById('addWebsiteSection');
-            const websiteUrl = document.getElementById('websiteUrl');
-            
-            websiteUrl.textContent = website.website_url;
-            websiteUrl.href = website.website_url;
-            
-            websiteInfo.classList.remove('hidden');
-            addWebsiteSection.classList.add('hidden');
-            
-            // Ensure modal is hidden
-            hideWebsiteModal();
-        }
-
-        // Show add website section (when user skips or doesn't have website)
-        function showAddWebsiteSection() {
-            console.log('Showing add website section'); // Debug log
-            const websiteInfo = document.getElementById('websiteInfo');
-            const addWebsiteSection = document.getElementById('addWebsiteSection');
-            
-            websiteInfo.classList.add('hidden');
-            addWebsiteSection.classList.remove('hidden');
-        }
-
-        // Show website collection modal
-        function showWebsiteModal() {
-            console.log('showWebsiteModal called, websiteStatusChecked:', websiteStatusChecked); // Debug log
-            
-            // Only show modal if we've checked the website status and user doesn't have a website
-            if (!websiteStatusChecked) {
-                console.log('Website status not checked yet, not showing modal');
-                return;
-            }
-            
-            const modal = document.getElementById('websiteModal');
-            if (modal) {
-                console.log('Showing modal'); // Debug log
-                modal.classList.remove('hidden');
-                modal.style.display = 'flex'; // Force show with inline style
-            } else {
-                console.error('Modal element not found'); // Debug log
-            }
-        }
-
-        // Hide website collection modal
-        function hideWebsiteModal() {
-            console.log('hideWebsiteModal called'); // Debug log
-            const modal = document.getElementById('websiteModal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.style.display = 'none'; // Force hide with inline style
-                console.log('Modal hidden successfully'); // Debug log
-            } else {
-                console.error('Modal element not found'); // Debug log
-            }
-        }
-
-        // Skip website collection
-        function skipWebsite() {
-            console.log('Skip button clicked'); // Debug log
-            hideWebsiteModal();
-            showAddWebsiteSection();
-            // Show a message that they can add it later
-            showAlert('ℹ️ You can add your website later from the dashboard settings.', 'info');
-        }
-
-        // Handle website form submission
-        document.getElementById('websiteForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const websiteUrl = document.getElementById('websiteUrlInput').value;
-            const submitBtn = document.getElementById('submitWebsiteBtn');
-            const submitBtnText = document.getElementById('submitBtnText');
-            const submitBtnLoading = document.getElementById('submitBtnLoading');
-            
-            // Show loading state
-            submitBtn.disabled = true;
-            submitBtnText.style.display = 'none';
-            submitBtnLoading.classList.remove('hidden');
-            
-            try {
-                const token = localStorage.getItem('auth_token');
-                const response = await fetch('/auth/website', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        website_url: websiteUrl
-                    })
-                });
-
-                if (response.ok) {
-                    const website = await response.json();
-                    
-                    // Hide modal
-                    hideWebsiteModal();
-                    
-                    // Display website info
-                    displayWebsiteInfo(website);
+                    // Reload the dashboard with fresh data
+                    await loadRealMetrics();
                     
                     // Show success message
-                    showAlert('✅ Website added successfully!', 'success');
+                    showSuccessMessage('Data refreshed successfully!');
                 } else {
                     const error = await response.json();
-                    showAlert(`❌ ${error.detail}`, 'error');
+                    throw new Error(error.detail || 'Failed to refresh data');
                 }
             } catch (error) {
-                showAlert(`❌ Network error: ${error.message}`, 'error');
+                console.error('Error refreshing metrics:', error);
+                showErrorMessage('Failed to refresh data. Please try again.');
             } finally {
-                // Reset button state
-                submitBtn.disabled = false;
-                submitBtnText.style.display = 'inline';
-                submitBtnLoading.classList.add('hidden');
+                // Reset button state after a short delay to allow animation to be seen
+                setTimeout(() => {
+                    refreshBtn.disabled = false;
+                    refreshBtn.classList.remove('loading');
+                }, 500);
             }
-        });
+        }
 
-        // Simple alert function for feedback
-        function showAlert(message, type) {
-            // Create alert element
-            const alert = document.createElement('div');
-            alert.textContent = message;
+        function showSuccessMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'success-message';
+            messageDiv.innerHTML = `<strong>✅ ${message}</strong>`;
+            messageDiv.style.position = 'fixed';
+            messageDiv.style.top = '20px';
+            messageDiv.style.right = '20px';
+            messageDiv.style.zIndex = '1000';
+            messageDiv.style.padding = '1rem';
+            messageDiv.style.borderRadius = '8px';
+            messageDiv.style.backgroundColor = '#10b981';
+            messageDiv.style.color = 'white';
+            messageDiv.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
             
-            // Set styles based on type
-            let backgroundColor = '#17a2b8'; // default info color
-            if (type === 'success') {
-                backgroundColor = '#28a745';
-            } else if (type === 'error') {
-                backgroundColor = '#dc3545';
-            }
+            document.body.appendChild(messageDiv);
             
-            alert.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 15px 20px;
-                border-radius: 8px;
-                color: white;
-                font-weight: 600;
-                z-index: 1001;
-                background-color: ${backgroundColor};
-                animation: slideIn 0.3s ease;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            `;
-            
-            // Add to page
-            document.body.appendChild(alert);
-            
-            // Remove after 3 seconds
             setTimeout(() => {
-                if (alert.parentNode) {
-                    alert.remove();
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
                 }
             }, 3000);
         }
 
-        // Add CSS animation for alerts
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
+        function showErrorMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'error-message';
+            messageDiv.innerHTML = `<strong>❌ ${message}</strong>`;
+            messageDiv.style.position = 'fixed';
+            messageDiv.style.top = '20px';
+            messageDiv.style.right = '20px';
+            messageDiv.style.zIndex = '1000';
+            messageDiv.style.padding = '1rem';
+            messageDiv.style.borderRadius = '8px';
+            messageDiv.style.backgroundColor = '#ef4444';
+            messageDiv.style.color = 'white';
+            messageDiv.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+            
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
                 }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
+            }, 3000);
+        }
+
+        async function loadRealMetrics() {
+            try {
+                const response = await apiCall('/auth/gsc/metrics');
+
+                if (response.ok) {
+                    const metrics = await response.json();
+                    console.log('[DEBUG] Real metrics loaded:', metrics);
+                    updateDashboardMetricsWithRealData(metrics);
+                    createChartsWithRealData(metrics);
+                    showWebsiteInfo(metrics);
+                    showDateRange(metrics);
+                } else {
+                    console.log('[DEBUG] Failed to load metrics, showing empty state');
+                    updateDashboardMetrics(false);
+                    createCharts(false);
+                    hideWebsiteInfo();
+                    hideDateRange();
                 }
+            } catch (error) {
+                console.error('Error loading real metrics:', error);
+                updateDashboardMetrics(false);
+                createCharts(false);
+                hideWebsiteInfo();
+                hideDateRange();
             }
-        `;
-        document.head.appendChild(style);
+        }
+
+        function createChartsWithRealData(metrics) {
+            const rootStyles = getComputedStyle(document.documentElement);
+            const primaryColor = rootStyles.getPropertyValue('--color-primary').trim();
+            
+            const timeSeries = metrics.time_series;
+            const dates = timeSeries.dates || [];
+            const clicksData = timeSeries.clicks || [];
+            const impressionsData = timeSeries.impressions || [];
+            
+            if (organicTrafficChart) organicTrafficChart.destroy();
+            if (impressionsChart) impressionsChart.destroy();
+
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
+                    x: { grid: { display: false }, ticks: {
+                        callback: function(value, index, values) {
+                            const label = this.getLabelForValue(value);
+                            if (label === dates[0] || label === dates[Math.floor(dates.length/2)] || label === dates[dates.length-1]) {
+                                return label;
+                            }
+                            return null;
+                        }
+                    } }
+                },
+                elements: {
+                    line: {
+                        borderColor: primaryColor,
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }
+                }
+            };
+            
+            const organicTrafficCtx = document.getElementById('organicTrafficChart').getContext('2d');
+            organicTrafficChart = new Chart(organicTrafficCtx, {
+                type: 'line',
+                data: { labels: dates, datasets: [{ data: clicksData }] },
+                options: chartOptions
+            });
+
+            const impressionsCtx = document.getElementById('impressionsChart').getContext('2d');
+            impressionsChart = new Chart(impressionsCtx, {
+                type: 'line',
+                data: { labels: dates, datasets: [{ data: impressionsData }] },
+                options: chartOptions
+            });
+        }
+
+        function calculateSEOScore(summary) {
+            // Simple SEO score calculation based on real metrics
+            let score = 0;
+            
+            // Position score (lower is better, max 50 points)
+            if (summary.avg_position) {
+                const positionScore = Math.max(0, 50 - (summary.avg_position * 5));
+                score += positionScore;
+            }
+            
+            // CTR score (higher is better, max 30 points)
+            if (summary.avg_ctr) {
+                const ctrScore = Math.min(30, summary.avg_ctr * 2);
+                score += ctrScore;
+            }
+            
+            // Traffic score (higher is better, max 20 points)
+            if (summary.total_clicks) {
+                const trafficScore = Math.min(20, Math.log10(summary.total_clicks + 1) * 5);
+                score += trafficScore;
+            }
+            
+            return Math.round(score);
+        }
+
+        function formatDateString(dateStr) {
+            // dateStr is in "YYYY-MM-DD" format
+            if (!dateStr || dateStr.split('-').length !== 3) {
+                return '';
+            }
+            const [year, month, day] = dateStr.split('-');
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            return `${monthName} ${parseInt(day, 10)}`;
+        }
+
+        function showDateRange(metrics) {
+            const dateRangeInfo = document.getElementById('dateRangeInfo');
+            const dateRangeSpan = document.getElementById('dateRange');
+
+            if (metrics && metrics.start_date && metrics.end_date) {
+                const startStr = formatDateString(metrics.start_date);
+                const endStr = formatDateString(metrics.end_date);
+                
+                dateRangeSpan.textContent = `${startStr} - ${endStr}`;
+                dateRangeInfo.classList.remove('hidden');
+            } else {
+                hideDateRange();
+            }
+        }
+
+        function hideDateRange() {
+            document.getElementById('dateRangeInfo').classList.add('hidden');
+        }
+
+        function showWebsiteInfo(metrics) {
+            const websiteInfo = document.getElementById('websiteInfo');
+            const trackedWebsite = document.getElementById('trackedWebsite');
+
+            if (metrics && metrics.website_url) {
+                let displayUrl = metrics.website_url;
+                if (displayUrl.startsWith('sc-domain:')) {
+                    displayUrl = displayUrl.replace('sc-domain:', '');
+                }
+                trackedWebsite.textContent = displayUrl;
+                websiteInfo.classList.remove('hidden');
+            } else {
+                hideWebsiteInfo();
+            }
+        }
+
+        function hideWebsiteInfo() {
+            document.getElementById('websiteInfo').classList.add('hidden');
+        }
+
+        function changeWebsite() {
+            // Redirect to setup wizard to select a different website
+            window.location.href = '/setup';
+        }
+        
+        document.addEventListener('DOMContentLoaded', initDashboard);
     </script>
 </body>
 </html> 

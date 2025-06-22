@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     USERS_SHEET_ID: str = ""
     SESSIONS_SHEET_ID: str = ""
     
+    # Google OAuth Configuration
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+    
     # JWT Settings
     SECRET_KEY: str = "your-super-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"

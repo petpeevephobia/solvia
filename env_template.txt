@@ -1,0 +1,28 @@
+# Solvia Environment Variables Template
+# Copy this file to .env and fill in your actual values
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+
+# Google Sheets Configuration (existing)
+GOOGLE_SHEETS_CREDENTIALS_FILE=credentials.json
+USERS_SHEET_ID=your_users_sheet_id_here
+WEBSITES_SHEET_ID=your_websites_sheet_id_here
+METRICS_SHEET_ID=your_metrics_sheet_id_here
+
+# JWT Configuration
+JWT_SECRET_KEY=your_jwt_secret_key_here
+JWT_ALGORITHM=HS256
+
+# Email Configuration (optional)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@gmail.com
+SMTP_PASSWORD=your_app_password_here
+
+# App Configuration
+DEBUG=True
+APP_NAME=Solvia
+APP_VERSION=1.0.0 

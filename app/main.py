@@ -82,6 +82,18 @@ async def serve_dashboard():
             "message": "Please ensure the dashboard files are in the static directory"
         }
 
+@app.get("/setup")
+async def serve_setup_wizard():
+    """Serve the setup wizard UI."""
+    setup_file = os.path.join(static_dir, "setup_wizard.html")
+    if os.path.exists(setup_file):
+        return FileResponse(setup_file)
+    else:
+        return {
+            "error": "Setup wizard not found",
+            "message": "Please ensure the setup wizard files are in the static directory"
+        }
+
 @app.get("/api/health")
 async def api_health():
     """API health check."""

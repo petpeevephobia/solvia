@@ -3,231 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solvia - Authentication Test</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            width: 100%;
-            max-width: 400px;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
-
-        .tabs {
-            display: flex;
-            background: #f8f9fa;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border-bottom: 3px solid transparent;
-        }
-
-        .tab.active {
-            background: white;
-            border-bottom-color: #667eea;
-            color: #667eea;
-            font-weight: 600;
-        }
-
-        .tab:hover {
-            background: #e9ecef;
-        }
-
-        .form-container {
-            padding: 30px;
-        }
-
-        .form {
-            display: none;
-        }
-
-        .form.active {
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .user-info {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-        }
-
-        .user-info h3 {
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        .user-info p {
-            margin-bottom: 5px;
-            color: #666;
-        }
-
-        .logout-btn {
-            background: #dc3545;
-            margin-top: 10px;
-        }
-
-        .logout-btn:hover {
-            background: #c82333;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #ffffff;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .password-requirements {
-            font-size: 12px;
-            margin-top: 5px;
-            color: #666;
-        }
-
-        .requirement {
-            display: flex;
-            align-items: center;
-            margin-bottom: 2px;
-        }
-
-        .requirement.met {
-            color: #28a745;
-        }
-
-        .requirement.not-met {
-            color: #dc3545;
-        }
-
-        .requirement-icon {
-            margin-right: 5px;
-            font-size: 10px;
-        }
-    </style>
+    <title>Solvia - Authentication</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <div class="container">
+<body class="auth-body">
+    <div class="container auth-container">
         <div class="header">
-            <h1>🔐 Solvia</h1>
-            <p>Authentication Test Interface</p>
+            <h1>Solvia</h1>
+            <p>SEO on AI Autopilot</p>
         </div>
 
         <div class="tabs">
@@ -238,13 +21,14 @@
         <div class="form-container">
             <!-- Register Form -->
             <form class="form active" id="registerForm">
+                <div id="registerAlert" class="alert" style="display: none;"></div>
                 <div class="form-group">
                     <label for="registerEmail">Email</label>
                     <input type="email" id="registerEmail" required placeholder="Enter your email">
                 </div>
                 <div class="form-group">
                     <label for="registerPassword">Password</label>
-                    <input type="password" id="registerPassword" required placeholder="Enter your password (min 8 chars)">
+                    <input type="password" id="registerPassword" required placeholder="Enter your password">
                     <div class="password-requirements" id="passwordRequirements" style="display: none;">
                         <div class="requirement" id="req-length">
                             <span class="requirement-icon">⭕</span>
@@ -264,14 +48,14 @@
                         </div>
                     </div>
                 </div>
-                <button type="submit" class="btn" id="registerBtn">
-                    <span class="btn-text">Create Account</span>
-                    <span class="loading" style="display: none;"></span>
+                <button type="submit" class="btn auth-btn" id="registerBtn">
+                    Register
                 </button>
             </form>
 
             <!-- Login Form -->
             <form class="form" id="loginForm">
+                <div id="loginAlert" class="alert" style="display: none;"></div>
                 <div class="form-group">
                     <label for="loginEmail">Email</label>
                     <input type="email" id="loginEmail" required placeholder="Enter your email">
@@ -280,9 +64,8 @@
                     <label for="loginPassword">Password</label>
                     <input type="password" id="loginPassword" required placeholder="Enter your password">
                 </div>
-                <button type="submit" class="btn" id="loginBtn">
-                    <span class="btn-text">Sign In</span>
-                    <span class="loading" style="display: none;"></span>
+                <button type="submit" class="btn auth-btn" id="loginBtn">
+                    Login
                 </button>
             </form>
 
@@ -303,7 +86,6 @@
 
     <script>
         let currentUser = null;
-        const API_BASE = 'http://localhost:8000';
 
         function switchTab(tab) {
             // Update tabs
@@ -322,36 +104,40 @@
             clearAlerts();
         }
 
-        function showAlert(message, type = 'info') {
-            const alerts = document.getElementById('alerts');
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type}`;
-            alert.textContent = message;
-            alerts.appendChild(alert);
+        function showAlert(alertId, message, type = 'info') {
+            const alertDiv = document.getElementById(alertId);
+            if (!alertDiv) return;
+
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            alertDiv.style.display = 'block';
 
             // Auto-remove after 5 seconds
             setTimeout(() => {
-                alert.remove();
+                alertDiv.style.display = 'none';
             }, 5000);
         }
 
         function clearAlerts() {
-            document.getElementById('alerts').innerHTML = '';
+            document.getElementById('registerAlert').style.display = 'none';
+            document.getElementById('loginAlert').style.display = 'none';
         }
 
-        function setLoading(buttonId, loading) {
+        function setLoading(buttonId, isLoading) {
             const btn = document.getElementById(buttonId);
-            const btnText = btn.querySelector('.btn-text');
-            const loadingSpinner = btn.querySelector('.loading');
+            if (!btn) return;
 
-            if (loading) {
+            if (isLoading) {
                 btn.disabled = true;
-                btnText.style.display = 'none';
-                loadingSpinner.style.display = 'inline-block';
+                btn.innerHTML = '<span class="loading"></span>';
             } else {
                 btn.disabled = false;
-                btnText.style.display = 'inline';
-                loadingSpinner.style.display = 'none';
+                // Restore original text
+                if (buttonId === 'registerBtn') {
+                    btn.innerHTML = 'Register';
+                } else if (buttonId === 'loginBtn') {
+                    btn.innerHTML = 'Login';
+                }
             }
         }
 
@@ -388,7 +174,7 @@
             clearAlerts();
 
             try {
-                const response = await fetch(`${API_BASE}/auth/register`, {
+                const response = await fetch(`/auth/register`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -399,7 +185,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showAlert('✅ Registration successful! You can now login.', 'success');
+                    showAlert('registerAlert', '✅ Registration successful! You can now login.', 'success');
                     document.getElementById('registerForm').reset();
                     // Switch to login tab
                     document.querySelectorAll('.tab')[1].click();
@@ -415,12 +201,14 @@
                         } else if (data.detail.includes('Invalid email')) {
                             errorMessage = '📧 Please enter a valid email address.';
                         }
+                    } else if (Array.isArray(data.detail)) {
+                        errorMessage = data.detail.map(err => err.msg).join(', ');
                     }
                     
-                    showAlert(`❌ ${errorMessage}`, 'error');
+                    showAlert('registerAlert', `❌ ${errorMessage}`, 'error');
                 }
             } catch (error) {
-                showAlert(`❌ Network error: ${error.message}`, 'error');
+                showAlert('registerAlert', `❌ Network error: ${error.message}`, 'error');
             } finally {
                 setLoading('registerBtn', false);
             }
@@ -436,7 +224,7 @@
             clearAlerts();
 
             try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
+                const response = await fetch(`/auth/login`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -451,7 +239,7 @@
                     localStorage.setItem('auth_token', data.access_token);
                     currentUser = { email, token: data.access_token };
                     
-                    showAlert('✅ Login successful! Redirecting to dashboard...', 'success');
+                    showAlert('loginAlert', '✅ Login successful! Redirecting to dashboard...', 'success');
                     
                     // Redirect to dashboard after a short delay
                     setTimeout(() => {
@@ -460,10 +248,10 @@
                 } else {
                     // Show the new error format
                     let errorMessage = data.detail || data.error || 'Unknown error';
-                    showAlert(`❌ Login failed: ${errorMessage}`, 'error');
+                    showAlert('loginAlert', `❌ Login failed: ${errorMessage}`, 'error');
                 }
             } catch (error) {
-                showAlert(`❌ Network error: ${error.message}`, 'error');
+                showAlert('loginAlert', `❌ Network error: ${error.message}`, 'error');
             } finally {
                 setLoading('loginBtn', false);
             }
@@ -474,7 +262,7 @@
             if (!token) return;
 
             try {
-                const response = await fetch(`${API_BASE}/auth/me`, {
+                const response = await fetch(`/auth/me`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -493,10 +281,10 @@
                 } else {
                     // Token might be expired
                     localStorage.removeItem('auth_token');
-                    showAlert('⚠️ Session expired. Please login again.', 'info');
+                    showAlert('loginAlert', '⚠️ Session expired. Please login again.', 'info');
                 }
             } catch (error) {
-                showAlert(`❌ Error loading user info: ${error.message}`, 'error');
+                showAlert('loginAlert', `❌ Error loading user info: ${error.message}`, 'error');
             }
         }
 
@@ -504,7 +292,7 @@
             const token = localStorage.getItem('auth_token');
             if (token) {
                 try {
-                    await fetch(`${API_BASE}/auth/logout`, {
+                    await fetch(`/auth/logout`, {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${token}`
@@ -521,7 +309,7 @@
             document.getElementById('userInfo').style.display = 'none';
             document.getElementById('loginForm').reset();
             
-            showAlert('👋 Logged out successfully!', 'info');
+            showAlert('loginAlert', '👋 Logged out successfully!', 'info');
         }
 
         // Event listeners
