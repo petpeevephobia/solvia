@@ -376,9 +376,36 @@ body {
 
 .insights p {
     margin: 0;
-    font-size: 0.875rem;
-    color: var(--color-text-dark);
     line-height: 1.5;
+    color: var(--color-text-light);
+}
+
+.insight-section {
+    margin-bottom: 1rem;
+}
+
+.insight-section:last-child {
+    margin-bottom: 0;
+}
+
+.insight-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-dark);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.insight-section p {
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 0.25rem;
+    color: var(--color-text-light);
+}
+
+.insight-section p:last-child {
+    margin-bottom: 0;
 }
 
 /* === Charts Section === */

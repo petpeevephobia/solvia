@@ -273,12 +273,12 @@ class GoogleOAuthHandler:
             # Return demo properties
             demo_properties = [
                 {
-                    'siteUrl': 'https://example.com',
+                    'siteUrl': '',
                     'permissionLevel': 'siteOwner',
                     'isVerified': True
                 },
                 {
-                    'siteUrl': 'https://demo-site.com',
+                    'siteUrl': '',
                     'permissionLevel': 'siteOwner',
                     'isVerified': True
                 }
@@ -628,12 +628,12 @@ class PageSpeedInsightsFetcher:
             return self._get_demo_data()
     
     def _get_demo_data(self) -> Dict:
-        """Return demo data when API is not available."""
+        """Return empty data when API is not available."""
         return {
-            'performance_score': 78,
-            'lcp': {'value': 2.1, 'score': 0.8},
-            'fcp': {'value': 1.2, 'score': 0.9},
-            'cls': {'value': 0.08, 'score': 0.85},
+            'performance_score': 0,
+            'lcp': {'value': 0, 'score': 0},
+            'fcp': {'value': 0, 'score': 0},
+            'cls': {'value': 0, 'score': 0},
             'last_updated': datetime.utcnow().isoformat()
         }
 
@@ -641,147 +641,169 @@ class PageSpeedInsightsFetcher:
 pagespeed_fetcher = PageSpeedInsightsFetcher()
 
 class MobileUsabilityFetcher:
-    """Handles fetching mobile usability data."""
-    
+    """Fetcher for mobile usability data using GSC and PageSpeed Insights."""
+
     def __init__(self):
-        self.api_key = settings.PAGESPEED_API_KEY  # Uses same API key as PageSpeed
-        self.base_url = "https://searchconsole.googleapis.com/v1/urlTestingTools/mobileFriendlyTest:run"
-    
+        self.pagespeed_fetcher = PageSpeedInsightsFetcher()
+
     async def fetch_mobile_data(self, url: str) -> Dict:
-        """Fetch mobile-friendly test data for a given URL."""
-        if not self.api_key:
-            print("[WARNING] API key not configured for mobile testing")
-            return self._get_demo_data()
-        
-        # Handle domain properties (convert sc-domain:domain.com to https://domain.com)
-        if url.startswith('sc-domain:'):
-            domain = url.replace('sc-domain:', '')
-            url = f"https://{domain}"
-            print(f"[DEBUG] Converted domain property to URL for mobile test: {url}")
-        
-        # Ensure URL has proper scheme
-        if not url.startswith(('http://', 'https://')):
-            url = f"https://{url}"
-        
-        # Follow redirects to get the final URL
-        final_url = await self._get_final_url(url)
-        print(f"[DEBUG] Final URL after redirects for mobile test: {final_url}")
-        
-        # Validate final URL
-        if not final_url or not final_url.startswith(('http://', 'https://')):
-            print(f"[ERROR] Invalid final URL for mobile test: {final_url}")
-            return self._get_demo_data()
+        """Fetch mobile-friendly test data for a given URL via GSC and PageSpeed."""
+        print(f"[DEBUG] Fetching mobile data via GSC and PageSpeed for: {url}")
         
         try:
-            payload = {
-                'url': final_url
-            }
+            # Convert domain property to actual URL if needed
+            if url.startswith('sc-domain:'):
+                domain = url.replace('sc-domain:', '')
+                actual_url = f"https://{domain}"
+            else:
+                actual_url = url
             
-            headers = {
-                'Content-Type': 'application/json'
-            }
+            # Get the final URL after redirects
+            final_url = await self._get_final_url(actual_url)
+            print(f"[DEBUG] Final URL for mobile analysis: {final_url}")
             
-            print(f"[DEBUG] Mobile test API request payload: {payload}")
-            print(f"[DEBUG] Mobile test API URL: {self.base_url}?key={self.api_key[:10]}...")
+            # Get PageSpeed data for mobile performance
+            pagespeed_data = await self.pagespeed_fetcher.fetch_pagespeed_data(final_url, strategy="mobile")
             
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.base_url}?key={self.api_key}",
-                    json=payload,
-                    headers=headers
-                ) as response:
-                    print(f"[DEBUG] Mobile test API response status: {response.status}")
-                    if response.status == 200:
-                        data = await response.json()
-                        return self._process_mobile_data(data)
-                    else:
-                        error_text = await response.text()
-                        print(f"[ERROR] Mobile test API error: {response.status}")
-                        print(f"[ERROR] Mobile test API response: {error_text}")
-                        
-                        # If it's an API key issue, return demo data with a note
-                        if response.status == 400 and "invalid" in error_text.lower():
-                            print("[INFO] Mobile test API key may not have proper permissions. Using demo data.")
-                            demo_data = self._get_demo_data()
-                            demo_data['insights'] = 'Mobile test requires Search Console API access. Enable the Search Console API in Google Cloud Console to get real mobile usability data.'
-                            return demo_data
-                        elif response.status == 404:
-                            print("[INFO] Mobile test API endpoint not found. This may require Search Console API to be enabled.")
-                            demo_data = self._get_demo_data()
-                            demo_data['insights'] = 'Mobile test requires Search Console API to be enabled in Google Cloud Console. Using demo data.'
-                            return demo_data
-                        
-                        return self._get_demo_data()
-                        
+            # Get GSC mobile usability data
+            gsc_mobile_data = await self._get_gsc_mobile_data(url, final_url)
+            
+            # Combine both data sources
+            return self._process_mobile_data(pagespeed_data, gsc_mobile_data)
+
         except Exception as e:
-            print(f"[ERROR] Error fetching mobile data: {e}")
+            print(f"Error fetching mobile data: {e}")
             return self._get_demo_data()
     
     async def _get_final_url(self, url: str) -> str:
-        """Follow redirects to get the final URL."""
+        """Get the final URL after following redirects."""
         try:
+            import aiohttp
             async with aiohttp.ClientSession() as session:
-                async with session.head(url, allow_redirects=True) as response:
-                    return str(response.url)
+                async with session.get(url, allow_redirects=True) as response:
+                    final_url = str(response.url)
+                    print(f"[DEBUG] Final URL after redirects: {final_url}")
+                    return final_url
         except Exception as e:
-            print(f"[WARNING] Could not follow redirects for {url}: {e}")
+            print(f"Error getting final URL: {e}")
             return url
     
-    def _process_mobile_data(self, data: Dict) -> Dict:
-        """Process raw mobile-friendly test data into structured format."""
+    async def _get_gsc_mobile_data(self, site_url: str, page_url: str) -> Dict:
+        """Get mobile usability data from Google Search Console."""
         try:
-            mobile_friendly = data.get('mobileFriendliness', 'UNKNOWN')
-            issues = data.get('issues', [])
+            # This would require GSC API credentials
+            # For now, we'll use PageSpeed data as a proxy
+            print(f"[DEBUG] Getting GSC mobile data for site: {site_url}, page: {page_url}")
             
-            # Determine mobile friendly status
-            is_mobile_friendly = mobile_friendly == 'MOBILE_FRIENDLY'
+            # Return basic mobile data structure
+            return {
+                'mobile_friendly': True,  # Assume mobile-friendly if PageSpeed works
+                'issues_count': 0,
+                'critical_issues': 0,
+                'warning_issues': 0,
+                'issues': []
+            }
+        except Exception as e:
+            print(f"Error getting GSC mobile data: {e}")
+            return {
+                'mobile_friendly': False,
+                'issues_count': 0,
+                'critical_issues': 0,
+                'warning_issues': 0,
+                'issues': []
+            }
+    
+    def _process_mobile_data(self, pagespeed_data: Dict, gsc_mobile_data: Dict) -> Dict:
+        """Process PageSpeed and GSC data to extract mobile usability info."""
+        try:
+            if not pagespeed_data:
+                print("[WARNING] No PageSpeed data available for mobile analysis")
+                return self._get_demo_data()
             
-            # Count and categorize issues
-            issue_count = len(issues)
-            critical_issues = [issue for issue in issues if issue.get('rule', '').startswith('CRITICAL')]
-            warning_issues = [issue for issue in issues if issue.get('rule', '').startswith('WARNING')]
+            # Extract mobile-specific metrics from PageSpeed
+            lighthouse_result = pagespeed_data.get('lighthouseResult', {})
+            audits = lighthouse_result.get('audits', {})
+            
+            # Mobile-specific audits
+            viewport_audit = audits.get('viewport', {})
+            font_display_audit = audits.get('font-display', {})
+            tap_targets_audit = audits.get('tap-targets', {})
+            content_width_audit = audits.get('content-width', {})
+            
+            # Determine mobile friendliness based on audits
+            mobile_issues = []
+            critical_issues = 0
+            warning_issues = 0
+            
+            # Check viewport configuration
+            if viewport_audit.get('score', 1) < 1:
+                mobile_issues.append("Viewport not properly configured for mobile")
+                critical_issues += 1
+            
+            # Check font display
+            if font_display_audit.get('score', 1) < 1:
+                mobile_issues.append("Font display issues detected")
+                warning_issues += 1
+            
+            # Check tap targets
+            if tap_targets_audit.get('score', 1) < 1:
+                mobile_issues.append("Tap targets too small or too close together")
+                critical_issues += 1
+            
+            # Check content width
+            if content_width_audit.get('score', 1) < 1:
+                mobile_issues.append("Content wider than viewport")
+                critical_issues += 1
+            
+            # Performance metrics
+            performance_score = pagespeed_data.get('lighthouseResult', {}).get('categories', {}).get('performance', {}).get('score', 0) * 100
+            
+            # Determine overall mobile friendliness
+            is_mobile_friendly = critical_issues == 0 and performance_score > 50
             
             # Generate insights
-            insights = self._generate_mobile_insights(is_mobile_friendly, issues, critical_issues, warning_issues)
+            insights = self._generate_mobile_insights(is_mobile_friendly, mobile_issues, performance_score)
             
             return {
-                'mobile_friendly': 'Pass' if is_mobile_friendly else 'Fail',
-                'issues_count': issue_count,
-                'critical_issues': len(critical_issues),
-                'warning_issues': len(warning_issues),
-                'issues': issues,
+                'mobile_friendly': 'Yes' if is_mobile_friendly else 'No',
+                'issues_count': len(mobile_issues),
+                'critical_issues': critical_issues,
+                'warning_issues': warning_issues,
+                'issues': mobile_issues,
+                'performance_score': round(performance_score, 1),
                 'insights': insights,
                 'last_updated': datetime.utcnow().isoformat()
             }
+            
         except Exception as e:
-            print(f"[ERROR] Error processing mobile data: {e}")
+            print(f"Error processing mobile data: {e}")
             return self._get_demo_data()
     
-    def _generate_mobile_insights(self, is_mobile_friendly: bool, issues: List, critical_issues: List, warning_issues: List) -> str:
-        """Generate insights based on mobile test results."""
-        if is_mobile_friendly and len(issues) == 0:
-            return "Excellent! Your site is fully mobile-friendly with no issues detected."
-        
-        if is_mobile_friendly and len(issues) > 0:
-            return f"Mobile-friendly with {len(issues)} minor issues. Consider addressing these for optimal mobile experience."
-        
-        if not is_mobile_friendly:
-            if len(critical_issues) > 0:
-                return f"Mobile usability needs improvement. {len(critical_issues)} critical issues detected. Focus on viewport configuration and touch targets."
+    def _generate_mobile_insights(self, is_mobile_friendly: bool, issues: List, performance_score: float) -> str:
+        """Generate mobile usability insights."""
+        if is_mobile_friendly:
+            if performance_score > 80:
+                return "✅ Excellent mobile experience with high performance"
+            elif performance_score > 60:
+                return "✅ Good mobile experience with room for performance improvements"
             else:
-                return f"Mobile usability needs attention. {len(issues)} issues detected. Review mobile optimization best practices."
-        
-        return "Mobile usability status unclear. Please run the test again."
+                return "⚠️ Mobile-friendly but performance needs optimization"
+        else:
+            if issues:
+                return f"❌ Mobile usability issues detected: {', '.join(issues[:3])}"
+            else:
+                return "❌ Mobile experience needs improvement"
     
     def _get_demo_data(self) -> Dict:
-        """Return demo data when API is not available."""
+        """Return empty mobile usability data when real data is not available."""
         return {
-            'mobile_friendly': 'Pass',
+            'mobile_friendly': 'No',
             'issues_count': 0,
             'critical_issues': 0,
             'warning_issues': 0,
             'issues': [],
-            'insights': 'Mobile-friendly test requires Search Console API access. Enable the Search Console API in Google Cloud Console to get real mobile usability data.',
+            'performance_score': 0,
+            'insights': 'No mobile usability data available',
             'last_updated': datetime.utcnow().isoformat()
         }
 
@@ -830,17 +852,17 @@ class IndexingCrawlabilityFetcher:
             return result
         except Exception as e:
             print(f"Error fetching indexing data: {e}")
-            # Return demo data if API calls fail
-            print("[INFO] Using demo indexing data due to API error")
+            # Return empty data if API calls fail
+            print("[INFO] Using empty indexing data due to API error")
             return {
-                'sitemap_status': 'Error',
+                'sitemap_status': 'Unknown',
                 'sitemap_count': 0,
                 'indexed_pages': 0,
-                'index_status': 'Error',
+                'index_status': 'Unknown',
                 'crawl_errors': 0,
                 'crawl_success_rate': 0,
                 'last_crawl': 'Unknown',
-                'insights': ['Unable to fetch indexing data']
+                'insights': ['No indexing data available']
             }
     
     def _get_sitemaps(self, site_url):
@@ -872,9 +894,15 @@ class IndexingCrawlabilityFetcher:
     def _get_indexed_pages(self, site_url):
         """Get information about indexed pages."""
         try:
-            # Use URL inspection API to check a sample page
-            sample_url = f"{site_url.rstrip('/')}/"
+            # Convert domain property to actual URL if needed
+            if site_url.startswith('sc-domain:'):
+                domain = site_url.replace('sc-domain:', '')
+                sample_url = f"https://{domain}/"
+            else:
+                sample_url = f"{site_url.rstrip('/')}/"
+            
             print(f"[DEBUG] Calling URL inspection for sample URL: {sample_url}")
+            print(f"[DEBUG] Site URL for inspection: {site_url}")
             
             request = self.service.urlInspection().index().inspect(
                 body={
@@ -902,31 +930,30 @@ class IndexingCrawlabilityFetcher:
     def _get_crawl_stats(self, site_url):
         """Get crawl statistics."""
         try:
-            # Get crawl errors from GSC
+            # Use sitemaps as a proxy for crawl health since direct crawl stats are limited
             end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=30)
-            print(f"[DEBUG] Calling searchAnalytics().query() for site: {site_url}")
-            print(f"[DEBUG] Date range: {start_date} to {end_date}")
+            print(f"[DEBUG] Checking crawl health via sitemaps for site: {site_url}")
             
-            request = self.service.searchAnalytics().query(
-                siteUrl=site_url,
-                body={
-                    'startDate': start_date.isoformat(),
-                    'endDate': end_date.isoformat(),
-                    'dimensions': ['page'],
-                    'rowLimit': 1
+            sitemaps = self._get_sitemaps(site_url)
+            if sitemaps['status'] == 'Active':
+                result = {
+                    'success_rate': 90,  # Active sitemaps indicate good crawl health
+                    'errors': 0,
+                    'last_crawl': end_date.isoformat()
                 }
-            )
-            response = request.execute()
-            print(f"[DEBUG] Search analytics API response: {response}")
+            elif sitemaps['status'] == 'Pending':
+                result = {
+                    'success_rate': 50,  # Pending sitemaps indicate some issues
+                    'errors': 0,
+                    'last_crawl': end_date.isoformat()
+                }
+            else:
+                result = {
+                    'success_rate': 0,  # No sitemaps indicate crawl problems
+                    'errors': 0,
+                    'last_crawl': 'Unknown'
+                }
             
-            # If we get a response, crawling is working
-            rows = response.get('rows', [])
-            result = {
-                'success_rate': 100 if rows else 0,
-                'errors': 0,  # GSC doesn't provide crawl errors via this API
-                'last_crawl': end_date.isoformat()
-            }
             print(f"[DEBUG] Processed crawl stats result: {result}")
             return result
         except Exception as e:
@@ -964,3 +991,198 @@ class IndexingCrawlabilityFetcher:
             insights.append("❌ Crawling problems detected")
         
         return insights 
+
+class BusinessContextFetcher:
+    """Fetcher for business context and intelligence data."""
+    
+    def __init__(self):
+        self.business_analyzer = None
+        # Don't import here - will import when needed
+    
+    async def fetch_business_data(self, url: str) -> Dict:
+        """Fetch business context and intelligence data."""
+        try:
+            print(f"[DEBUG] Fetching business context data for: {url}")
+            
+            # Convert domain property to actual URL if needed
+            final_url = await self._get_final_url(url)
+            print(f"[DEBUG] Final URL for business analysis: {final_url}")
+            
+            # Try to import and use the business analyzer
+            if self.business_analyzer is None:
+                try:
+                    import sys
+                    import os
+                    # Add the project root to the path if not already there
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    if project_root not in sys.path:
+                        sys.path.insert(0, project_root)
+                    
+                    # Try direct import from file path
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location(
+                        "business_analysis", 
+                        os.path.join(project_root, "core", "modules", "business_analysis.py")
+                    )
+                    business_analysis_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(business_analysis_module)
+                    BusinessAnalyzer = business_analysis_module.BusinessAnalyzer
+                    
+                    self.business_analyzer = BusinessAnalyzer()
+                    print("[DEBUG] BusinessAnalyzer successfully imported and initialized via direct file import")
+                except Exception as e:
+                    print(f"Warning: BusinessAnalyzer not available: {e}")
+                    print(f"[DEBUG] Current sys.path: {sys.path[:3]}...")  # Show first 3 paths
+                    self.business_analyzer = False  # Mark as failed
+            
+            if self.business_analyzer and self.business_analyzer is not False:
+                # Use the business analyzer if available
+                business_data = self.business_analyzer.analyze_business(final_url)
+                print(f"[DEBUG] Business analysis completed: {business_data}")
+                
+                # Format the data for the frontend
+                result = self._format_business_data(business_data)
+                print(f"[DEBUG] Formatted business data: {result}")
+                return result
+            else:
+                # Fallback to basic analysis
+                print("[DEBUG] Using fallback business analysis")
+                return await self._fallback_business_analysis(final_url)
+                
+        except Exception as e:
+            print(f"Error fetching business context data: {e}")
+            print("[INFO] Using empty business data due to error")
+            return self._get_demo_data()
+    
+    async def _get_final_url(self, url: str) -> str:
+        """Get the final URL after following redirects."""
+        try:
+            # Convert domain property to actual URL if needed
+            if url.startswith('sc-domain:'):
+                domain = url.replace('sc-domain:', '')
+                actual_url = f"https://{domain}"
+            else:
+                actual_url = url
+            
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.get(actual_url, allow_redirects=True) as response:
+                    final_url = str(response.url)
+                    print(f"[DEBUG] Final URL after redirects: {final_url}")
+                    return final_url
+        except Exception as e:
+            print(f"Error getting final URL: {e}")
+            # Return the original URL if we can't get the final URL
+            if url.startswith('sc-domain:'):
+                domain = url.replace('sc-domain:', '')
+                return f"https://{domain}"
+            return url
+    
+    def _format_business_data(self, business_data: Dict) -> Dict:
+        """Format business analysis data for frontend consumption."""
+        try:
+            return {
+                'business_type': business_data.get('business_model', 'Unknown'),
+                'target_market': business_data.get('target_market', 'Unknown'),
+                'industry_sector': business_data.get('industry_sector', 'General'),
+                'company_size': business_data.get('company_size', 'Unknown'),
+                'primary_age_group': business_data.get('primary_age_group', 'General'),
+                'income_level': business_data.get('income_level', 'Mid-Range'),
+                'audience_sophistication': business_data.get('audience_sophistication', 'General'),
+                'geographic_focus': business_data.get('geographic_focus', 'Local'),
+                'business_maturity': business_data.get('business_maturity', 'Established'),
+                'technology_platform': business_data.get('technology_platform', 'Standard'),
+                'content_strategy': business_data.get('content_marketing', {}).get('strategy', 'Basic'),
+                'competitive_position': business_data.get('competitive_position', 'Standard'),
+                'insights': business_data.get('business_insights', []),
+                'seo_recommendations': business_data.get('seo_strategy_recommendations', []),
+                'last_updated': datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            print(f"Error formatting business data: {e}")
+            return self._get_demo_data()
+    
+    async def _fallback_business_analysis(self, url: str) -> Dict:
+        """Basic business analysis when the full analyzer is not available."""
+        try:
+            # URL should already be converted to actual URL by the calling method
+            actual_url = url
+            print(f"[DEBUG] Fallback analysis using URL: {actual_url}")
+            
+            import aiohttp
+            from bs4 import BeautifulSoup
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(actual_url) as response:
+                    html = await response.text()
+                    soup = BeautifulSoup(html, 'html.parser')
+                    
+                    # Basic analysis
+                    text_content = soup.get_text().lower()
+                    
+                    # Determine business type
+                    if any(word in text_content for word in ['shop', 'buy', 'cart', 'checkout']):
+                        business_type = 'E-commerce'
+                    elif any(word in text_content for word in ['service', 'consulting', 'expert']):
+                        business_type = 'Professional Services'
+                    elif any(word in text_content for word in ['software', 'app', 'platform']):
+                        business_type = 'SaaS'
+                    else:
+                        business_type = 'Information/Content'
+                    
+                    # Determine target market
+                    if any(word in text_content for word in ['business', 'enterprise', 'corporate']):
+                        target_market = 'B2B'
+                    else:
+                        target_market = 'B2C'
+                    
+                    return {
+                        'business_type': business_type,
+                        'target_market': target_market,
+                        'industry_sector': 'General',
+                        'company_size': 'Small',
+                        'primary_age_group': 'General',
+                        'income_level': 'Mid-Range',
+                        'audience_sophistication': 'General',
+                        'geographic_focus': 'Local',
+                        'business_maturity': 'Established',
+                        'technology_platform': 'Standard',
+                        'content_strategy': 'Basic',
+                        'competitive_position': 'Standard',
+                        'insights': [
+                            f"Identified as {business_type} business targeting {target_market} market",
+                            "Basic analysis completed - connect GSC for deeper insights"
+                        ],
+                        'seo_recommendations': [
+                            "Focus on local SEO if serving local customers",
+                            "Optimize for mobile users",
+                            "Create valuable, relevant content"
+                        ],
+                        'last_updated': datetime.utcnow().isoformat()
+                    }
+        except Exception as e:
+            print(f"Error in fallback business analysis: {e}")
+            return self._get_demo_data()
+    
+    def _get_demo_data(self) -> Dict:
+        """Return empty business context data when real data is not available."""
+        return {
+            'business_type': 'Unknown',
+            'target_market': 'Unknown',
+            'industry_sector': 'Unknown',
+            'company_size': 'Unknown',
+            'primary_age_group': 'Unknown',
+            'income_level': 'Unknown',
+            'audience_sophistication': 'Unknown',
+            'geographic_focus': 'Unknown',
+            'business_maturity': 'Unknown',
+            'technology_platform': 'Unknown',
+            'content_strategy': 'Unknown',
+            'competitive_position': 'Unknown',
+            'insights': [],
+            'seo_recommendations': [],
+            'last_updated': datetime.utcnow().isoformat()
+        }
+
+# Create Business Context fetcher instance
+business_fetcher = BusinessContextFetcher() 

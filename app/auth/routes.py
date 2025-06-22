@@ -17,7 +17,7 @@ from app.auth.utils import (
 )
 from app.database import db
 from app.config import settings
-from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, pagespeed_fetcher, mobile_fetcher, IndexingCrawlabilityFetcher
+from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, pagespeed_fetcher, mobile_fetcher, IndexingCrawlabilityFetcher, business_fetcher
 import uuid
 
 # New models for website management
@@ -743,6 +743,40 @@ async def get_indexing_metrics(current_user: str = Depends(get_current_user)):
         raise
     except Exception as e:
         print(f"Error fetching indexing metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {e}"
+        )
+
+
+@router.get("/business/metrics")
+async def get_business_metrics(current_user: str = Depends(get_current_user)):
+    """Fetch business context and intelligence data for the user's website."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        print(f"[DEBUG] Fetching business context data for user '{current_user}' and property '{website_url}'")
+        
+        # Fetch business context data
+        business_data = await business_fetcher.fetch_business_data(website_url)
+        
+        if not business_data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch business context data."
+            )
+
+        return business_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching business metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"

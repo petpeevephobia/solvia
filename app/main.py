@@ -1,11 +1,19 @@
 """
 Main FastAPI application for Solvia authentication system.
 """
+import os
+import sys
+from pathlib import Path
+
+# Add project root to the Python path
+# This is the directory that contains `app` and `core`
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
-import os
 
 from .auth.routes import router as auth_router
 from .config import settings

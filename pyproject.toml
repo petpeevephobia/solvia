@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "solvia"
+version = "0.1.0"
+description = "Solvia SEO Dashboard"
+
+[tool.setuptools.packages.find]
+# This will automatically find the 'app' and 'core' packages
+exclude = ["tests*"] 

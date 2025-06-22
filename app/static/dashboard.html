@@ -1102,8 +1102,81 @@
         }
 
         function generateBusinessInsights(metrics) {
-            // This would be populated with real business analysis data
-            document.getElementById('businessInsights').innerHTML = '<p>Business context insights will be available when business analysis is completed.</p>';
+            // Fetch real business context data
+            fetchBusinessData();
+        }
+
+        async function fetchBusinessData() {
+            try {
+                console.log('[DEBUG] Fetching business context data...');
+                const response = await apiCall('/auth/business/metrics');
+                console.log('[DEBUG] Business context response status:', response.status);
+                
+                if (response.ok) {
+                    const businessData = await response.json();
+                    console.log('[DEBUG] Business context data received:', businessData);
+                    updateBusinessMetrics(businessData);
+                    generateBusinessInsightsFromData(businessData);
+                } else {
+                    const errorText = await response.text();
+                    console.log('[DEBUG] Failed to load business context data:', errorText);
+                    document.getElementById('businessInsights').innerHTML = '<p>Business context analysis will be available when connected to Google Search Console.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading business context data:', error);
+                document.getElementById('businessInsights').innerHTML = '<p>Business context analysis will be available when connected to Google Search Console.</p>';
+            }
+        }
+
+        function updateBusinessMetrics(businessData) {
+            // Update business type
+            const businessType = businessData.business_type;
+            document.getElementById('businessType').textContent = businessType || 'N/A';
+            
+            // Update target market
+            const targetMarket = businessData.target_market;
+            document.getElementById('targetMarket').textContent = targetMarket || 'N/A';
+            
+            // Update status indicator color
+            const statusIndicator = document.getElementById('businessStatus');
+            if (businessType && businessType !== 'Unknown') {
+                statusIndicator.textContent = 'Good';
+                statusIndicator.className = 'status-indicator good';
+            } else {
+                statusIndicator.textContent = 'Unknown';
+                statusIndicator.className = 'status-indicator';
+            }
+        }
+
+        function generateBusinessInsightsFromData(businessData) {
+            const insights = businessData.insights || [];
+            const recommendations = businessData.seo_recommendations || [];
+            
+            let insightsHtml = '';
+            
+            // Add business insights
+            if (insights.length > 0) {
+                insightsHtml += '<div class="insight-section"><h4>Business Analysis:</h4>';
+                insights.forEach(insight => {
+                    insightsHtml += `<p>${insight}</p>`;
+                });
+                insightsHtml += '</div>';
+            }
+            
+            // Add SEO recommendations
+            if (recommendations.length > 0) {
+                insightsHtml += '<div class="insight-section"><h4>SEO Recommendations:</h4>';
+                recommendations.forEach(rec => {
+                    insightsHtml += `<p>• ${rec}</p>`;
+                });
+                insightsHtml += '</div>';
+            }
+            
+            if (insightsHtml) {
+                document.getElementById('businessInsights').innerHTML = insightsHtml;
+            } else {
+                document.getElementById('businessInsights').innerHTML = '<p>Business context analysis completed. No specific insights available.</p>';
+            }
         }
 
         function generateKeywordInsights(metrics) {

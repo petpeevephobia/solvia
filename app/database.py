@@ -121,11 +121,11 @@ class GoogleSheetsDB:
             demo_metric = {
                 'email': 'demo@example.com',
                 'date': date.date().isoformat(),
-                'organic_traffic': 1000 + (i * 50),
-                'impressions': 5000 + (i * 200),
-                'avg_position': 15.0 - (i * 0.1),
-                'ctr': 2.5 + (i * 0.05),
-                'seo_score': 75 + (i * 0.5),
+                'organic_traffic': 0,
+                'impressions': 0,
+                'avg_position': 0,
+                'ctr': 0,
+                'seo_score': 0,
                 'created_at': date.isoformat()
             }
             self.demo_metrics.append(demo_metric)
@@ -482,7 +482,7 @@ class GoogleSheetsDB:
     def get_user_website(self, email: str) -> Optional[Dict[str, Any]]:
         """Gets the selected website for a user."""
         if self.demo_mode:
-            return {"website_url": "https://demo-site.com"}
+            return {"website_url": ""}
 
         try:
             all_users = self.users_sheet.get_all_records()
@@ -495,10 +495,10 @@ class GoogleSheetsDB:
             return None
         except Exception as e:
             print(f"Error getting user website: {e}")
-            # If it's a rate limit error, return demo data
+            # If it's a rate limit error, return empty data
             if "429" in str(e) or "quota" in str(e).lower():
-                print("[WARNING] Google Sheets rate limit exceeded, using demo data")
-                return {"website_url": "https://demo-site.com"}
+                print("[WARNING] Google Sheets rate limit exceeded, using empty data")
+                return {"website_url": ""}
             return None
 
     def get_selected_gsc_property(self, email: str) -> str | None:
