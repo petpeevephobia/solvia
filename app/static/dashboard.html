@@ -815,7 +815,10 @@
         }
 
         function updateDashboardMetricsWithRealData(metrics) {
-            const summary = metrics.summary;
+            console.log('[DEBUG] Updating dashboard with real data:', metrics);
+            
+            const summary = metrics.summary || {};
+            console.log('[DEBUG] Summary data:', summary);
             
             // Calculate SEO score based on real metrics
             const seoScore = calculateSEOScore(summary);
@@ -829,7 +832,7 @@
             // Update visibility performance with real data
             document.getElementById('impressionsValue').textContent = summary.total_impressions?.toLocaleString() || '0';
             document.getElementById('clicksValue').textContent = summary.total_clicks?.toLocaleString() || '0';
-            document.getElementById('ctrValue').textContent = `${(summary.avg_ctr * 100).toFixed(2) || 0}%`;
+            document.getElementById('ctrValue').textContent = summary.avg_ctr ? `${(summary.avg_ctr * 100).toFixed(2)}%` : '0%';
             document.getElementById('avgPositionValue').textContent = summary.avg_position?.toFixed(1) || 'N/A';
             
             // Update change indicators
@@ -894,14 +897,18 @@
 
         async function fetchPageSpeedData() {
             try {
+                console.log('[DEBUG] Fetching PageSpeed data...');
                 const response = await apiCall('/auth/pagespeed/metrics');
+                console.log('[DEBUG] PageSpeed response status:', response.status);
                 
                 if (response.ok) {
                     const psiData = await response.json();
+                    console.log('[DEBUG] PageSpeed data received:', psiData);
                     updateUXMetrics(psiData);
                     generateUXInsightsFromData(psiData);
                 } else {
-                    console.log('[DEBUG] Failed to load PageSpeed data, showing placeholder');
+                    const errorText = await response.text();
+                    console.log('[DEBUG] Failed to load PageSpeed data:', errorText);
                     document.getElementById('uxInsights').innerHTML = '<p>Performance insights will be available when PageSpeed data is connected.</p>';
                 }
             } catch (error) {
@@ -911,20 +918,43 @@
         }
 
         function updateUXMetrics(psiData) {
+            console.log('[DEBUG] Updating UX metrics with data:', psiData);
+            
             // Update performance score
-            document.getElementById('performanceScore').textContent = psiData.performance_score || 'N/A';
+            const performanceScore = psiData.performance_score;
+            console.log('[DEBUG] Performance score:', performanceScore);
+            document.getElementById('performanceScore').textContent = performanceScore || 'N/A';
             
             // Update LCP
             const lcpValue = psiData.lcp?.value;
+            console.log('[DEBUG] LCP value:', lcpValue);
             document.getElementById('lcpValue').textContent = lcpValue ? `${lcpValue.toFixed(1)}s` : 'N/A';
             
             // Update FCP
             const fcpValue = psiData.fcp?.value;
+            console.log('[DEBUG] FCP value:', fcpValue);
             document.getElementById('fcpValue').textContent = fcpValue ? `${fcpValue.toFixed(1)}s` : 'N/A';
             
             // Update CLS
             const clsValue = psiData.cls?.value;
+            console.log('[DEBUG] CLS value:', clsValue);
             document.getElementById('clsValue').textContent = clsValue ? clsValue.toFixed(3) : 'N/A';
+            
+            // Update status indicator
+            const statusIndicator = document.getElementById('uxStatus');
+            if (performanceScore >= 90) {
+                statusIndicator.textContent = 'Excellent';
+                statusIndicator.className = 'status-indicator good';
+            } else if (performanceScore >= 70) {
+                statusIndicator.textContent = 'Good';
+                statusIndicator.className = 'status-indicator good';
+            } else if (performanceScore >= 50) {
+                statusIndicator.textContent = 'Needs Work';
+                statusIndicator.className = 'status-indicator warning';
+            } else {
+                statusIndicator.textContent = 'Poor';
+                statusIndicator.className = 'status-indicator error';
+            }
         }
 
         function generateUXInsightsFromData(psiData) {
@@ -959,13 +989,116 @@
         }
 
         function generateMobileInsights(metrics) {
-            // This would be populated with real mobile test data
-            document.getElementById('mobileInsights').innerHTML = '<p>Mobile usability insights will be available when mobile test data is connected.</p>';
+            // Fetch real mobile data
+            fetchMobileData();
+        }
+
+        async function fetchMobileData() {
+            try {
+                const response = await apiCall('/auth/mobile/metrics');
+                
+                if (response.ok) {
+                    const mobileData = await response.json();
+                    updateMobileMetrics(mobileData);
+                    generateMobileInsightsFromData(mobileData);
+                } else {
+                    console.log('[DEBUG] Failed to load mobile data, showing placeholder');
+                    document.getElementById('mobileInsights').innerHTML = '<p>Mobile test results will appear here</p>';
+                }
+            } catch (error) {
+                console.error('Error loading mobile data:', error);
+                document.getElementById('mobileInsights').innerHTML = '<p>Mobile test results will appear here</p>';
+            }
+        }
+
+        function updateMobileMetrics(mobileData) {
+            // Update mobile friendly status
+            const mobileFriendly = mobileData.mobile_friendly;
+            document.getElementById('mobileFriendly').textContent = mobileFriendly || 'N/A';
+            
+            // Update status indicator color
+            const statusIndicator = document.getElementById('mobileStatus');
+            if (mobileFriendly === 'Pass') {
+                statusIndicator.textContent = 'Good';
+                statusIndicator.className = 'status-indicator good';
+            } else if (mobileFriendly === 'Fail') {
+                statusIndicator.textContent = 'Needs Work';
+                statusIndicator.className = 'status-indicator warning';
+            } else {
+                statusIndicator.textContent = 'Unknown';
+                statusIndicator.className = 'status-indicator';
+            }
+            
+            // Update issues count
+            document.getElementById('mobileIssues').textContent = mobileData.issues_count || '0';
+        }
+
+        function generateMobileInsightsFromData(mobileData) {
+            const insights = mobileData.insights || 'Mobile usability data unavailable.';
+            document.getElementById('mobileInsights').innerHTML = `<p>${insights}</p>`;
         }
 
         function generateIndexingInsights(metrics) {
-            // This would be populated with real indexing data
-            document.getElementById('indexingInsights').innerHTML = '<p>Indexing health insights will be available when crawl data is connected.</p>';
+            // Fetch real indexing data
+            fetchIndexingData();
+        }
+
+        async function fetchIndexingData() {
+            try {
+                console.log('[DEBUG] Fetching indexing data...');
+                const response = await apiCall('/auth/indexing/metrics');
+                console.log('[DEBUG] Indexing response status:', response.status);
+                
+                if (response.ok) {
+                    const indexingData = await response.json();
+                    console.log('[DEBUG] Indexing data received:', indexingData);
+                    updateIndexingMetrics(indexingData);
+                    generateIndexingInsightsFromData(indexingData);
+                } else {
+                    const errorText = await response.text();
+                    console.log('[DEBUG] Failed to load indexing data:', errorText);
+                    document.getElementById('indexingInsights').innerHTML = '<p>Indexing health will be analyzed when connected to Google Search Console.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading indexing data:', error);
+                document.getElementById('indexingInsights').innerHTML = '<p>Indexing health will be analyzed when connected to Google Search Console.</p>';
+            }
+        }
+
+        function updateIndexingMetrics(indexingData) {
+            // Update sitemap status
+            const sitemapStatus = indexingData.sitemap_status;
+            document.getElementById('sitemapStatus').textContent = sitemapStatus || 'N/A';
+            
+            // Update index status
+            const indexStatus = indexingData.index_status;
+            document.getElementById('indexStatus').textContent = indexStatus || 'N/A';
+            
+            // Update status indicator color
+            const statusIndicator = document.getElementById('indexingStatus');
+            if (sitemapStatus === 'Active' && indexStatus === 'PASS') {
+                statusIndicator.textContent = 'Good';
+                statusIndicator.className = 'status-indicator good';
+            } else if (sitemapStatus === 'Pending' || indexStatus === 'Unknown') {
+                statusIndicator.textContent = 'Needs Work';
+                statusIndicator.className = 'status-indicator warning';
+            } else if (sitemapStatus === 'Error' || indexStatus === 'FAIL') {
+                statusIndicator.textContent = 'Poor';
+                statusIndicator.className = 'status-indicator error';
+            } else {
+                statusIndicator.textContent = 'Unknown';
+                statusIndicator.className = 'status-indicator';
+            }
+        }
+
+        function generateIndexingInsightsFromData(indexingData) {
+            const insights = indexingData.insights || [];
+            if (insights.length > 0) {
+                const insightsHtml = insights.map(insight => `<p>${insight}</p>`).join('');
+                document.getElementById('indexingInsights').innerHTML = insightsHtml;
+            } else {
+                document.getElementById('indexingInsights').innerHTML = '<p>Indexing health analysis completed. No major issues detected.</p>';
+            }
         }
 
         function generateBusinessInsights(metrics) {

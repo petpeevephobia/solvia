@@ -17,7 +17,7 @@ from app.auth.utils import (
 )
 from app.database import db
 from app.config import settings
-from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, pagespeed_fetcher
+from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, pagespeed_fetcher, mobile_fetcher, IndexingCrawlabilityFetcher
 import uuid
 
 # New models for website management
@@ -587,16 +587,16 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
 async def refresh_gsc_metrics(current_user: str = Depends(get_current_user)):
     """Refresh SEO metrics from Google Search Console."""
     try:
-        # Get user's website
-        website = db.get_user_website(current_user)
-        if not website:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No website found for this user"
+                detail="No GSC property selected. Please select a property first."
             )
         
         # Fetch fresh metrics
-        metrics = await gsc_fetcher.fetch_metrics(current_user, website['website_url'])
+        metrics = await gsc_fetcher.fetch_metrics(current_user, website_url)
         
         if not metrics:
             raise HTTPException(
@@ -666,6 +666,83 @@ async def get_pagespeed_metrics(current_user: str = Depends(get_current_user)):
         raise
     except Exception as e:
         print(f"Error fetching PageSpeed metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {e}"
+        )
+
+
+@router.get("/mobile/metrics")
+async def get_mobile_metrics(current_user: str = Depends(get_current_user)):
+    """Fetch mobile usability data for the user's website."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        print(f"[DEBUG] Fetching mobile data for user '{current_user}' and property '{website_url}'")
+        
+        # Fetch mobile data
+        mobile_data = await mobile_fetcher.fetch_mobile_data(website_url)
+        
+        if not mobile_data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch mobile data."
+            )
+
+        return mobile_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching mobile metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {e}"
+        )
+
+
+@router.get("/indexing/metrics")
+async def get_indexing_metrics(current_user: str = Depends(get_current_user)):
+    """Fetch indexing and crawlability data for the user's website."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        print(f"[DEBUG] Fetching indexing data for user '{current_user}' and property '{website_url}'")
+        
+        # Get user's GSC credentials
+        credentials = google_oauth.get_credentials(current_user)
+        if not credentials:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="GSC credentials not found. Please authenticate with Google Search Console first."
+            )
+        
+        # Create indexing fetcher and fetch data
+        indexing_fetcher = IndexingCrawlabilityFetcher(credentials)
+        indexing_data = indexing_fetcher.fetch_indexing_data(website_url)
+        
+        if not indexing_data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch indexing data."
+            )
+
+        return indexing_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching indexing metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"

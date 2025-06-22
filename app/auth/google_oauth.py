@@ -539,30 +539,58 @@ class PageSpeedInsightsFetcher:
             print("[WARNING] PageSpeed API key not configured")
             return self._get_demo_data()
         
+        # Handle domain properties (convert sc-domain:domain.com to https://domain.com)
+        if url.startswith('sc-domain:'):
+            domain = url.replace('sc-domain:', '')
+            url = f"https://{domain}"
+            print(f"[DEBUG] Converted domain property to URL for PageSpeed: {url}")
+        
+        # Follow redirects to get the final URL
+        final_url = await self._get_final_url(url)
+        print(f"[DEBUG] Final URL after redirects: {final_url}")
+        
         try:
             params = {
-                'url': url,
+                'url': final_url,
                 'key': self.api_key,
                 'strategy': strategy,
                 'category': 'performance'
             }
             
+            print(f"[DEBUG] PageSpeed API request params: {params}")
+            
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.base_url, params=params) as response:
+                    print(f"[DEBUG] PageSpeed API response status: {response.status}")
                     if response.status == 200:
                         data = await response.json()
+                        print(f"[DEBUG] PageSpeed API response received")
                         return self._process_pagespeed_data(data)
                     else:
+                        error_text = await response.text()
                         print(f"[ERROR] PageSpeed API error: {response.status}")
+                        print(f"[ERROR] PageSpeed API response: {error_text}")
                         return self._get_demo_data()
                         
         except Exception as e:
             print(f"[ERROR] Error fetching PageSpeed data: {e}")
             return self._get_demo_data()
     
+    async def _get_final_url(self, url: str) -> str:
+        """Follow redirects to get the final URL."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.head(url, allow_redirects=True) as response:
+                    return str(response.url)
+        except Exception as e:
+            print(f"[WARNING] Could not follow redirects for {url}: {e}")
+            return url
+    
     def _process_pagespeed_data(self, data: Dict) -> Dict:
         """Process raw PageSpeed Insights data into structured format."""
         try:
+            print(f"[DEBUG] Processing PageSpeed data: {data.keys()}")
+            
             lighthouse_result = data.get('lighthouseResult', {})
             audits = lighthouse_result.get('audits', {})
             
@@ -576,7 +604,7 @@ class PageSpeedInsightsFetcher:
             performance = categories.get('performance', {})
             performance_score = performance.get('score', 0)
             
-            return {
+            result = {
                 'performance_score': round(performance_score * 100),
                 'lcp': {
                     'value': lcp.get('numericValue', 0) / 1000,  # Convert to seconds
@@ -592,6 +620,9 @@ class PageSpeedInsightsFetcher:
                 },
                 'last_updated': datetime.utcnow().isoformat()
             }
+            
+            print(f"[DEBUG] Processed PageSpeed result: {result}")
+            return result
         except Exception as e:
             print(f"[ERROR] Error processing PageSpeed data: {e}")
             return self._get_demo_data()
@@ -607,4 +638,329 @@ class PageSpeedInsightsFetcher:
         }
 
 # Create PageSpeed Insights fetcher instance
-pagespeed_fetcher = PageSpeedInsightsFetcher() 
+pagespeed_fetcher = PageSpeedInsightsFetcher()
+
+class MobileUsabilityFetcher:
+    """Handles fetching mobile usability data."""
+    
+    def __init__(self):
+        self.api_key = settings.PAGESPEED_API_KEY  # Uses same API key as PageSpeed
+        self.base_url = "https://searchconsole.googleapis.com/v1/urlTestingTools/mobileFriendlyTest:run"
+    
+    async def fetch_mobile_data(self, url: str) -> Dict:
+        """Fetch mobile-friendly test data for a given URL."""
+        if not self.api_key:
+            print("[WARNING] API key not configured for mobile testing")
+            return self._get_demo_data()
+        
+        # Handle domain properties (convert sc-domain:domain.com to https://domain.com)
+        if url.startswith('sc-domain:'):
+            domain = url.replace('sc-domain:', '')
+            url = f"https://{domain}"
+            print(f"[DEBUG] Converted domain property to URL for mobile test: {url}")
+        
+        # Ensure URL has proper scheme
+        if not url.startswith(('http://', 'https://')):
+            url = f"https://{url}"
+        
+        # Follow redirects to get the final URL
+        final_url = await self._get_final_url(url)
+        print(f"[DEBUG] Final URL after redirects for mobile test: {final_url}")
+        
+        # Validate final URL
+        if not final_url or not final_url.startswith(('http://', 'https://')):
+            print(f"[ERROR] Invalid final URL for mobile test: {final_url}")
+            return self._get_demo_data()
+        
+        try:
+            payload = {
+                'url': final_url
+            }
+            
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            
+            print(f"[DEBUG] Mobile test API request payload: {payload}")
+            print(f"[DEBUG] Mobile test API URL: {self.base_url}?key={self.api_key[:10]}...")
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.base_url}?key={self.api_key}",
+                    json=payload,
+                    headers=headers
+                ) as response:
+                    print(f"[DEBUG] Mobile test API response status: {response.status}")
+                    if response.status == 200:
+                        data = await response.json()
+                        return self._process_mobile_data(data)
+                    else:
+                        error_text = await response.text()
+                        print(f"[ERROR] Mobile test API error: {response.status}")
+                        print(f"[ERROR] Mobile test API response: {error_text}")
+                        
+                        # If it's an API key issue, return demo data with a note
+                        if response.status == 400 and "invalid" in error_text.lower():
+                            print("[INFO] Mobile test API key may not have proper permissions. Using demo data.")
+                            demo_data = self._get_demo_data()
+                            demo_data['insights'] = 'Mobile test requires Search Console API access. Enable the Search Console API in Google Cloud Console to get real mobile usability data.'
+                            return demo_data
+                        elif response.status == 404:
+                            print("[INFO] Mobile test API endpoint not found. This may require Search Console API to be enabled.")
+                            demo_data = self._get_demo_data()
+                            demo_data['insights'] = 'Mobile test requires Search Console API to be enabled in Google Cloud Console. Using demo data.'
+                            return demo_data
+                        
+                        return self._get_demo_data()
+                        
+        except Exception as e:
+            print(f"[ERROR] Error fetching mobile data: {e}")
+            return self._get_demo_data()
+    
+    async def _get_final_url(self, url: str) -> str:
+        """Follow redirects to get the final URL."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.head(url, allow_redirects=True) as response:
+                    return str(response.url)
+        except Exception as e:
+            print(f"[WARNING] Could not follow redirects for {url}: {e}")
+            return url
+    
+    def _process_mobile_data(self, data: Dict) -> Dict:
+        """Process raw mobile-friendly test data into structured format."""
+        try:
+            mobile_friendly = data.get('mobileFriendliness', 'UNKNOWN')
+            issues = data.get('issues', [])
+            
+            # Determine mobile friendly status
+            is_mobile_friendly = mobile_friendly == 'MOBILE_FRIENDLY'
+            
+            # Count and categorize issues
+            issue_count = len(issues)
+            critical_issues = [issue for issue in issues if issue.get('rule', '').startswith('CRITICAL')]
+            warning_issues = [issue for issue in issues if issue.get('rule', '').startswith('WARNING')]
+            
+            # Generate insights
+            insights = self._generate_mobile_insights(is_mobile_friendly, issues, critical_issues, warning_issues)
+            
+            return {
+                'mobile_friendly': 'Pass' if is_mobile_friendly else 'Fail',
+                'issues_count': issue_count,
+                'critical_issues': len(critical_issues),
+                'warning_issues': len(warning_issues),
+                'issues': issues,
+                'insights': insights,
+                'last_updated': datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            print(f"[ERROR] Error processing mobile data: {e}")
+            return self._get_demo_data()
+    
+    def _generate_mobile_insights(self, is_mobile_friendly: bool, issues: List, critical_issues: List, warning_issues: List) -> str:
+        """Generate insights based on mobile test results."""
+        if is_mobile_friendly and len(issues) == 0:
+            return "Excellent! Your site is fully mobile-friendly with no issues detected."
+        
+        if is_mobile_friendly and len(issues) > 0:
+            return f"Mobile-friendly with {len(issues)} minor issues. Consider addressing these for optimal mobile experience."
+        
+        if not is_mobile_friendly:
+            if len(critical_issues) > 0:
+                return f"Mobile usability needs improvement. {len(critical_issues)} critical issues detected. Focus on viewport configuration and touch targets."
+            else:
+                return f"Mobile usability needs attention. {len(issues)} issues detected. Review mobile optimization best practices."
+        
+        return "Mobile usability status unclear. Please run the test again."
+    
+    def _get_demo_data(self) -> Dict:
+        """Return demo data when API is not available."""
+        return {
+            'mobile_friendly': 'Pass',
+            'issues_count': 0,
+            'critical_issues': 0,
+            'warning_issues': 0,
+            'issues': [],
+            'insights': 'Mobile-friendly test requires Search Console API access. Enable the Search Console API in Google Cloud Console to get real mobile usability data.',
+            'last_updated': datetime.utcnow().isoformat()
+        }
+
+# Create Mobile Usability fetcher instance
+mobile_fetcher = MobileUsabilityFetcher()
+
+class IndexingCrawlabilityFetcher:
+    """Fetcher for indexing and crawlability data from Google Search Console."""
+    
+    def __init__(self, credentials):
+        self.credentials = credentials
+        self.service = build('searchconsole', 'v1', credentials=credentials)
+    
+    def fetch_indexing_data(self, site_url):
+        """Fetch indexing and crawlability metrics."""
+        try:
+            print(f"[DEBUG] Fetching indexing data for site: {site_url}")
+            
+            # Get sitemap information
+            print("[DEBUG] Fetching sitemap information...")
+            sitemaps = self._get_sitemaps(site_url)
+            print(f"[DEBUG] Sitemap data: {sitemaps}")
+            
+            # Get URL inspection data (sample of indexed pages)
+            print("[DEBUG] Fetching indexed pages information...")
+            indexed_pages = self._get_indexed_pages(site_url)
+            print(f"[DEBUG] Indexed pages data: {indexed_pages}")
+            
+            # Get crawl stats
+            print("[DEBUG] Fetching crawl statistics...")
+            crawl_stats = self._get_crawl_stats(site_url)
+            print(f"[DEBUG] Crawl stats data: {crawl_stats}")
+            
+            result = {
+                'sitemap_status': sitemaps.get('status', 'Unknown'),
+                'sitemap_count': sitemaps.get('count', 0),
+                'indexed_pages': indexed_pages.get('count', 0),
+                'index_status': indexed_pages.get('status', 'Unknown'),
+                'crawl_errors': crawl_stats.get('errors', 0),
+                'crawl_success_rate': crawl_stats.get('success_rate', 0),
+                'last_crawl': crawl_stats.get('last_crawl', 'Unknown'),
+                'insights': self._generate_insights(sitemaps, indexed_pages, crawl_stats)
+            }
+            
+            print(f"[DEBUG] Final indexing result: {result}")
+            return result
+        except Exception as e:
+            print(f"Error fetching indexing data: {e}")
+            # Return demo data if API calls fail
+            print("[INFO] Using demo indexing data due to API error")
+            return {
+                'sitemap_status': 'Error',
+                'sitemap_count': 0,
+                'indexed_pages': 0,
+                'index_status': 'Error',
+                'crawl_errors': 0,
+                'crawl_success_rate': 0,
+                'last_crawl': 'Unknown',
+                'insights': ['Unable to fetch indexing data']
+            }
+    
+    def _get_sitemaps(self, site_url):
+        """Get sitemap information."""
+        try:
+            print(f"[DEBUG] Calling sitemaps().list() for site: {site_url}")
+            request = self.service.sitemaps().list(siteUrl=site_url)
+            response = request.execute()
+            print(f"[DEBUG] Sitemaps API response: {response}")
+            
+            sitemaps = response.get('sitemap', [])
+            if sitemaps:
+                # Check if sitemaps are being processed successfully
+                successful_sitemaps = [s for s in sitemaps if s.get('isPending') == False]
+                result = {
+                    'status': 'Active' if successful_sitemaps else 'Pending',
+                    'count': len(sitemaps),
+                    'successful': len(successful_sitemaps)
+                }
+                print(f"[DEBUG] Processed sitemap result: {result}")
+                return result
+            else:
+                print("[DEBUG] No sitemaps found")
+                return {'status': 'Not Found', 'count': 0, 'successful': 0}
+        except Exception as e:
+            print(f"Error fetching sitemaps: {e}")
+            return {'status': 'Error', 'count': 0, 'successful': 0}
+    
+    def _get_indexed_pages(self, site_url):
+        """Get information about indexed pages."""
+        try:
+            # Use URL inspection API to check a sample page
+            sample_url = f"{site_url.rstrip('/')}/"
+            print(f"[DEBUG] Calling URL inspection for sample URL: {sample_url}")
+            
+            request = self.service.urlInspection().index().inspect(
+                body={
+                    'inspectionUrl': sample_url,
+                    'siteUrl': site_url
+                }
+            )
+            response = request.execute()
+            print(f"[DEBUG] URL inspection API response: {response}")
+            
+            inspection_result = response.get('inspectionResult', {})
+            index_status = inspection_result.get('indexStatusResult', {})
+            
+            result = {
+                'status': index_status.get('verdict', 'Unknown'),
+                'count': 1,  # This is just a sample, not total count
+                'last_seen': index_status.get('lastCrawlTime', 'Unknown')
+            }
+            print(f"[DEBUG] Processed URL inspection result: {result}")
+            return result
+        except Exception as e:
+            print(f"Error fetching indexed pages: {e}")
+            return {'status': 'Error', 'count': 0, 'last_seen': 'Unknown'}
+    
+    def _get_crawl_stats(self, site_url):
+        """Get crawl statistics."""
+        try:
+            # Get crawl errors from GSC
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=30)
+            print(f"[DEBUG] Calling searchAnalytics().query() for site: {site_url}")
+            print(f"[DEBUG] Date range: {start_date} to {end_date}")
+            
+            request = self.service.searchAnalytics().query(
+                siteUrl=site_url,
+                body={
+                    'startDate': start_date.isoformat(),
+                    'endDate': end_date.isoformat(),
+                    'dimensions': ['page'],
+                    'rowLimit': 1
+                }
+            )
+            response = request.execute()
+            print(f"[DEBUG] Search analytics API response: {response}")
+            
+            # If we get a response, crawling is working
+            rows = response.get('rows', [])
+            result = {
+                'success_rate': 100 if rows else 0,
+                'errors': 0,  # GSC doesn't provide crawl errors via this API
+                'last_crawl': end_date.isoformat()
+            }
+            print(f"[DEBUG] Processed crawl stats result: {result}")
+            return result
+        except Exception as e:
+            print(f"Error fetching crawl stats: {e}")
+            return {'success_rate': 0, 'errors': 0, 'last_crawl': 'Unknown'}
+    
+    def _generate_insights(self, sitemaps, indexed_pages, crawl_stats):
+        """Generate insights based on the data."""
+        insights = []
+        
+        # Sitemap insights
+        if sitemaps['status'] == 'Active':
+            insights.append("✅ Sitemap is active and being processed")
+        elif sitemaps['status'] == 'Pending':
+            insights.append("⏳ Sitemap is pending processing")
+        elif sitemaps['status'] == 'Not Found':
+            insights.append("⚠️ No sitemap found - consider adding one")
+        else:
+            insights.append("❌ Sitemap issues detected")
+        
+        # Indexing insights
+        if indexed_pages['status'] == 'PASS':
+            insights.append("✅ Pages are being indexed properly")
+        elif indexed_pages['status'] == 'FAIL':
+            insights.append("❌ Indexing issues detected")
+        else:
+            insights.append("ℹ️ Indexing status unclear")
+        
+        # Crawl insights
+        if crawl_stats['success_rate'] > 80:
+            insights.append("✅ Crawling is working well")
+        elif crawl_stats['success_rate'] > 50:
+            insights.append("⚠️ Some crawling issues detected")
+        else:
+            insights.append("❌ Crawling problems detected")
+        
+        return insights 

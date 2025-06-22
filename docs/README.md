@@ -82,6 +82,11 @@ PSI_API_KEY=your_pagespeed_insights_key
 1. In Google Cloud Console, enable PageSpeed Insights API
 2. Create API key and add to `.env` file
 
+### 5. Search Console API (for Mobile Testing)
+1. In Google Cloud Console, enable Search Console API
+2. Use the same API key as PageSpeed Insights
+3. This enables mobile usability testing functionality
+
 ## 📊 Airtable Schema
 
 ### Required Columns (32 total)

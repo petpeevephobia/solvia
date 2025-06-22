@@ -19,6 +19,8 @@ class GoogleSheetsDB:
         self.demo_mode = False
         self.demo_users = []
         self.demo_metrics = []
+        self._cache = {}  # Simple in-memory cache
+        self._cache_ttl = 60  # Cache for 60 seconds
         
         # Try to initialize Google Sheets connection
         try:
@@ -61,6 +63,23 @@ class GoogleSheetsDB:
             
             # Initialize demo data
             self._init_demo_data()
+            print(f"[DEBUG] Demo mode initialized with {len(self.demo_users)} users")
+            for user in self.demo_users:
+                print(f"[DEBUG] Demo user: {user['email']}")
+    
+    def _get_cached_data(self, key: str):
+        """Get data from cache if it's still valid."""
+        if key in self._cache:
+            data, timestamp = self._cache[key]
+            if (datetime.utcnow() - timestamp).seconds < self._cache_ttl:
+                return data
+            else:
+                del self._cache[key]
+        return None
+    
+    def _set_cached_data(self, key: str, data):
+        """Store data in cache with timestamp."""
+        self._cache[key] = (data, datetime.utcnow())
     
     def get_or_create_sheet(self, sheet_name: str, headers: List[str] = None) -> gspread.Worksheet:
         """Get a worksheet by name, or create it if it doesn't exist."""
@@ -80,17 +99,21 @@ class GoogleSheetsDB:
     
     def _init_demo_data(self):
         """Initialize demo data for testing."""
-        # Create a demo user
-        demo_user = {
-            'email': 'demo@example.com',
-            'password_hash': '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK2O',  # "Password1"
-            'created_at': '2024-01-01T00:00:00',
-            'last_login': '',
-            'is_verified': 'TRUE',
-            'verification_token': '',
-            'reset_token': ''
-        }
-        self.demo_users.append(demo_user)
+        # Create demo users
+        demo_users = [
+            {
+                'email': 'solviapteltd@gmail.com',
+                'password_hash': '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK2O',  # "Password1"
+                'created_at': '2024-01-01T00:00:00',
+                'last_login': '',
+                'is_verified': 'TRUE',
+                'verification_token': '',
+                'reset_token': ''
+            }
+        ]
+        
+        for demo_user in demo_users:
+            self.demo_users.append(demo_user)
         
         # Create demo metrics
         for i in range(30):
@@ -150,10 +173,15 @@ class GoogleSheetsDB:
     
     def get_user_by_email(self, email: str) -> Optional[UserInDB]:
         """Get user by email."""
+        print(f"[DEBUG] get_user_by_email called with email: '{email}'")
+        print(f"[DEBUG] Demo mode: {self.demo_mode}")
+        
         if self.demo_mode:
             # Use demo data
+            print(f"[DEBUG] Searching in demo users: {[u['email'] for u in self.demo_users]}")
             for user_record in self.demo_users:
                 if user_record.get('email') == email:
+                    print(f"[DEBUG] Found user in demo data: {email}")
                     return UserInDB(
                         id=str(uuid.uuid4()),
                         email=user_record.get('email'),
@@ -163,9 +191,17 @@ class GoogleSheetsDB:
                         verification_token=user_record.get('verification_token'),
                         reset_token=user_record.get('reset_token')
                     )
+            print(f"[DEBUG] User not found in demo data: {email}")
             return None
         
         try:
+            # Check cache first
+            cache_key = f"user_{email}"
+            cached_user = self._get_cached_data(cache_key)
+            if cached_user:
+                print(f"[DEBUG] Returning cached user data for: {email}")
+                return cached_user
+            
             # Get all users as records (dictionary format)
             print(f"[DEBUG] Searching for email: '{email}'")
             all_users = self.users_sheet.get_all_records()
@@ -176,7 +212,7 @@ class GoogleSheetsDB:
             for user_record in all_users:
                 if user_record.get('email') == email:
                     print(f"[DEBUG] Match found for email: '{email}'")
-                    return UserInDB(
+                    user = UserInDB(
                         id=str(uuid.uuid4()),  # Generate a UUID for the user
                         email=user_record.get('email'),
                         password_hash=user_record.get('password_hash'),
@@ -185,10 +221,23 @@ class GoogleSheetsDB:
                         verification_token=user_record.get('verification_token'),
                         reset_token=user_record.get('reset_token')
                     )
+                    # Cache the user data
+                    self._set_cached_data(cache_key, user)
+                    return user
             
             return None
         except Exception as e:
             print(f"Error getting user: {e}")
+            # If it's a rate limit error, try to return cached data or fall back to demo mode
+            if "429" in str(e) or "quota" in str(e).lower():
+                print("[WARNING] Google Sheets rate limit exceeded, checking cache")
+                cached_user = self._get_cached_data(f"user_{email}")
+                if cached_user:
+                    return cached_user
+                print("[WARNING] No cached data available, switching to demo mode")
+                # Switch to demo mode temporarily
+                self.demo_mode = True
+                return self.get_user_by_email(email)  # Recursive call with demo mode
             return None
     
     def update_user_verification(self, email: str, is_verified: bool = True) -> bool:
@@ -446,14 +495,27 @@ class GoogleSheetsDB:
             return None
         except Exception as e:
             print(f"Error getting user website: {e}")
+            # If it's a rate limit error, return demo data
+            if "429" in str(e) or "quota" in str(e).lower():
+                print("[WARNING] Google Sheets rate limit exceeded, using demo data")
+                return {"website_url": "https://demo-site.com"}
             return None
 
     def get_selected_gsc_property(self, email: str) -> str | None:
         """
         Returns the selected GSC property URL for the given user.
         """
+        # Check cache first
+        cache_key = f"gsc_property_{email}"
+        cached_property = self._get_cached_data(cache_key)
+        if cached_property:
+            print(f"[DEBUG] Returning cached GSC property for: {email}")
+            return cached_property
+        
         website = self.get_user_website(email)
         if website and website.get("website_url"):
+            # Cache the result
+            self._set_cached_data(cache_key, website["website_url"])
             return website["website_url"]
         return None
 

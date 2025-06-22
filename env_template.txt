@@ -6,6 +6,12 @@ GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
 
+# PageSpeed Insights API
+PAGESPEED_API_KEY=your_pagespeed_api_key_here
+
+# Note: For mobile usability testing, you also need to enable the Search Console API
+# in your Google Cloud Console project. The same API key is used for both services.
+
 # Google Sheets Configuration (existing)
 GOOGLE_SHEETS_CREDENTIALS_FILE=credentials.json
 USERS_SHEET_ID=your_users_sheet_id_here

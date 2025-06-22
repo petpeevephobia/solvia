@@ -47,9 +47,11 @@ class Settings(BaseSettings):
     LOGIN_ATTEMPTS_LIMIT: int = 5
     LOGIN_ATTEMPTS_WINDOW_MINUTES: int = 15
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
 
 
 # Create settings instance

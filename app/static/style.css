@@ -304,6 +304,10 @@ body {
     background: #F59E0B;
 }
 
+.status-indicator.good {
+    background: var(--color-positive);
+}
+
 .status-indicator.critical {
     background: var(--color-negative);
 }
