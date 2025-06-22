@@ -158,12 +158,12 @@
             // Set fixed width to prevent resizing
             const btnWidth = authBtn.offsetWidth;
             authBtn.style.width = `${btnWidth}px`;
-
+            
             // Show loading state
             authBtn.disabled = true;
             authBtnText.style.display = 'none';
             authBtnLoading.classList.remove('hidden');
-
+            
             try {
                 const token = localStorage.getItem('auth_token');
                 if (!token) {
@@ -175,7 +175,7 @@
                         'Authorization': `Bearer ${token}`
                     }
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     window.location.href = data.auth_url;
@@ -339,7 +339,7 @@
             // Set fixed width to prevent resizing
             const btnWidth = selectBtn.offsetWidth;
             selectBtn.style.width = `${btnWidth}px`;
-
+            
             // Show loading state
             selectBtn.disabled = true;
             selectBtnText.style.display = 'none';
@@ -383,13 +383,13 @@
             const progressDiv = document.getElementById('setup-progress');
             progressDiv.innerHTML = `
                 <div class="success-message" style="margin-top: 2rem; text-align: center; display: block;">
-                    <strong>Setup Complete!</strong>
-                    <p>Redirecting you to the dashboard...</p>
+                        <strong>Setup Complete!</strong>
+                        <p>Redirecting you to the dashboard...</p>
                 </div>
             `;
-
+            
             setTimeout(() => {
-                window.location.href = '/dashboard';
+            window.location.href = '/dashboard';
             }, 3000);
         }
 

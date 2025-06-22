@@ -41,13 +41,48 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def verify_token(token: str) -> Optional[str]:
     """Verify and decode a JWT token."""
+    print(f"[TOKEN DEBUG] verify_token called with token: {token[:20] if token else 'None'}...")
+    
+    if not token:
+        print("[TOKEN DEBUG] Token is None or empty")
+        return None
+    
     try:
+        # First, let's check the token structure
+        parts = token.split('.')
+        print(f"[TOKEN DEBUG] Token parts count: {len(parts)}")
+        
+        if len(parts) != 3:
+            print(f"[TOKEN DEBUG] Invalid JWT structure - expected 3 parts, got {len(parts)}")
+            return None
+        
+        # Try to decode the payload without verification first to see what's in it
+        try:
+            from jose import jwt
+            # For jose library, we need to provide a key even when not verifying
+            payload_unverified = jwt.decode(token, key="", options={"verify_signature": False})
+            print(f"[TOKEN DEBUG] Unverified payload: {payload_unverified}")
+        except Exception as e:
+            print(f"[TOKEN DEBUG] Failed to decode unverified payload: {e}")
+            return None
+        
+        # Now try the proper verification
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        print(f"[TOKEN DEBUG] Verified payload: {payload}")
+        
         email: str = payload.get("sub")
         if email is None:
+            print("[TOKEN DEBUG] No 'sub' field found in payload")
             return None
+        
+        print(f"[TOKEN DEBUG] Successfully verified token for email: {email}")
         return email
-    except JWTError:
+        
+    except JWTError as e:
+        print(f"[TOKEN DEBUG] JWT error: {e}")
+        return None
+    except Exception as e:
+        print(f"[TOKEN DEBUG] Unexpected error verifying token: {e}")
         return None
 
 

@@ -57,7 +57,7 @@
                 <div class="score-header">
                     <h3>Overall SEO Score</h3>
                     <div class="score-badge" id="seoScore">0</div>
-                </div>
+            </div>
                 <div class="score-change" id="seoScoreChange">+0%</div>
                 <div class="score-description">Based on all metrics</div>
             </div>
@@ -97,8 +97,8 @@
                     <div class="insights" id="visibilityInsights">
                         <p>Connect Google Search Console to see visibility insights</p>
                     </div>
-                </div>
             </div>
+        </div>
 
             <!-- Engagement & UX Performance Section -->
             <div class="analysis-card">
@@ -270,12 +270,106 @@
         let isRefreshingToken = false; // Flag to prevent multiple refresh attempts
         let refreshAttempts = 0; // Track refresh attempts to prevent infinite loops
         const MAX_REFRESH_ATTEMPTS = 3; // Maximum number of refresh attempts
+        let lastRefreshTime = 0; // Track when we last attempted a refresh
+        let isRedirecting = false; // Flag to prevent multiple redirects
+        let consecutiveFailures = 0; // Track consecutive API failures
+        
+        // Check if we're in an infinite loop situation
+        function checkForInfiniteLoop() {
+            if (consecutiveFailures > 5) {
+                console.log('[TOKEN DEBUG] Detected potential infinite loop, clearing token immediately');
+                clearInvalidToken();
+                return true;
+            }
+            return false;
+        }
+        
+        function isValidTokenFormat(token) {
+            if (!token || typeof token !== 'string') {
+                console.log('[TOKEN DEBUG] Token is null, undefined, or not a string:', token);
+                return false;
+            }
+            
+            // Check if token has the correct JWT format (3 parts separated by dots)
+            const parts = token.split('.');
+            console.log('[TOKEN DEBUG] Token parts count:', parts.length);
+            
+            if (parts.length !== 3) {
+                console.log('[TOKEN DEBUG] Invalid JWT structure - expected 3 parts, got:', parts.length);
+                console.log('[TOKEN DEBUG] Token parts:', parts);
+                return false;
+            }
+            
+            // Try to decode the payload to check if it's valid JSON
+            try {
+                const payload = JSON.parse(atob(parts[1]));
+                console.log('[TOKEN DEBUG] Successfully decoded payload:', payload);
+                
+                // Check for required fields
+                if (!payload || typeof payload !== 'object') {
+                    console.log('[TOKEN DEBUG] Payload is not a valid object:', payload);
+                    return false;
+                }
+                
+                // Check for required JWT fields
+                if (!payload.sub) {
+                    console.log('[TOKEN DEBUG] Missing "sub" field in payload');
+                    return false;
+                }
+                
+                if (!payload.exp) {
+                    console.log('[TOKEN DEBUG] Missing "exp" field in payload');
+                    return false;
+                }
+                
+                // Check expiration
+                const currentTime = Math.floor(Date.now() / 1000);
+                const isExpired = payload.exp < currentTime;
+                console.log('[TOKEN DEBUG] Token expiration check:', {
+                    currentTime,
+                    tokenExp: payload.exp,
+                    isExpired,
+                    timeUntilExpiry: payload.exp - currentTime
+                });
+                
+                return true;
+            } catch (error) {
+                console.log('[TOKEN DEBUG] Failed to decode payload:', error);
+                console.log('[TOKEN DEBUG] Raw payload part:', parts[1]);
+                return false;
+            }
+        }
+        
+        function clearInvalidToken() {
+            console.log('[TOKEN DEBUG] Clearing invalid token from localStorage');
+            const oldToken = localStorage.getItem('auth_token');
+            console.log('[TOKEN DEBUG] Old token (first 50 chars):', oldToken ? oldToken.substring(0, 50) + '...' : 'null');
+            localStorage.removeItem('auth_token');
+            if (!isRedirecting) {
+                isRedirecting = true;
+                window.location.href = '/ui';
+            }
+        }
         
         function checkAuth() {
             const token = localStorage.getItem('auth_token');
+            console.log('[TOKEN DEBUG] checkAuth called');
+            console.log('[TOKEN DEBUG] Token exists:', !!token);
+            
             if (!token) {
-                console.log('No token found, redirecting to login');
+                console.log('[TOKEN DEBUG] No token found, redirecting to login');
+                if (!isRedirecting) {
+                    isRedirecting = true;
                 window.location.href = '/ui';
+                }
+                return;
+            }
+
+            // First, validate token format
+            console.log('[TOKEN DEBUG] Validating token format...');
+            if (!isValidTokenFormat(token)) {
+                console.log('[TOKEN DEBUG] Invalid token format detected, clearing token');
+                clearInvalidToken();
                 return;
             }
 
@@ -286,31 +380,50 @@
                 
                 // Check if token is expired
                 const currentTime = Math.floor(Date.now() / 1000);
-                console.log('Token expiration check:', {
+                const timeSinceLastRefresh = currentTime - lastRefreshTime;
+                
+                console.log('[TOKEN DEBUG] Token expiration check:', {
                     currentTime,
                     tokenExp: payload.exp,
                     isExpired: payload.exp && payload.exp < currentTime,
                     isRefreshing: isRefreshingToken,
-                    refreshAttempts
+                    refreshAttempts,
+                    timeSinceLastRefresh,
+                    userEmail
                 });
                 
                 if (payload.exp && payload.exp < currentTime) {
-                    console.log('Token expired, attempting to refresh...');
+                    console.log('[TOKEN DEBUG] Token expired, attempting to refresh...');
+                    
+                    // Prevent rapid refresh attempts - wait at least 5 seconds between attempts
+                    if (timeSinceLastRefresh < 5) {
+                        console.log('[TOKEN DEBUG] Too soon since last refresh attempt, redirecting to login');
+                        if (!isRedirecting) {
+                            isRedirecting = true;
+                            window.location.href = '/ui';
+                        }
+                        return;
+                    }
+                    
                     if (!isRefreshingToken && refreshAttempts < MAX_REFRESH_ATTEMPTS) {
+                        lastRefreshTime = currentTime;
                         refreshToken();
                     } else {
-                        console.log('Refresh already in progress or max attempts reached, redirecting to login');
-                        window.location.href = '/ui';
+                        console.log('[TOKEN DEBUG] Refresh already in progress or max attempts reached, redirecting to login');
+                        if (!isRedirecting) {
+                            isRedirecting = true;
+                            window.location.href = '/ui';
+                        }
                     }
                     return;
                 }
                 
-                console.log('Token is valid, updating UI');
+                console.log('[TOKEN DEBUG] Token is valid, updating UI');
                 document.getElementById('userEmail').textContent = userEmail;
                 document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
             } catch (error) {
-                console.error('Error decoding token:', error);
-                window.location.href = '/ui';
+                console.error('[TOKEN DEBUG] Error decoding token:', error);
+                clearInvalidToken();
             }
         }
 
@@ -322,7 +435,10 @@
             
             if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
                 console.log('Max refresh attempts reached, redirecting to login');
+                if (!isRedirecting) {
+                    isRedirecting = true;
                 window.location.href = '/ui';
+                }
                 return;
             }
             
@@ -331,6 +447,14 @@
             
             try {
                 const token = localStorage.getItem('auth_token');
+                
+                // Validate token format before attempting refresh
+                if (!isValidTokenFormat(token)) {
+                    console.log('Invalid token format in refreshToken, clearing token');
+                    clearInvalidToken();
+                    return;
+                }
+                
                 const response = await fetch('/auth/refresh-token', {
                     method: 'POST',
                     headers: {
@@ -343,11 +467,24 @@
                     localStorage.setItem('auth_token', data.access_token);
                     console.log('Token refreshed successfully');
                     refreshAttempts = 0; // Reset attempts on success
-                    // Don't call checkAuth() again to avoid infinite loop
-                    // Just update the UI with the user info from the new token
+                    lastRefreshTime = 0; // Reset last refresh time
+                    
+                    // Verify the new token is not expired
                     try {
-                        const payload = JSON.parse(atob(data.access_token.split('.')[1]));
-                        const userEmail = payload.sub || 'user@example.com';
+                        const newPayload = JSON.parse(atob(data.access_token.split('.')[1]));
+                        const currentTime = Math.floor(Date.now() / 1000);
+                        
+                        if (newPayload.exp && newPayload.exp < currentTime) {
+                            console.log('New token is also expired, redirecting to login');
+                            if (!isRedirecting) {
+                                isRedirecting = true;
+                                window.location.href = '/ui';
+                            }
+                            return;
+                        }
+                        
+                        // Update UI with the user info from the new token
+                        const userEmail = newPayload.sub || 'user@example.com';
                         const userName = userEmail ? userEmail.split('@')[0] : 'User';
                         
                         document.getElementById('userEmail').textContent = userEmail;
@@ -357,11 +494,11 @@
                     }
                 } else {
                     console.error('Failed to refresh token');
-                    window.location.href = '/ui';
+                    clearInvalidToken();
                 }
             } catch (error) {
                 console.error('Error refreshing token:', error);
-                window.location.href = '/ui';
+                clearInvalidToken();
             } finally {
                 isRefreshingToken = false;
             }
@@ -370,7 +507,22 @@
         async function apiCall(url, options = {}) {
             const token = localStorage.getItem('auth_token');
             if (!token) {
-                window.location.href = '/ui';
+                if (!isRedirecting) {
+                    isRedirecting = true;
+                    window.location.href = '/ui';
+                }
+                return;
+            }
+
+            // Validate token format before making API calls
+            if (!isValidTokenFormat(token)) {
+                console.log('[TOKEN DEBUG] Invalid token format in apiCall, clearing token');
+                clearInvalidToken();
+                return;
+            }
+
+            // Check for infinite loop before making the call
+            if (checkForInfiniteLoop()) {
                 return;
             }
 
@@ -383,27 +535,57 @@
             try {
                 const response = await fetch(url, options);
                 
+                // Reset consecutive failures on success
+                if (response.ok) {
+                    consecutiveFailures = 0;
+                }
+                
                 // If token is expired, try to refresh and retry
                 if (response.status === 401) {
+                    consecutiveFailures++;
+                    console.log('[TOKEN DEBUG] 401 error, consecutive failures:', consecutiveFailures);
+                    
+                    // Check for infinite loop
+                    if (checkForInfiniteLoop()) {
+                        return;
+                    }
+                    
                     console.log('Token expired, refreshing...');
                     
                     // Prevent multiple refresh attempts
                     if (isRefreshingToken) {
-                        console.log('Token refresh already in progress, waiting...');
-                        // Wait a bit and try again
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        return await apiCall(url, options);
+                        console.log('Token refresh already in progress, redirecting to login');
+                        if (!isRedirecting) {
+                            isRedirecting = true;
+                            window.location.href = '/ui';
+                        }
+                        return;
                     }
                     
                     // Check if we've exceeded max attempts
                     if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
                         console.log('Max refresh attempts reached in apiCall, redirecting to login');
-                        window.location.href = '/ui';
+                        if (!isRedirecting) {
+                            isRedirecting = true;
+                            window.location.href = '/ui';
+                        }
+                        return;
+                    }
+                    
+                    // Check if we've tried to refresh too recently
+                    const currentTime = Math.floor(Date.now() / 1000);
+                    if (currentTime - lastRefreshTime < 5) {
+                        console.log('Too soon since last refresh attempt, redirecting to login');
+                        if (!isRedirecting) {
+                            isRedirecting = true;
+                            window.location.href = '/ui';
+                        }
                         return;
                     }
                     
                     isRefreshingToken = true;
                     refreshAttempts++;
+                    lastRefreshTime = currentTime;
                     
                     try {
                         const refreshResponse = await fetch('/auth/refresh-token', {
@@ -417,13 +599,38 @@
                             const data = await refreshResponse.json();
                             localStorage.setItem('auth_token', data.access_token);
                             refreshAttempts = 0; // Reset on success
+                            lastRefreshTime = 0; // Reset last refresh time
+                            consecutiveFailures = 0; // Reset failures on successful refresh
+                            
+                            // Verify the new token is not expired
+                            try {
+                                const newPayload = JSON.parse(atob(data.access_token.split('.')[1]));
+                                const currentTime = Math.floor(Date.now() / 1000);
+                                
+                                if (newPayload.exp && newPayload.exp < currentTime) {
+                                    console.log('New token is also expired, redirecting to login');
+                                    if (!isRedirecting) {
+                                        isRedirecting = true;
+                                        window.location.href = '/ui';
+                                    }
+                                    return;
+                                }
+                            } catch (error) {
+                                console.error('Error verifying new token:', error);
+                                if (!isRedirecting) {
+                                    isRedirecting = true;
+                                    window.location.href = '/ui';
+                                }
+                                return;
+                            }
                             
                             // Retry the original request with new token
                             options.headers['Authorization'] = `Bearer ${data.access_token}`;
                             return await fetch(url, options);
                         } else {
-                            // Refresh failed, redirect to login
-                            window.location.href = '/ui';
+                            // Refresh failed, clear token and redirect to login
+                            console.log('Token refresh failed, clearing token and redirecting to login');
+                            clearInvalidToken();
                             return;
                         }
                     } finally {
@@ -433,7 +640,15 @@
                 
                 return response;
             } catch (error) {
+                consecutiveFailures++;
                 console.error('API call error:', error);
+                console.log('[TOKEN DEBUG] API call failed, consecutive failures:', consecutiveFailures);
+                
+                // Check for infinite loop
+                if (checkForInfiniteLoop()) {
+                    return;
+                }
+                
                 throw error;
             }
         }
@@ -614,8 +829,12 @@
             // Update visibility performance with real data
             document.getElementById('impressionsValue').textContent = summary.total_impressions?.toLocaleString() || '0';
             document.getElementById('clicksValue').textContent = summary.total_clicks?.toLocaleString() || '0';
-            document.getElementById('ctrValue').textContent = `${summary.avg_ctr || 0}%`;
-            document.getElementById('avgPositionValue').textContent = summary.avg_position || 'N/A';
+            document.getElementById('ctrValue').textContent = `${(summary.avg_ctr * 100).toFixed(2) || 0}%`;
+            document.getElementById('avgPositionValue').textContent = summary.avg_position?.toFixed(1) || 'N/A';
+            
+            // Update change indicators
+            updateChangeIndicator('ctrChange', summary.ctr_change, '%', true);
+            updateChangeIndicator('avgPositionChange', summary.position_change, '', false);
             
             // Generate insights based on real data
             generateVisibilityInsights(summary);
@@ -624,6 +843,32 @@
             generateIndexingInsights(metrics);
             generateBusinessInsights(metrics);
             generateKeywordInsights(metrics);
+        }
+
+        function updateChangeIndicator(elementId, value, unit = '', higherIsBetter = true) {
+            const element = document.getElementById(elementId);
+            if (value === undefined || value === null) {
+                element.textContent = 'N/A';
+                element.className = 'metric-change';
+                return;
+            }
+
+            const isPositive = higherIsBetter ? value > 0 : value < 0;
+            const isNegative = higherIsBetter ? value < 0 : value > 0;
+            
+            let class_name = 'metric-change';
+            if (isPositive) {
+                class_name += ' positive';
+            } else if (isNegative) {
+                class_name += ' negative';
+            }
+
+            element.className = class_name;
+            
+            const prefix = value > 0 ? '+' : '';
+            const formattedValue = unit === '%' ? (value * 100).toFixed(2) : value.toFixed(1);
+            
+            element.textContent = `${prefix}${formattedValue}${unit}`;
         }
 
         function generateVisibilityInsights(summary) {
@@ -643,8 +888,74 @@
         }
 
         function generateUXInsights(metrics) {
-            // This would be populated with real PSI data
-            document.getElementById('uxInsights').innerHTML = '<p>Performance insights will be available when PageSpeed data is connected.</p>';
+            // Fetch real PageSpeed data
+            fetchPageSpeedData();
+        }
+
+        async function fetchPageSpeedData() {
+            try {
+                const response = await apiCall('/auth/pagespeed/metrics');
+                
+                if (response.ok) {
+                    const psiData = await response.json();
+                    updateUXMetrics(psiData);
+                    generateUXInsightsFromData(psiData);
+                } else {
+                    console.log('[DEBUG] Failed to load PageSpeed data, showing placeholder');
+                    document.getElementById('uxInsights').innerHTML = '<p>Performance insights will be available when PageSpeed data is connected.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading PageSpeed data:', error);
+                document.getElementById('uxInsights').innerHTML = '<p>Performance insights will be available when PageSpeed data is connected.</p>';
+            }
+        }
+
+        function updateUXMetrics(psiData) {
+            // Update performance score
+            document.getElementById('performanceScore').textContent = psiData.performance_score || 'N/A';
+            
+            // Update LCP
+            const lcpValue = psiData.lcp?.value;
+            document.getElementById('lcpValue').textContent = lcpValue ? `${lcpValue.toFixed(1)}s` : 'N/A';
+            
+            // Update FCP
+            const fcpValue = psiData.fcp?.value;
+            document.getElementById('fcpValue').textContent = fcpValue ? `${fcpValue.toFixed(1)}s` : 'N/A';
+            
+            // Update CLS
+            const clsValue = psiData.cls?.value;
+            document.getElementById('clsValue').textContent = clsValue ? clsValue.toFixed(3) : 'N/A';
+        }
+
+        function generateUXInsightsFromData(psiData) {
+            let insight = '';
+            const performanceScore = psiData.performance_score;
+            const lcp = psiData.lcp?.value;
+            const fcp = psiData.fcp?.value;
+            const cls = psiData.cls?.value;
+            
+            if (performanceScore >= 90) {
+                insight = 'Excellent performance! Your site loads quickly and provides a great user experience.';
+            } else if (performanceScore >= 70) {
+                insight = 'Good performance with room for improvement. Consider optimizing images and reducing server response time.';
+            } else if (performanceScore >= 50) {
+                insight = 'Performance needs improvement. Focus on Core Web Vitals optimization for better user experience.';
+            } else {
+                insight = 'Performance requires immediate attention. Prioritize speed optimizations to improve user experience and SEO.';
+            }
+            
+            // Add specific recommendations based on Core Web Vitals
+            if (lcp && lcp > 2.5) {
+                insight += ' LCP is slow - optimize images and reduce server response time.';
+            }
+            if (fcp && fcp > 1.8) {
+                insight += ' FCP needs improvement - optimize critical rendering path.';
+            }
+            if (cls && cls > 0.1) {
+                insight += ' CLS issues detected - prevent layout shifts during page load.';
+            }
+            
+            document.getElementById('uxInsights').innerHTML = `<p>${insight}</p>`;
         }
 
         function generateMobileInsights(metrics) {
@@ -805,7 +1116,17 @@
                 }
             } catch (error) {
                 console.error('Error refreshing metrics:', error);
-                showErrorMessage('Failed to refresh data. Please try again.');
+                showErrorMessage('Could not refresh data. Your connection to Google may have been lost.');
+                
+                // Force the banner to show with a helpful message
+                const banner = document.getElementById('gscBanner');
+                const bannerText = banner.querySelector('.banner-text p');
+                
+                if (bannerText) {
+                    bannerText.textContent = 'We couldn\'t refresh your data because the connection to Google Search Console was lost. Please reconnect to continue.';
+                }
+                banner.classList.remove('hidden');
+
             } finally {
                 // Reset button state after a short delay to allow animation to be seen
                 setTimeout(() => {

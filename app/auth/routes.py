@@ -17,7 +17,7 @@ from app.auth.utils import (
 )
 from app.database import db
 from app.config import settings
-from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher
+from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, pagespeed_fetcher
 import uuid
 
 # New models for website management
@@ -251,43 +251,59 @@ async def refresh_token(current_user: str = Depends(get_current_user)):
 @router.post("/refresh-token")
 async def refresh_token_manual(request: Request):
     """Refresh the access token without requiring current user validation."""
+    print("[TOKEN DEBUG] /refresh-token endpoint called")
+    
     try:
         # Get the token from the Authorization header
         auth_header = request.headers.get('Authorization')
+        print(f"[TOKEN DEBUG] Authorization header: {auth_header[:30] if auth_header else 'None'}...")
+        
         if not auth_header or not auth_header.startswith('Bearer '):
+            print("[TOKEN DEBUG] Invalid authorization header format")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authorization header"
             )
         
         token = auth_header.split(' ')[1]
+        print(f"[TOKEN DEBUG] Extracted token: {token[:20]}...")
         
         # Manually verify the token (even if expired)
         from app.auth.utils import verify_token
         email = verify_token(token)
+        print(f"[TOKEN DEBUG] verify_token result: {email}")
         
         if not email:
+            print("[TOKEN DEBUG] Token verification failed, trying unverified decode...")
             # Try to decode the token manually to get the email even if expired
             try:
-                import jwt
+                from jose import jwt
                 from app.config import settings
-                # Decode without verification to get payload
-                payload = jwt.decode(token, options={"verify_signature": False})
+                # Decode without verification to get payload - jose requires a key parameter
+                payload = jwt.decode(token, key="", options={"verify_signature": False})
+                print(f"[TOKEN DEBUG] Unverified payload: {payload}")
                 email = payload.get("sub")
                 if not email:
+                    print("[TOKEN DEBUG] No 'sub' field in unverified payload")
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="Invalid token"
                     )
-            except Exception:
+                print(f"[TOKEN DEBUG] Extracted email from unverified payload: {email}")
+            except Exception as e:
+                print(f"[TOKEN DEBUG] Failed to decode unverified payload: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token"
                 )
         
+        print(f"[TOKEN DEBUG] Final email for refresh: {email}")
+        
         # Verify user exists
         user = db.get_user_by_email(email)
+        print(f"[TOKEN DEBUG] User lookup result: {user is not None}")
         if not user:
+            print(f"[TOKEN DEBUG] User not found in database: {email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found"
@@ -296,6 +312,7 @@ async def refresh_token_manual(request: Request):
         # Create a new access token
         access_token_expires = timedelta(minutes=30)
         new_access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
+        print(f"[TOKEN DEBUG] New token created: {new_access_token[:20]}...")
         
         return TokenResponse(
             access_token=new_access_token,
@@ -305,7 +322,7 @@ async def refresh_token_manual(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error refreshing token: {e}")
+        print(f"[TOKEN DEBUG] Error refreshing token: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to refresh token"
@@ -527,33 +544,34 @@ async def select_gsc_property(
 
 @router.get("/gsc/metrics", response_model=GSCMetricsResponse)
 async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
-    """Get stored SEO metrics for user's website."""
+    """Fetch GSC metrics for the selected property."""
     try:
-        # Get user's website
-        website = db.get_user_website(current_user)
-        if not website:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No website found for this user"
+                detail="No GSC property selected. Please select a property first."
             )
+
+        print(f"[DEBUG] Fetching GSC metrics for user '{current_user}' and property '{website_url}'")
         
-        # Get stored metrics
-        stored_metrics = await gsc_fetcher.get_stored_metrics(current_user, website['website_url'])
+        # Fetch GSC data
+        metrics = await gsc_fetcher.fetch_metrics(current_user, website_url)
         
-        if not stored_metrics:
+        if not metrics or "summary" not in metrics:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No SEO metrics found. Please connect your Google Search Console first."
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch GSC metrics or data is empty."
             )
-        
-        metrics_data = stored_metrics.get('metrics', {})
+
         return GSCMetricsResponse(
-            summary=metrics_data.get('summary', {}),
-            time_series=metrics_data.get('time_series', {}),
-            last_updated=stored_metrics.get('last_updated'),
-            website_url=website.get('website_url'),
-            start_date=metrics_data.get('start_date'),
-            end_date=metrics_data.get('end_date')
+            summary=metrics.get('summary', {}),
+            time_series=metrics.get('time_series', {}),
+            last_updated=datetime.utcnow().isoformat(),
+            website_url=website_url,
+            start_date=metrics.get('start_date'),
+            end_date=metrics.get('end_date')
         )
     except HTTPException:
         raise
@@ -561,7 +579,7 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
         print(f"Error fetching GSC metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch SEO metrics"
+            detail=f"An unexpected error occurred: {e}"
         )
 
 
@@ -617,4 +635,38 @@ async def clear_gsc_credentials(current_user: str = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to clear GSC credentials"
+        )
+
+
+@router.get("/pagespeed/metrics")
+async def get_pagespeed_metrics(current_user: str = Depends(get_current_user)):
+    """Fetch PageSpeed Insights data for the user's website."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        print(f"[DEBUG] Fetching PageSpeed data for user '{current_user}' and property '{website_url}'")
+        
+        # Fetch PageSpeed data
+        psi_data = await pagespeed_fetcher.fetch_pagespeed_data(website_url)
+        
+        if not psi_data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch PageSpeed data."
+            )
+
+        return psi_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching PageSpeed metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {e}"
         ) 

@@ -62,6 +62,22 @@ class GoogleSheetsDB:
             # Initialize demo data
             self._init_demo_data()
     
+    def get_or_create_sheet(self, sheet_name: str, headers: List[str] = None) -> gspread.Worksheet:
+        """Get a worksheet by name, or create it if it doesn't exist."""
+        try:
+            sheet = self.client.open_by_key(settings.USERS_SHEET_ID).worksheet(sheet_name)
+            return sheet
+        except gspread.WorksheetNotFound:
+            print(f"Worksheet '{sheet_name}' not found, creating it.")
+            sheet = self.client.open_by_key(settings.USERS_SHEET_ID).add_worksheet(
+                title=sheet_name, 
+                rows=1000, 
+                cols=len(headers) if headers else 20
+            )
+            if headers:
+                sheet.append_row(headers)
+            return sheet
+    
     def _init_demo_data(self):
         """Initialize demo data for testing."""
         # Create a demo user
@@ -431,6 +447,15 @@ class GoogleSheetsDB:
         except Exception as e:
             print(f"Error getting user website: {e}")
             return None
+
+    def get_selected_gsc_property(self, email: str) -> str | None:
+        """
+        Returns the selected GSC property URL for the given user.
+        """
+        website = self.get_user_website(email)
+        if website and website.get("website_url"):
+            return website["website_url"]
+        return None
 
 
 # Create database instance

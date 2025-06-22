@@ -14,6 +14,8 @@ from app.database import GoogleSheetsDB
 from app.auth.models import UserInDB
 from app.config import settings
 import gspread
+import aiohttp
+import asyncio
 
 class GoogleOAuthHandler:
     """Handles Google OAuth flow and Search Console API access."""
@@ -339,169 +341,270 @@ class GoogleOAuthHandler:
             print(f"[ERROR] Error clearing credentials for {user_email}: {e}")
 
 class GSCDataFetcher:
-    """Fetches SEO data from Google Search Console."""
+    """Handles fetching and storing GSC data."""
     
     def __init__(self, oauth_handler: GoogleOAuthHandler):
         self.oauth_handler = oauth_handler
         self.db = GoogleSheetsDB()
     
     async def fetch_metrics(self, user_email: str, property_url: str, days: int = 30) -> Dict:
-        """Fetch SEO metrics for a property."""
-        credentials = self.oauth_handler.get_credentials(user_email)
-        if not credentials:
+        """Fetch SEO metrics from GSC for two periods and calculate the difference."""
+        try:
+            credentials = self.oauth_handler.get_credentials(user_email)
+            if not credentials or not credentials.valid:
+                raise Exception("Invalid or missing Google credentials")
+
+            # Define date ranges
+            today = datetime.utcnow().date()
+            current_end_date = today - timedelta(days=2) # Data is usually delayed
+            current_start_date = current_end_date - timedelta(days=days - 1)
+            
+            previous_end_date = current_start_date - timedelta(days=1)
+            previous_start_date = previous_end_date - timedelta(days=days - 1)
+
+            # Fetch data for current period
+            print(f"[DEBUG] Fetching data for current period: {current_start_date} to {current_end_date}")
+            current_metrics = await self.get_gsc_data(
+                credentials, property_url, 
+                current_start_date.strftime('%Y-%m-%d'), 
+                current_end_date.strftime('%Y-%m-%d')
+            )
+
+            # Fetch data for previous period
+            print(f"[DEBUG] Fetching data for previous period: {previous_start_date} to {previous_end_date}")
+            previous_metrics = await self.get_gsc_data(
+                credentials, property_url, 
+                previous_start_date.strftime('%Y-%m-%d'), 
+                previous_end_date.strftime('%Y-%m-%d')
+            )
+            
+            # Calculate deltas
+            summary = current_metrics.get('summary', {})
+            prev_summary = previous_metrics.get('summary', {})
+            
+            summary['ctr_change'] = summary.get('avg_ctr', 0) - prev_summary.get('avg_ctr', 0)
+            summary['position_change'] = summary.get('avg_position', 0) - prev_summary.get('avg_position', 0)
+
+            print(f"[DEBUG] Calculated Deltas: CTR Change={summary['ctr_change']}, Position Change={summary['position_change']}")
+            
+            # Combine metrics
+            final_metrics = {
+                'summary': summary,
+                'time_series': current_metrics.get('time_series', {}),
+                'start_date': current_start_date.strftime('%Y-%m-%d'),
+                'end_date': current_end_date.strftime('%Y-%m-%d'),
+            }
+            
+            # Store the combined metrics
+            self._store_metrics(user_email, property_url, final_metrics)
+            
+            return final_metrics
+            
+        except Exception as e:
+            print(f"[ERROR] Error in fetch_metrics: {e}")
             return {}
         
+    async def get_gsc_data(self, credentials: Credentials, property_url: str, start_date: str, end_date: str) -> Dict:
+        """Fetch GSC analytics data for a given date range."""
         try:
-            service = build('searchconsole', 'v1', credentials=credentials)
+            service = build('webmasters', 'v3', credentials=credentials)
             
-            end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=days)
-
-            # 1. Fetch time-series data
+            # Time series data (for charts)
             time_series_request = {
-                'startDate': start_date.isoformat(),
-                'endDate': end_date.isoformat(),
-                'dimensions': ['date'],
-                'rowLimit': 5000
+                'startDate': start_date,
+                'endDate': end_date,
+                'dimensions': ['date']
             }
             time_series_response = service.searchanalytics().query(
-                siteUrl=property_url,
-                body=time_series_request
+                siteUrl=property_url, body=time_series_request
             ).execute()
 
-            # 2. Fetch summary data (no dimensions)
+            # Summary data (for main stats)
             summary_request = {
-                'startDate': start_date.isoformat(),
-                'endDate': end_date.isoformat()
+                'startDate': start_date,
+                'endDate': end_date
             }
             summary_response = service.searchanalytics().query(
-                siteUrl=property_url,
-                body=summary_request
+                siteUrl=property_url, body=summary_request
             ).execute()
             
-            # Process both responses
-            metrics = self._process_analytics_data(time_series_response, summary_response)
+            return self._process_analytics_data(time_series_response, summary_response)
             
-            # Store the data
-            self._store_metrics(user_email, property_url, metrics)
-            
-            return metrics
         except HttpError as e:
-            print(f"Error fetching GSC metrics: {e}")
+            print(f"[ERROR] HTTP error fetching GSC data: {e}")
+            # Check for common errors
+            if e.resp.status == 403:
+                print("[INFO] User may not have permissions for this property or Search Console API is not enabled.")
+            if e.resp.status == 404:
+                print("[INFO] Property not found or user has no access.")
+            return {}
+        except Exception as e:
+            print(f"[ERROR] General error fetching GSC data: {e}")
             return {}
     
     def _process_analytics_data(self, time_series_response: Dict, summary_response: Dict) -> Dict:
-        """Process Google Search Console analytics response."""
-        # Process summary data from the dimensionless query
-        summary_rows = summary_response.get('rows', [])
+        """Process raw GSC analytics data into structured format."""
+        
+        # Process summary data
         summary = {
             'total_clicks': 0,
             'total_impressions': 0,
             'avg_ctr': 0,
             'avg_position': 0
         }
-        if summary_rows:
-            summary_data = summary_rows[0]
-            summary['total_clicks'] = summary_data.get('clicks', 0)
-            summary['total_impressions'] = summary_data.get('impressions', 0)
-            summary['avg_ctr'] = round(summary_data.get('ctr', 0) * 100, 2)
-            summary['avg_position'] = round(summary_data.get('position', 0), 1)
+        if summary_response and 'rows' in summary_response and len(summary_response['rows']) > 0:
+            summary_row = summary_response['rows'][0]
+            summary['total_clicks'] = summary_row['clicks']
+            summary['total_impressions'] = summary_row['impressions']
+            summary['avg_ctr'] = summary_row['ctr']
+            summary['avg_position'] = summary_row['position']
 
         # Process time series data
-        time_series_rows = time_series_response.get('rows', [])
-        dates = []
-        clicks_data = []
-        impressions_data = []
-        
-        for row in time_series_rows:
-            dates.append(row['keys'][0])
-            clicks_data.append(row['clicks'])
-            impressions_data.append(row['impressions'])
-        
         time_series = {
-            'dates': dates,
-            'clicks': clicks_data,
-            'impressions': impressions_data
+            'dates': [],
+            'clicks': [],
+            'impressions': [],
+            'ctr': [],
+            'positions': []
         }
-        
-        start_date = dates[0] if dates else None
-        end_date = dates[-1] if dates else None
+        if time_series_response and 'rows' in time_series_response:
+            for row in sorted(time_series_response['rows'], key=lambda r: r['keys'][0]):
+                time_series['dates'].append(row['keys'][0])
+                time_series['clicks'].append(row['clicks'])
+                time_series['impressions'].append(row['impressions'])
+                time_series['ctr'].append(row['ctr'])
+                time_series['positions'].append(row['position'])
 
         return {
-            'summary': summary,
-            'time_series': time_series,
-            'last_updated': datetime.now().isoformat(),
-            'start_date': start_date,
-            'end_date': end_date
+            "summary": summary,
+            "time_series": time_series
         }
     
     def _store_metrics(self, user_email: str, property_url: str, metrics: Dict):
-        """Store SEO metrics in Google Sheets."""
+        """Store the latest GSC metrics in Google Sheets."""
         try:
-            # Create seo_data sheet if it doesn't exist
-            try:
-                seo_data_sheet = self.db.client.open_by_key(self.db.users_sheet.spreadsheet.id).worksheet('seo-data')
-            except:
-                # Create the sheet if it doesn't exist
-                seo_data_sheet = self.db.client.open_by_key(self.db.users_sheet.spreadsheet.id).add_worksheet(
-                    title='seo-data', 
-                    rows=10000, 
-                    cols=5
-                )
-                # Add headers
-                seo_data_sheet.append_row([
-                    'user_email', 'website_url', 'metrics_data', 'last_updated', 'created_at'
-                ])
+            metrics_sheet = self.db.get_or_create_sheet(
+                'gsc-metrics', 
+                headers=['user_email', 'property_url', 'metrics_json', 'last_updated']
+            )
+            metrics_json = json.dumps(metrics)
             
-            # Check if user already has data for this website
             try:
-                # Find existing record
-                cell = seo_data_sheet.find(user_email)
-                if cell:
-                    # Update existing data
-                    seo_data_sheet.update_cell(cell.row, 3, json.dumps(metrics))
-                    seo_data_sheet.update_cell(cell.row, 4, datetime.utcnow().isoformat())
-                else:
-                    # Add new data
-                    seo_data_sheet.append_row([
-                        user_email,
-                        property_url,
-                        json.dumps(metrics),
-                        datetime.utcnow().isoformat(),
-                        datetime.utcnow().isoformat()
-                    ])
-            except:
-                # Add new data
-                seo_data_sheet.append_row([
+                cell = metrics_sheet.find(user_email)
+                metrics_sheet.update_cell(cell.row, 2, property_url)
+                metrics_sheet.update_cell(cell.row, 3, metrics_json)
+                metrics_sheet.update_cell(cell.row, 4, datetime.utcnow().isoformat())
+            except gspread.exceptions.CellNotFound:
+                metrics_sheet.append_row([
                     user_email,
                     property_url,
-                    json.dumps(metrics),
-                    datetime.utcnow().isoformat(),
+                    metrics_json,
                     datetime.utcnow().isoformat()
                 ])
         except Exception as e:
-            print(f"Error storing metrics: {e}")
+            print(f"[ERROR] Error storing metrics: {e}")
     
     async def get_stored_metrics(self, user_email: str, website_url: str) -> Optional[Dict]:
-        """Get stored SEO metrics for a user's website."""
+        """Get stored metrics for a user's website from Google Sheets."""
         try:
-            # Get seo_data sheet
-            seo_data_sheet = self.db.client.open_by_key(self.db.users_sheet.spreadsheet.id).worksheet('seo-data')
+            metrics_sheet = self.db.get_or_create_sheet(
+                'gsc-metrics',
+                headers=['user_email', 'property_url', 'metrics_json', 'last_updated']
+            )
+            cell = metrics_sheet.find(user_email)
             
-            # Find user's data
-            cell = seo_data_sheet.find(user_email)
-            if not cell:
-                return None
-            
-            # Get data
-            data = seo_data_sheet.row_values(cell.row)
-            
-            if len(data) >= 4:
+            if cell:
+                row_data = metrics_sheet.row_values(cell.row)
+                if len(row_data) >= 3 and row_data[1] == website_url:
+                    metrics_json = row_data[2]
                 return {
-                    'metrics': json.loads(data[2]),
-                    'last_updated': data[3]
+                        "metrics": json.loads(metrics_json),
+                        "last_updated": row_data[3] if len(row_data) > 3 else datetime.utcnow().isoformat()
                 }
             return None
         except Exception as e:
-            print(f"Error getting stored metrics: {e}")
-            return None 
+            print(f"[ERROR] Error getting stored metrics: {e}")
+            return None
+
+class PageSpeedInsightsFetcher:
+    """Handles fetching PageSpeed Insights data."""
+    
+    def __init__(self):
+        self.api_key = settings.PAGESPEED_API_KEY
+        self.base_url = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
+    
+    async def fetch_pagespeed_data(self, url: str, strategy: str = "mobile") -> Dict:
+        """Fetch PageSpeed Insights data for a given URL."""
+        if not self.api_key:
+            print("[WARNING] PageSpeed API key not configured")
+            return self._get_demo_data()
+        
+        try:
+            params = {
+                'url': url,
+                'key': self.api_key,
+                'strategy': strategy,
+                'category': 'performance'
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(self.base_url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return self._process_pagespeed_data(data)
+                    else:
+                        print(f"[ERROR] PageSpeed API error: {response.status}")
+                        return self._get_demo_data()
+                        
+        except Exception as e:
+            print(f"[ERROR] Error fetching PageSpeed data: {e}")
+            return self._get_demo_data()
+    
+    def _process_pagespeed_data(self, data: Dict) -> Dict:
+        """Process raw PageSpeed Insights data into structured format."""
+        try:
+            lighthouse_result = data.get('lighthouseResult', {})
+            audits = lighthouse_result.get('audits', {})
+            
+            # Extract Core Web Vitals
+            lcp = audits.get('largest-contentful-paint', {})
+            fcp = audits.get('first-contentful-paint', {})
+            cls = audits.get('cumulative-layout-shift', {})
+            
+            # Extract performance score
+            categories = lighthouse_result.get('categories', {})
+            performance = categories.get('performance', {})
+            performance_score = performance.get('score', 0)
+            
+            return {
+                'performance_score': round(performance_score * 100),
+                'lcp': {
+                    'value': lcp.get('numericValue', 0) / 1000,  # Convert to seconds
+                    'score': lcp.get('score', 0)
+                },
+                'fcp': {
+                    'value': fcp.get('numericValue', 0) / 1000,  # Convert to seconds
+                    'score': fcp.get('score', 0)
+                },
+                'cls': {
+                    'value': cls.get('numericValue', 0),
+                    'score': cls.get('score', 0)
+                },
+                'last_updated': datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            print(f"[ERROR] Error processing PageSpeed data: {e}")
+            return self._get_demo_data()
+    
+    def _get_demo_data(self) -> Dict:
+        """Return demo data when API is not available."""
+        return {
+            'performance_score': 78,
+            'lcp': {'value': 2.1, 'score': 0.8},
+            'fcp': {'value': 1.2, 'score': 0.9},
+            'cls': {'value': 0.08, 'score': 0.85},
+            'last_updated': datetime.utcnow().isoformat()
+        }
+
+# Create PageSpeed Insights fetcher instance
+pagespeed_fetcher = PageSpeedInsightsFetcher() 
