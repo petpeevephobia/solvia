@@ -3,6 +3,7 @@ Google OAuth and Search Console API integration for Solvia.
 """
 import os
 import json
+import math
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from google.oauth2.credentials import Credentials
@@ -348,21 +349,24 @@ class GSCDataFetcher:
         self.db = GoogleSheetsDB()
     
     async def fetch_metrics(self, user_email: str, property_url: str, days: int = 30) -> Dict:
-        """Fetch SEO metrics from GSC for two periods and calculate the difference."""
+        """Fetch SEO metrics from GSC for current period and 30 days ago, calculate the difference."""
         try:
             credentials = self.oauth_handler.get_credentials(user_email)
             if not credentials or not credentials.valid:
                 raise Exception("Invalid or missing Google credentials")
 
-            # Define date ranges
+            # Define date ranges for 30-day comparison
             today = datetime.utcnow().date()
-            current_end_date = today - timedelta(days=2) # Data is usually delayed
-            current_start_date = current_end_date - timedelta(days=days - 1)
+            current_end_date = today - timedelta(days=2)  # Data is usually delayed
             
-            previous_end_date = current_start_date - timedelta(days=1)
-            previous_start_date = previous_end_date - timedelta(days=days - 1)
-
-            # Fetch data for current period
+            # Calculate start of current month for current period
+            current_month_start = current_end_date.replace(day=1)
+            current_start_date = current_month_start
+            
+            # Calculate 30 days ago period (single day for comparison)
+            comparison_date = current_end_date - timedelta(days=30)
+            
+            # Fetch data for current period (full month)
             print(f"[DEBUG] Fetching data for current period: {current_start_date} to {current_end_date}")
             current_metrics = await self.get_gsc_data(
                 credentials, property_url, 
@@ -370,22 +374,33 @@ class GSCDataFetcher:
                 current_end_date.strftime('%Y-%m-%d')
             )
 
-            # Fetch data for previous period
-            print(f"[DEBUG] Fetching data for previous period: {previous_start_date} to {previous_end_date}")
-            previous_metrics = await self.get_gsc_data(
+            # Fetch data for 30 days ago (single day)
+            print(f"[DEBUG] Fetching data for 30 days ago: {comparison_date}")
+            comparison_metrics = await self.get_gsc_data(
                 credentials, property_url, 
-                previous_start_date.strftime('%Y-%m-%d'), 
-                previous_end_date.strftime('%Y-%m-%d')
+                comparison_date.strftime('%Y-%m-%d'), 
+                comparison_date.strftime('%Y-%m-%d')
             )
             
-            # Calculate deltas
+            # Calculate deltas between current totals and 30-day-ago totals
             summary = current_metrics.get('summary', {})
-            prev_summary = previous_metrics.get('summary', {})
+            comparison_summary = comparison_metrics.get('summary', {})
             
-            summary['ctr_change'] = summary.get('avg_ctr', 0) - prev_summary.get('avg_ctr', 0)
-            summary['position_change'] = summary.get('avg_position', 0) - prev_summary.get('avg_position', 0)
+            # Add 30-day comparison changes to summary
+            summary['impressions_change'] = summary.get('total_impressions', 0) - comparison_summary.get('total_impressions', 0)
+            summary['clicks_change'] = summary.get('total_clicks', 0) - comparison_summary.get('total_clicks', 0)
+            summary['ctr_change'] = summary.get('avg_ctr', 0) - comparison_summary.get('avg_ctr', 0)
+            summary['position_change'] = summary.get('avg_position', 0) - comparison_summary.get('avg_position', 0)
 
             print(f"[DEBUG] Calculated Deltas: CTR Change={summary['ctr_change']}, Position Change={summary['position_change']}")
+            
+            # Calculate SEO score change (we'll need to get additional data for full calculation)
+            # For now, we'll calculate a simplified score based on available GSC data
+            current_seo_score = self._calculate_simplified_seo_score(summary)
+            previous_seo_score = self._calculate_simplified_seo_score(comparison_summary)
+            summary['seo_score_change'] = current_seo_score - previous_seo_score
+            
+            print(f"[DEBUG] SEO Score Change: Current={current_seo_score}, Previous={previous_seo_score}, Change={summary['seo_score_change']}")
             
             # Combine metrics
             final_metrics = {
@@ -393,6 +408,7 @@ class GSCDataFetcher:
                 'time_series': current_metrics.get('time_series', {}),
                 'start_date': current_start_date.strftime('%Y-%m-%d'),
                 'end_date': current_end_date.strftime('%Y-%m-%d'),
+                'website_url': property_url,
             }
             
             # Store the combined metrics
@@ -403,6 +419,44 @@ class GSCDataFetcher:
         except Exception as e:
             print(f"[ERROR] Error in fetch_metrics: {e}")
             return {}
+    
+    def _calculate_simplified_seo_score(self, summary: Dict) -> float:
+        """Calculate a simplified SEO score based on GSC data only."""
+        try:
+            # Get values with defaults
+            avg_ctr = summary.get('avg_ctr', 0)
+            avg_position = summary.get('avg_position', 0)
+            total_impressions = summary.get('total_impressions', 0)
+            total_clicks = summary.get('total_clicks', 0)
+            
+            # Define metrics with weights (simplified version focusing on GSC data)
+            metrics = [
+                # CTR - normalize to 0-1 (good CTR is around 10%)
+                {'value': avg_ctr, 'weight': 30, 'norm': lambda v: min(v / 0.10, 1)},
+                # Position - normalize to 0-1 (position 1 is best, 10+ is poor)
+                {'value': avg_position, 'weight': 30, 'norm': lambda v: max((10 - v) / 10, 0) if v > 0 else 0},
+                # Impressions - logarithmic scale
+                {'value': total_impressions, 'weight': 20, 'norm': lambda v: min(math.log10(v + 1) / 6, 1)},
+                # Clicks - logarithmic scale
+                {'value': total_clicks, 'weight': 20, 'norm': lambda v: min(math.log10(v + 1) / 5, 1)},
+            ]
+            
+            # Calculate weighted score
+            total_weight = sum(m['weight'] for m in metrics)
+            if total_weight == 0:
+                return 0
+                
+            score = 0
+            for metric in metrics:
+                if metric['value'] is not None and not math.isnan(metric['value']):
+                    normalized_value = max(0, min(metric['norm'](metric['value']), 1))
+                    score += normalized_value * metric['weight']
+            
+            return round(score * 100 / total_weight)
+            
+        except Exception as e:
+            print(f"[ERROR] Error calculating simplified SEO score: {e}")
+            return 0
         
     async def get_gsc_data(self, credentials: Credentials, property_url: str, start_date: str, end_date: str) -> Dict:
         """Fetch GSC analytics data for a given date range."""
@@ -428,7 +482,7 @@ class GSCDataFetcher:
                 siteUrl=property_url, body=summary_request
             ).execute()
             
-            return self._process_analytics_data(time_series_response, summary_response)
+            return self._process_analytics_data(time_series_response, summary_response, start_date, end_date)
             
         except HttpError as e:
             print(f"[ERROR] HTTP error fetching GSC data: {e}")
@@ -442,7 +496,7 @@ class GSCDataFetcher:
             print(f"[ERROR] General error fetching GSC data: {e}")
             return {}
     
-    def _process_analytics_data(self, time_series_response: Dict, summary_response: Dict) -> Dict:
+    def _process_analytics_data(self, time_series_response: Dict, summary_response: Dict, start_date: str = None, end_date: str = None) -> Dict:
         """Process raw GSC analytics data into structured format."""
         
         # Process summary data
@@ -459,7 +513,7 @@ class GSCDataFetcher:
             summary['avg_ctr'] = summary_row['ctr']
             summary['avg_position'] = summary_row['position']
 
-        # Process time series data
+        # Process time series data with complete date range
         time_series = {
             'dates': [],
             'clicks': [],
@@ -467,7 +521,46 @@ class GSCDataFetcher:
             'ctr': [],
             'positions': []
         }
+        
+        # Create a dictionary of existing data for quick lookup
+        existing_data = {}
         if time_series_response and 'rows' in time_series_response:
+            for row in time_series_response['rows']:
+                date_str = row['keys'][0]
+                existing_data[date_str] = {
+                    'clicks': row['clicks'],
+                    'impressions': row['impressions'],
+                    'ctr': row['ctr'],
+                    'position': row['position']
+                }
+        
+        # Generate complete date range if start_date and end_date are provided
+        if start_date and end_date:
+            start = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end = datetime.strptime(end_date, '%Y-%m-%d').date()
+            current_date = start
+            
+            while current_date <= end:
+                date_str = current_date.strftime('%Y-%m-%d')
+                time_series['dates'].append(date_str)
+                
+                if date_str in existing_data:
+                    # Use actual data
+                    data = existing_data[date_str]
+                    time_series['clicks'].append(data['clicks'])
+                    time_series['impressions'].append(data['impressions'])
+                    time_series['ctr'].append(data['ctr'])
+                    time_series['positions'].append(data['position'])
+                else:
+                    # Use zero values for missing data (including future dates)
+                    time_series['clicks'].append(0)
+                    time_series['impressions'].append(0)
+                    time_series['ctr'].append(0)
+                    time_series['positions'].append(0)
+                
+                current_date += timedelta(days=1)
+        else:
+            # Fallback to original behavior if no date range provided
             for row in sorted(time_series_response['rows'], key=lambda r: r['keys'][0]):
                 time_series['dates'].append(row['keys'][0])
                 time_series['clicks'].append(row['clicks'])
@@ -959,55 +1052,177 @@ class MobileUsabilityFetcher:
             tap_targets_audit = audits.get('tap-targets', {})
             content_width_audit = audits.get('content-width', {})
             
-            # Determine mobile friendliness based on audits
+            # Determine mobile friendliness based on audits with detailed explanations
             mobile_issues = []
             critical_issues = 0
             warning_issues = 0
             
             # Check viewport configuration
             if viewport_audit.get('score', 1) < 1:
-                mobile_issues.append("Viewport not properly configured for mobile")
+                mobile_issues.append({
+                    'title': 'Viewport Configuration Issue',
+                    'description': 'Your page lacks a proper viewport meta tag, causing it to display incorrectly on mobile devices.',
+                    'impact': 'Visitors on mobile will see a zoomed-out desktop version that\'s hard to read and navigate.',
+                    'solution': 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> to your HTML head.',
+                    'severity': 'critical'
+                })
                 critical_issues += 1
             
-            # Check font display
+            # Check font display with detailed explanation
             if font_display_audit.get('score', 1) < 1:
-                mobile_issues.append("Font display issues detected")
+                font_details = font_display_audit.get('details', {})
+                font_items = font_details.get('items', [])
+                
+                if font_items:
+                    # Count the number of problematic fonts without showing URLs
+                    font_count = len(font_items[:3])
+                    font_text = f"{font_count} web fonts" if font_count > 1 else "A web font"
+                    
+                    mobile_issues.append({
+                        'title': 'Font Display Performance Issue',
+                        'description': f'{font_text} are blocking text display during page load.',
+                        'impact': 'Visitors see invisible text for several seconds while fonts load, creating a poor reading experience and potential bounce.',
+                        'solution': 'Add font-display: swap; to your CSS @font-face rules to show fallback text immediately.',
+                        'severity': 'warning'
+                    })
+                else:
+                    mobile_issues.append({
+                        'title': 'Font Display Performance Issue',
+                        'description': 'Web fonts are blocking text display during page load.',
+                        'impact': 'Visitors see invisible text while fonts load, creating a frustrating reading experience.',
+                        'solution': 'Add font-display: swap; to your CSS @font-face rules to show fallback text immediately.',
+                        'severity': 'warning'
+                    })
                 warning_issues += 1
             
-            # Check tap targets
+            # Check tap targets with specific measurements
             if tap_targets_audit.get('score', 1) < 1:
-                mobile_issues.append("Tap targets too small or too close together")
+                tap_details = tap_targets_audit.get('details', {})
+                tap_items = tap_details.get('items', [])
+                
+                if tap_items:
+                    small_targets = len([item for item in tap_items if item.get('size', '').endswith('px')])
+                    mobile_issues.append({
+                        'title': 'Touch Target Size Issue',
+                        'description': f'{small_targets} clickable elements are too small or too close together for mobile users.',
+                        'impact': 'Visitors struggle to tap buttons and links accurately, leading to frustration and accidental clicks.',
+                        'solution': 'Ensure all clickable elements are at least 44px tall and have 8px spacing between them.',
+                        'severity': 'critical'
+                    })
+                else:
+                    mobile_issues.append({
+                        'title': 'Touch Target Size Issue',
+                        'description': 'Some clickable elements are too small or too close together for mobile users.',
+                        'impact': 'Visitors struggle to tap buttons and links accurately, leading to frustration.',
+                        'solution': 'Ensure all clickable elements are at least 44px tall and have 8px spacing.',
+                        'severity': 'critical'
+                    })
                 critical_issues += 1
             
             # Check content width
             if content_width_audit.get('score', 1) < 1:
-                mobile_issues.append("Content wider than viewport")
+                mobile_issues.append({
+                    'title': 'Content Width Issue',
+                    'description': 'Page content is wider than the mobile screen, requiring horizontal scrolling.',
+                    'impact': 'Visitors must scroll horizontally to read content, creating a poor mobile experience.',
+                    'solution': 'Use responsive CSS with max-width: 100% and avoid fixed-width elements wider than the viewport.',
+                    'severity': 'critical'
+                })
                 critical_issues += 1
             
             # Performance metrics
             performance_score = pagespeed_data.get('lighthouseResult', {}).get('categories', {}).get('performance', {}).get('score', 0) * 100
             
-            # If performance score is 0 or very low, and no audit issues, explain why
+            # Add performance-related issues that affect mobile experience
+            lcp = audits.get('largest-contentful-paint', {})
+            fcp = audits.get('first-contentful-paint', {})
+            cls = audits.get('cumulative-layout-shift', {})
+            
+            # Check LCP (Largest Contentful Paint)
+            if lcp and lcp.get('numericValue') is not None:
+                lcp_seconds = lcp.get('numericValue', 0) / 1000
+                if lcp_seconds > 4.0:
+                    mobile_issues.append({
+                        'title': 'Slow Content Loading (LCP)',
+                        'description': f'Your main content takes {lcp_seconds:.1f} seconds to load on mobile (should be under 2.5s).',
+                        'impact': 'Visitors see a blank screen for too long, leading to frustration and potential abandonment.',
+                        'solution': 'Optimize images, reduce server response time, and prioritize loading of above-the-fold content.',
+                        'severity': 'critical'
+                    })
+                    critical_issues += 1
+                elif lcp_seconds > 2.5:
+                    mobile_issues.append({
+                        'title': 'Slow Content Loading (LCP)',
+                        'description': f'Your main content takes {lcp_seconds:.1f} seconds to load on mobile (should be under 2.5s).',
+                        'impact': 'Visitors experience noticeable delays when viewing your content.',
+                        'solution': 'Optimize images, reduce server response time, and prioritize loading of above-the-fold content.',
+                        'severity': 'warning'
+                    })
+                    warning_issues += 1
+            elif not lcp or lcp.get('numericValue') is None:
+                mobile_issues.append({
+                    'title': 'Loading Performance Unknown',
+                    'description': 'Unable to measure how quickly your content loads on mobile devices.',
+                    'impact': 'Cannot assess if visitors experience slow loading times.',
+                    'solution': 'Ensure your site is accessible to performance testing tools and check for blocking scripts.',
+                    'severity': 'warning'
+                })
+                warning_issues += 1
+            
+            # Check FCP (First Contentful Paint)
+            if fcp and fcp.get('numericValue') is not None:
+                fcp_seconds = fcp.get('numericValue', 0) / 1000
+                if fcp_seconds > 3.0:
+                    mobile_issues.append({
+                        'title': 'Slow Initial Display (FCP)',
+                        'description': f'Your page takes {fcp_seconds:.1f} seconds to show any content on mobile (should be under 1.8s).',
+                        'impact': 'Visitors see a completely blank page for too long, creating uncertainty about whether the site is working.',
+                        'solution': 'Minimize render-blocking resources, optimize CSS delivery, and reduce server response time.',
+                        'severity': 'critical'
+                    })
+                    critical_issues += 1
+                elif fcp_seconds > 1.8:
+                    mobile_issues.append({
+                        'title': 'Slow Initial Display (FCP)',
+                        'description': f'Your page takes {fcp_seconds:.1f} seconds to show any content on mobile (should be under 1.8s).',
+                        'impact': 'Visitors experience a noticeable delay before seeing any content.',
+                        'solution': 'Minimize render-blocking resources and optimize CSS delivery.',
+                        'severity': 'warning'
+                    })
+                    warning_issues += 1
+            
+            # Check CLS (Cumulative Layout Shift)
+            if cls and cls.get('numericValue') is not None:
+                cls_value = cls.get('numericValue', 0)
+                if cls_value > 0.25:
+                    mobile_issues.append({
+                        'title': 'Layout Shifting Issues (CLS)',
+                        'description': f'Page elements move unexpectedly during loading (CLS: {cls_value:.2f}, should be under 0.1).',
+                        'impact': 'Visitors accidentally tap wrong buttons or lose their reading position as content shifts around.',
+                        'solution': 'Set explicit dimensions for images and ads, avoid inserting content above existing content.',
+                        'severity': 'critical'
+                    })
+                    critical_issues += 1
+                elif cls_value > 0.1:
+                    mobile_issues.append({
+                        'title': 'Layout Shifting Issues (CLS)',
+                        'description': f'Some page elements move during loading (CLS: {cls_value:.2f}, should be under 0.1).',
+                        'impact': 'Visitors may experience minor disruptions as content shifts.',
+                        'solution': 'Set explicit dimensions for images and avoid inserting content above existing content.',
+                        'severity': 'warning'
+                    })
+                    warning_issues += 1
+            
+            # If no specific issues found but performance is very low, add general explanation
             if performance_score < 10 and not mobile_issues:
-                lcp = audits.get('largest-contentful-paint', {})
-                fcp = audits.get('first-contentful-paint', {})
-                cls = audits.get('cumulative-layout-shift', {})
-                reasons = []
-                if not lcp or lcp.get('numericValue') is None:
-                    reasons.append("LCP (Largest Contentful Paint) data missing or failed to load")
-                elif lcp.get('numericValue', 0) > 4000:
-                    reasons.append(f"LCP is very high: {lcp.get('numericValue', 0)/1000:.1f}s (should be <2.5s)")
-                if not fcp or fcp.get('numericValue') is None:
-                    reasons.append("FCP (First Contentful Paint) data missing or failed to load")
-                elif fcp.get('numericValue', 0) > 3000:
-                    reasons.append(f"FCP is very high: {fcp.get('numericValue', 0)/1000:.1f}s (should be <1.8s)")
-                if not cls or cls.get('numericValue') is None:
-                    reasons.append("CLS (Cumulative Layout Shift) data missing or failed to load")
-                elif cls.get('numericValue', 0) > 0.25:
-                    reasons.append(f"CLS is high: {cls.get('numericValue', 0):.2f} (should be <0.1)")
-                if not reasons:
-                    reasons.append("No performance data available—site may be blocking PageSpeed or loading failed.")
-                mobile_issues.extend(reasons)
+                mobile_issues.append({
+                    'title': 'Poor Mobile Performance',
+                    'description': 'Your site has very poor mobile performance but specific issues could not be identified.',
+                    'impact': 'Visitors likely experience slow loading and poor responsiveness on mobile devices.',
+                    'solution': 'Check if your site blocks performance testing tools, optimize images, and reduce JavaScript.',
+                    'severity': 'critical'
+                })
+                critical_issues += 1
             
             print("[DEBUG] Mobile issues detected:", mobile_issues)
             
@@ -1036,16 +1251,23 @@ class MobileUsabilityFetcher:
         """Generate mobile usability insights."""
         if is_mobile_friendly:
             if performance_score > 80:
-                return "✅ Excellent mobile experience with high performance"
+                return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Excellent mobile experience with high performance'
             elif performance_score > 60:
-                return "✅ Good mobile experience with room for performance improvements"
+                return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Good mobile experience with room for performance improvements'
             else:
-                return "⚠️ Mobile-friendly but performance needs optimization"
+                return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Mobile-friendly but performance needs optimization'
         else:
             if issues:
-                return f"❌ Mobile usability issues detected: {', '.join(issues[:3])}"
+                # Extract titles from issue objects for the insight summary
+                issue_titles = []
+                for issue in issues[:3]:
+                    if isinstance(issue, dict):
+                        issue_titles.append(issue.get('title', 'Unknown issue'))
+                    else:
+                        issue_titles.append(str(issue))
+                return f'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Issues detected: {", ".join(issue_titles)}'
             else:
-                return "❌ Mobile experience needs improvement"
+                return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Mobile experience needs improvement'
     
     def _get_demo_data(self) -> Dict:
         """Return empty mobile usability data when real data is not available."""
@@ -1219,29 +1441,29 @@ class IndexingCrawlabilityFetcher:
         
         # Sitemap insights
         if sitemaps['status'] == 'Active':
-            insights.append("✅ Sitemap is active and being processed")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Sitemap is active and being processed')
         elif sitemaps['status'] == 'Pending':
-            insights.append("⏳ Sitemap is pending processing")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12,6 12,12 16,14"></polyline></svg>Sitemap is pending processing')
         elif sitemaps['status'] == 'Not Found':
-            insights.append("⚠️ No sitemap found - consider adding one")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>No sitemap found - consider adding one')
         else:
-            insights.append("❌ Sitemap issues detected")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Sitemap issues detected')
         
         # Indexing insights
         if indexed_pages['status'] == 'PASS':
-            insights.append("✅ Pages are being indexed properly")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Pages are being indexed properly')
         elif indexed_pages['status'] == 'FAIL':
-            insights.append("❌ Indexing issues detected")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Indexing issues detected')
         else:
-            insights.append("ℹ️ Indexing status unclear")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>Indexing status unclear')
         
         # Crawl insights
         if crawl_stats['success_rate'] > 80:
-            insights.append("✅ Crawling is working well")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Crawling is working well')
         elif crawl_stats['success_rate'] > 50:
-            insights.append("⚠️ Some crawling issues detected")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Some crawling issues detected')
         else:
-            insights.append("❌ Crawling problems detected")
+            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Crawling problems detected')
         
         return insights 
 

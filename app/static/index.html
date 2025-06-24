@@ -72,15 +72,7 @@
             <!-- Alerts -->
             <div id="alerts"></div>
 
-            <!-- User Info (shown after login) -->
-            <div id="userInfo" class="user-info hidden"></div>
-                <h3>👤 User Information</h3>
-                <p><strong>ID:</strong> <span id="userId"></span></p>
-                <p><strong>Email:</strong> <span id="userEmail"></span></p>
-                <p><strong>Verified:</strong> <span id="userVerified"></span></p>
-                <p><strong>Created:</strong> <span id="userCreated"></span></p>
-                <button class="btn logout-btn" onclick="logout()">Logout</button>
-            </div>
+
         </div>
     </div>
 
@@ -257,60 +249,9 @@
             }
         }
 
-        async function loadUserInfo() {
-            const token = localStorage.getItem('auth_token');
-            if (!token) return;
 
-            try {
-                const response = await fetch(`/auth/me`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
 
-                if (response.ok) {
-                    const userData = await response.json();
-                    
-                    // Display user info
-                    document.getElementById('userId').textContent = userData.id;
-                    document.getElementById('userEmail').textContent = userData.email;
-                    document.getElementById('userVerified').textContent = userData.is_verified ? 'Yes' : 'No';
-                    document.getElementById('userCreated').textContent = new Date(userData.created_at).toLocaleString();
-                    
-                    document.getElementById('userInfo').classList.remove('hidden');
-                } else {
-                    // Token might be expired
-                    localStorage.removeItem('auth_token');
-                    showAlert('loginAlert', '⚠️ Session expired. Please login again.', 'info');
-                }
-            } catch (error) {
-                showAlert('loginAlert', `❌ Error loading user info: ${error.message}`, 'error');
-            }
-        }
 
-        async function logout() {
-            const token = localStorage.getItem('auth_token');
-            if (token) {
-                try {
-                    await fetch(`/auth/logout`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-                } catch (error) {
-                    console.log('Logout request failed:', error);
-                }
-            }
-
-            // Clear local storage and UI
-            localStorage.removeItem('auth_token');
-            currentUser = null;
-            document.getElementById('userInfo').classList.add('hidden');
-            document.getElementById('loginForm').reset();
-            
-            showAlert('loginAlert', '👋 Logged out successfully!', 'info');
-        }
 
         // Event listeners
         document.getElementById('registerForm').addEventListener('submit', register);

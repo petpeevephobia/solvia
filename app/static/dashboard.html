@@ -117,6 +117,18 @@
             </div>
         </div>
 
+        <!-- Charts Section -->
+        <div class="charts-section" id="mergedChartsSection">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Organic Traffic & Impressions</h2>
+                </div>
+                <div class="card-body">
+                    <canvas id="mergedTrendsChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
         <div class="analysis-grid">
             <!-- Visibility Performance Section -->
             <div class="analysis-card">
@@ -136,10 +148,12 @@
                         <div class="metric">
                             <span class="metric-label">Impressions</span>
                             <span class="metric-value" id="impressionsValue">0</span>
+                            <span class="metric-change" id="impressionsChange">+0</span>
                         </div>
                         <div class="metric">
                             <span class="metric-label">Clicks</span>
                             <span class="metric-value" id="clicksValue">0</span>
+                            <span class="metric-change" id="clicksChange">+0</span>
                         </div>
                     </div>
                     <div class="metrics-row">
@@ -160,17 +174,6 @@
             </div>
         </div>
 
-        <!-- Charts Section -->
-        <div class="charts-section" id="mergedChartsSection">
-            <div class="content-card">
-                <div class="card-header">
-                    <h2>Organic Traffic & Impressions</h2>
-                </div>
-                <div class="card-body">
-                    <canvas id="mergedTrendsChart" height="300"></canvas>
-                </div>
-            </div>
-        </div>
 
             <!-- Engagement & UX Performance Section -->
             <div class="analysis-card">
@@ -188,20 +191,24 @@
                         <div class="metric">
                             <span class="metric-label">Performance Score</span>
                             <span class="metric-value" id="performanceScore">N/A</span>
+                            <span class="metric-change" id="performanceScoreChange">+0</span>
                         </div>
                         <div class="metric">
                             <span class="metric-label">LCP</span>
                             <span class="metric-value" id="lcpValue">N/A</span>
+                            <span class="metric-change" id="lcpChange">+0.0s</span>
                         </div>
                     </div>
                     <div class="metrics-row">
                         <div class="metric">
                             <span class="metric-label">FCP</span>
                             <span class="metric-value" id="fcpValue">N/A</span>
+                            <span class="metric-change" id="fcpChange">+0.0s</span>
                         </div>
                         <div class="metric">
                             <span class="metric-label">CLS</span>
                             <span class="metric-value" id="clsValue">N/A</span>
+                            <span class="metric-change" id="clsChange">+0.00</span>
                         </div>
                     </div>
                     <div class="insights" id="uxInsights">
@@ -231,6 +238,7 @@
                         <div class="metric">
                             <span class="metric-label">Issues</span>
                             <span class="metric-value" id="mobileIssues">0</span>
+                            <span class="metric-change" id="mobileIssuesChange">+0</span>
                         </div>
                     </div>
                     <div class="insights" id="mobileInsights">
@@ -320,20 +328,24 @@
                         <div class="metric">
                             <span class="metric-label">Total Keywords</span>
                             <span class="metric-value" id="totalKeywords">0</span>
+                            <span class="metric-change" id="totalKeywordsChange">+0</span>
                         </div>
                         <div class="metric">
                             <span class="metric-label">Avg Position</span>
                             <span class="metric-value" id="keywordAvgPosition">N/A</span>
+                            <span class="metric-change" id="keywordAvgPositionChange">+0.0</span>
                         </div>
                     </div>
                     <div class="metrics-row">
                         <div class="metric">
                             <span class="metric-label">Opportunities</span>
                             <span class="metric-value" id="keywordOpportunities">0</span>
+                            <span class="metric-change" id="keywordOpportunitiesChange">+0</span>
                         </div>
                         <div class="metric">
                             <span class="metric-label">Branded</span>
                             <span class="metric-value" id="brandedKeywords">0</span>
+                            <span class="metric-change" id="brandedKeywordsChange">+0</span>
                         </div>
                     </div>
                     <div class="insights" id="keywordInsights">
@@ -343,16 +355,16 @@
                     <h4>Keywords Found:</h4>
                     <div id="keywordsContainer" class="keywords-container">
                         <p class="keywords-loading">Loading keywords...</p>
-                    </div>
-                </div>
                 </div>
             </div>
         </div>
-
+                </div>
+            </div>
+            
     <div id="metricsPopupContainer">
         <div id="metricsSuccessPopup">
             All metrics loaded successfully! <span id="metricsSuccessTimer" class="timer"></span>
-            </div>
+                </div>
         <div id="metricsLoadingPopup">
             <div id="metricsLoadingList"></div>
         </div>
@@ -379,9 +391,9 @@
         let consecutiveFailures = 0; // Track consecutive API failures
         
         const METRIC_GROUPS = [
-          { key: 'visibility', label: 'Visibility Performance' },
           { key: 'organic', label: 'Organic Traffic Trends' },
           { key: 'impressions', label: 'Impressions Trends' },
+          { key: 'visibility', label: 'Visibility Performance' },
           { key: 'ux', label: 'Engagement & UX' },
           { key: 'mobile', label: 'Mobile Usability' },
           { key: 'indexing', label: 'Indexing & Crawlability' },
@@ -796,6 +808,70 @@
             const clicksData = timeSeries.clicks || [];
             const impressionsData = timeSeries.impressions || [];
 
+            // Generate complete month dates including future dates with zero values
+            let completeDates = [];
+            let completeClicksData = [];
+            let completeImpressionsData = [];
+
+            if (dates.length > 0) {
+                // Get the first date to determine the month and year
+                const firstDate = new Date(dates[0]);
+                const year = firstDate.getFullYear();
+                const month = firstDate.getMonth();
+                
+                // Get the number of days in this month
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                // Create a map of existing data for quick lookup
+                const dataMap = {};
+                dates.forEach((dateStr, index) => {
+                    dataMap[dateStr] = {
+                        clicks: clicksData[index] || 0,
+                        impressions: impressionsData[index] || 0
+                    };
+                });
+                
+                // Generate all dates for the month
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const currentDate = new Date(year, month, day);
+                    const dateStr = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
+                    
+                    completeDates.push(dateStr);
+                    
+                    if (dataMap[dateStr]) {
+                        // Use real data if available
+                        completeClicksData.push(dataMap[dateStr].clicks);
+                        completeImpressionsData.push(dataMap[dateStr].impressions);
+                    } else if (currentDate > today) {
+                        // Future dates get zero values
+                        completeClicksData.push(0);
+                        completeImpressionsData.push(0);
+                    } else {
+                        // Past dates without data also get zero
+                        completeClicksData.push(0);
+                        completeImpressionsData.push(0);
+                    }
+                }
+            }
+
+            // Use complete data if available, otherwise fall back to original data
+            const finalDates = completeDates.length > 0 ? completeDates : dates;
+            const finalClicksData = completeClicksData.length > 0 ? completeClicksData : clicksData;
+            const finalImpressionsData = completeImpressionsData.length > 0 ? completeImpressionsData : impressionsData;
+
+            // Format dates to readable format like "1 Jun 2025"
+            const formattedDates = finalDates.map(dateStr => {
+                const date = new Date(dateStr);
+                const day = date.getDate();
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const month = monthNames[date.getMonth()];
+                const year = date.getFullYear();
+                return `${day} ${month} ${year}`;
+            });
+
             if (window.mergedTrendsChart && typeof window.mergedTrendsChart.destroy === 'function') {
                 window.mergedTrendsChart.destroy();
             }
@@ -804,11 +880,11 @@
             window.mergedTrendsChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: dates,
+                    labels: formattedDates,
                     datasets: [
                         {
                             label: 'Clicks',
-                            data: clicksData,
+                            data: finalClicksData,
                             borderColor: primaryColor,
                             backgroundColor: 'rgba(249, 115, 22, 0.1)',
                             borderWidth: 2,
@@ -817,7 +893,7 @@
                         },
                         {
                             label: 'Impressions',
-                            data: impressionsData,
+                            data: finalImpressionsData,
                             borderColor: secondaryColor,
                             backgroundColor: 'rgba(99, 102, 241, 0.1)',
                             borderWidth: 2,
@@ -835,7 +911,8 @@
                     x: { grid: { display: false }, ticks: {
                         callback: function(value, index, values) {
                             const label = this.getLabelForValue(value);
-                                if (label === dates[0] || label === dates[Math.floor(dates.length/2)] || label === dates[dates.length-1]) {
+                            // Show first, middle, and last dates for better readability
+                            if (label === formattedDates[0] || label === formattedDates[Math.floor(formattedDates.length/2)] || label === formattedDates[formattedDates.length-1]) {
                                 return label;
                             }
                             return null;
@@ -949,12 +1026,13 @@
             
             // Calculate SEO score based on real metrics
             const seoScore = calculateSEOScore(summary);
-            const seoScoreChange = '+5%'; // This would need to be calculated from historical data
+            
+            // Calculate SEO score change (use backend data if available, otherwise fallback to session-based)
+            const seoScoreChange = summary.seo_score_change !== undefined ? summary.seo_score_change : calculateChange('seo_score', seoScore);
             
             // Update overall score
             document.getElementById('seoScore').textContent = seoScore;
-            document.getElementById('seoScoreChange').textContent = seoScoreChange;
-            document.getElementById('seoScoreChange').className = 'score-change positive';
+            updateSEOScoreChange(seoScoreChange);
 
             // Update visibility performance with real data
             document.getElementById('impressionsValue').textContent = summary.total_impressions?.toLocaleString() || '0';
@@ -962,7 +1040,9 @@
             document.getElementById('ctrValue').textContent = summary.avg_ctr ? `${(summary.avg_ctr * 100).toFixed(2)}%` : '0%';
             document.getElementById('avgPositionValue').textContent = summary.avg_position?.toFixed(1) || 'N/A';
             
-            // Update change indicators
+            // Update change indicators - use backend-provided changes when available
+            updateChangeIndicator('impressionsChange', summary.impressions_change || calculateChange('total_impressions', summary.total_impressions), '', true);
+            updateChangeIndicator('clicksChange', summary.clicks_change || calculateChange('total_clicks', summary.total_clicks), '', true);
             updateChangeIndicator('ctrChange', summary.ctr_change, '%', true);
             updateChangeIndicator('avgPositionChange', summary.position_change, '', false);
             
@@ -975,6 +1055,28 @@
             generateKeywordInsights(metrics);
         }
 
+        // Store previous values for change calculation
+        let previousMetrics = JSON.parse(localStorage.getItem('previousMetrics') || '{}');
+
+        function calculateChange(metricKey, currentValue) {
+            if (currentValue === undefined || currentValue === null) return 0;
+            
+            const previousValue = previousMetrics[metricKey];
+            if (previousValue === undefined || previousValue === null) {
+                // Store current value for next comparison and return 0 for first time
+                previousMetrics[metricKey] = currentValue;
+                localStorage.setItem('previousMetrics', JSON.stringify(previousMetrics));
+                return 0;
+            }
+            
+            const change = currentValue - previousValue;
+            // Update stored value
+            previousMetrics[metricKey] = currentValue;
+            localStorage.setItem('previousMetrics', JSON.stringify(previousMetrics));
+            
+            return change;
+        }
+
         function updateChangeIndicator(elementId, value, unit = '', higherIsBetter = true) {
             const element = document.getElementById(elementId);
             if (value === undefined || value === null) {
@@ -985,9 +1087,12 @@
 
             const isPositive = higherIsBetter ? value > 0 : value < 0;
             const isNegative = higherIsBetter ? value < 0 : value > 0;
+            const isZero = value === 0;
             
             let class_name = 'metric-change';
-            if (isPositive) {
+            if (isZero) {
+                class_name += ' neutral';
+            } else if (isPositive) {
                 class_name += ' positive';
             } else if (isNegative) {
                 class_name += ' negative';
@@ -995,10 +1100,40 @@
 
             element.className = class_name;
             
-            const prefix = value > 0 ? '+' : '';
+            const prefix = value > 0 ? '+' : (value < 0 ? '' : '+');
             const formattedValue = unit === '%' ? (value * 100).toFixed(2) : value.toFixed(1);
             
             element.textContent = `${prefix}${formattedValue}${unit}`;
+        }
+
+        function updateSEOScoreChange(change) {
+            const element = document.getElementById('seoScoreChange');
+            if (change === undefined || change === null) {
+                element.textContent = 'N/A';
+                element.className = 'score-change';
+                return;
+            }
+
+            const isPositive = change > 0;
+            const isNegative = change < 0;
+            const isZero = change === 0;
+            
+            let class_name = 'score-change';
+            if (isZero) {
+                class_name += ' neutral';
+                element.style.color = '#6B7280'; // Grey for no change
+            } else if (isPositive) {
+                class_name += ' positive';
+                element.style.color = ''; // Reset to CSS default (green)
+            } else if (isNegative) {
+                class_name += ' negative';
+                element.style.color = ''; // Reset to CSS default (red)
+            }
+
+            element.className = class_name;
+            
+            const prefix = change > 0 ? '+' : (change < 0 ? '' : '+');
+            element.textContent = `${prefix}${change}`;
         }
 
         function generateVisibilityInsights(summary) {
@@ -1063,21 +1198,25 @@
             const performanceScore = psiData.performance_score;
             console.log('[DEBUG] Performance score:', performanceScore);
             document.getElementById('performanceScore').textContent = (performanceScore !== undefined && performanceScore !== null) ? performanceScore : 'N/A';
+            updateChangeIndicator('performanceScoreChange', psiData.performance_score_change || calculateChange('performance_score', performanceScore), '', true);
             
             // Update LCP
             const lcpValue = psiData.lcp?.value;
             console.log('[DEBUG] LCP value:', lcpValue);
             document.getElementById('lcpValue').textContent = (lcpValue !== undefined && lcpValue !== null) ? `${lcpValue.toFixed(1)}s` : 'N/A';
+            updateChangeIndicator('lcpChange', psiData.lcp_change || calculateChange('lcp_value', lcpValue), 's', false);
             
             // Update FCP
             const fcpValue = psiData.fcp?.value;
             console.log('[DEBUG] FCP value:', fcpValue);
             document.getElementById('fcpValue').textContent = (fcpValue !== undefined && fcpValue !== null) ? `${fcpValue.toFixed(1)}s` : 'N/A';
+            updateChangeIndicator('fcpChange', psiData.fcp_change || calculateChange('fcp_value', fcpValue), 's', false);
             
             // Update CLS
             const clsValue = psiData.cls?.value;
             console.log('[DEBUG] CLS value:', clsValue);
             document.getElementById('clsValue').textContent = (clsValue !== undefined && clsValue !== null) ? Math.round(clsValue) : 'N/A';
+            updateChangeIndicator('clsChange', psiData.cls_change || calculateChange('cls_value', clsValue), '', false);
             
             // Update status indicator
             const statusIndicator = document.getElementById('uxStatus');
@@ -1161,7 +1300,8 @@
             // Store mobile data globally
             window.metricsData.mobile = {
                 mobile_friendly: mobileData.mobile_friendly,
-                issues_count: mobileData.issues_count || 0
+                issues_count: mobileData.issues_count || 0,
+                performance_score: mobileData.performance_score
             };
             
             // Update mobile friendly status
@@ -1182,7 +1322,9 @@
             }
             
             // Update issues count
-            document.getElementById('mobileIssues').textContent = mobileData.issues_count || '0';
+            const issuesCount = mobileData.issues_count || 0;
+            document.getElementById('mobileIssues').textContent = issuesCount;
+            updateChangeIndicator('mobileIssuesChange', calculateChange('mobile_issues_count', issuesCount), '', false);
             
             // Recalculate overall SEO score
             recalculateOverallSEOScore();
@@ -1190,23 +1332,27 @@
 
         function generateMobileInsightsFromData(mobileData) {
             const issues = mobileData.issues || [];
-            const performanceScore = mobileData.performance_score !== undefined ? mobileData.performance_score : null;
             let html = '';
 
             if (issues.length > 0) {
-                html += '<div><strong>Mobile Usability Issues Detected:</strong><ul class="mobile-issues-list">';
+                // Display each issue in its own div container
                 issues.forEach(issue => {
-                    html += `<li>${issue}</li>`;
+                    // Handle both old string format and new detailed object format
+                    if (typeof issue === 'string') {
+                        html += `<div class="mobile-issue-box"><p>${issue}</p></div>`;
+                    } else if (typeof issue === 'object' && issue.title) {
+                        // New detailed format - merge description and impact, hide solution
+                        html += `
+                            <div class="mobile-issue-box">
+                                <h4>${issue.title}</h4>
+                                <p>${issue.description} ${issue.impact}</p>
+                            </div>
+                        `;
+                    }
                 });
-                html += '</ul></div>';
             } else {
                 // Show the positive insight if no issues
                 html += `<p>${mobileData.insights || 'No mobile usability issues detected.'}</p>`;
-            }
-
-            // Always show performance score if available
-            if (performanceScore !== null) {
-                html += `<div class="mobile-performance-score"><strong>Mobile Performance Score:</strong> ${performanceScore}</div>`;
             }
 
             document.getElementById('mobileInsights').innerHTML = html;
@@ -1359,23 +1505,19 @@
             
             let insightsHtml = '';
             
-            // Add business insights
+            // Add business insights without heading
             if (insights.length > 0) {
-                insightsHtml += '<div class="insight-section"><h4>Business Analysis:</h4>';
                 insights.forEach(insight => {
                     insightsHtml += `<p>${insight}</p>`;
                 });
-                insightsHtml += '</div>';
             }
             
-            // Add SEO recommendations
-            if (recommendations.length > 0) {
-                insightsHtml += '<div class="insight-section"><h4>SEO Recommendations:</h4>';
-                recommendations.forEach(rec => {
-                    insightsHtml += `<p>• ${rec}</p>`;
-                });
-                insightsHtml += '</div>';
-            }
+            // Hide SEO recommendations - save for later use
+            // if (recommendations.length > 0) {
+            //     recommendations.forEach(rec => {
+            //         insightsHtml += `<p>• ${rec}</p>`;
+            //     });
+            // }
             
             if (insightsHtml) {
                 document.getElementById('businessInsights').innerHTML = insightsHtml;
@@ -1688,10 +1830,21 @@
             };
             
             // Update keyword metrics in the dashboard
-            document.getElementById('totalKeywords').textContent = keywordData.total_keywords?.toLocaleString() || '0';
-            document.getElementById('keywordAvgPosition').textContent = keywordData.avg_position?.toFixed(1) || 'N/A';
-            document.getElementById('keywordOpportunities').textContent = keywordData.opportunities?.toLocaleString() || '0';
-            document.getElementById('brandedKeywords').textContent = keywordData.branded_keywords?.toLocaleString() || '0';
+            const totalKeywords = keywordData.total_keywords || 0;
+            const avgPosition = keywordData.avg_position;
+            const opportunities = keywordData.opportunities || 0;
+            const brandedKeywords = keywordData.branded_keywords || 0;
+            
+            document.getElementById('totalKeywords').textContent = totalKeywords.toLocaleString();
+            document.getElementById('keywordAvgPosition').textContent = avgPosition?.toFixed(1) || 'N/A';
+            document.getElementById('keywordOpportunities').textContent = opportunities.toLocaleString();
+            document.getElementById('brandedKeywords').textContent = brandedKeywords.toLocaleString();
+            
+            // Update change indicators
+            updateChangeIndicator('totalKeywordsChange', calculateChange('total_keywords', totalKeywords), '', true);
+            updateChangeIndicator('keywordAvgPositionChange', calculateChange('keyword_avg_position', avgPosition), '', false);
+            updateChangeIndicator('keywordOpportunitiesChange', calculateChange('keyword_opportunities', opportunities), '', true);
+            updateChangeIndicator('brandedKeywordsChange', calculateChange('branded_keywords', brandedKeywords), '', true);
             
             // Update keyword insights
             if (keywordData.keyword_insights) {
@@ -1784,8 +1937,14 @@
                 window.metricsData.keywords
             );
             
+            // Calculate and update SEO score change (use backend data if available, otherwise fallback to session-based)
+            const seoScoreChange = window.metricsData.summary?.seo_score_change !== undefined ? 
+                window.metricsData.summary.seo_score_change : 
+                calculateChange('seo_score', seoScore);
+            
             document.getElementById('seoScore').textContent = seoScore;
-            console.log('[DEBUG] Recalculated SEO score:', seoScore, 'using data:', window.metricsData);
+            updateSEOScoreChange(seoScoreChange);
+            console.log('[DEBUG] Recalculated SEO score:', seoScore, 'change:', seoScoreChange, 'using data:', window.metricsData);
         }
 
         function calculateSEOScore(summary, ux = {}, mobile = {}, indexing = {}, keywords = {}) {
