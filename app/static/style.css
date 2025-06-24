@@ -1,7 +1,7 @@
 :root {
     --color-primary: #F97316;
     --color-primary-light: #FFF7ED;
-    --color-text-dark: #1F2937;
+    --color-text-dark: #D97706;
     --color-text-light: #6B7280;
     --color-positive: #10B981;
     --color-negative: #EF4444;
@@ -260,11 +260,6 @@ body {
     overflow: hidden;
     transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.analysis-card:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
 }
 
 .analysis-card .card-header {
