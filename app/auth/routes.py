@@ -563,17 +563,17 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
                 detail="No GSC property selected. Please select a property first."
             )
 
-        print(f"[DEBUG] Fetching GSC metrics for user '{current_user}' and property '{website_url}'")
-        
-        # Fetch GSC data
+        print(f"[INFO] Loading GSC metrics for user '{current_user}' and property '{website_url}'")
         metrics = await gsc_fetcher.fetch_metrics(current_user, website_url)
-        
         if not metrics or "summary" not in metrics:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to fetch GSC metrics or data is empty."
             )
-
+        summary = metrics.get('summary', {})
+        print(f"[INFO] Visibility Performance: Impressions={summary.get('total_impressions')}, Clicks={summary.get('total_clicks')}, CTR={summary.get('avg_ctr')}, Avg Position={summary.get('avg_position')}")
+        print(f"[INFO] Organic Traffic Trends: {metrics.get('time_series', {}).get('clicks', [])}")
+        print(f"[INFO] Impressions Trends: {metrics.get('time_series', {}).get('impressions', [])}")
         return GSCMetricsResponse(
             summary=metrics.get('summary', {}),
             time_series=metrics.get('time_series', {}),
@@ -585,7 +585,6 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching GSC metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"
@@ -796,32 +795,20 @@ async def get_business_metrics(current_user: str = Depends(get_current_user)):
 async def get_keyword_metrics(current_user: str = Depends(get_current_user)):
     """Fetch keyword performance data for the user's website."""
     try:
-        print(f"[DEBUG] Keyword metrics endpoint called for user: {current_user}")
-        
-        # Get the selected property for the user
         website_url = db.get_selected_gsc_property(current_user)
         if not website_url:
-            print(f"[DEBUG] No GSC property selected for user: {current_user}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No GSC property selected. Please select a property first."
             )
-
-        print(f"[DEBUG] Fetching keyword data for user '{current_user}' and property '{website_url}'")
-        
-        # Fetch keyword data
         keyword_data = await gsc_fetcher.fetch_keyword_data(current_user, website_url)
-        
-        print(f"[DEBUG] Keyword data received: {keyword_data}")
-        
         if not keyword_data:
-            print(f"[DEBUG] No keyword data returned for user: {current_user}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to fetch keyword data."
             )
-
-        response_data = KeywordMetricsResponse(
+        print(f"[INFO] Keyword Trends: Total={keyword_data.get('total_keywords')}, Avg Position={keyword_data.get('avg_position')}, Opportunities={keyword_data.get('opportunities')}, Branded={keyword_data.get('branded_keywords')}")
+        return KeywordMetricsResponse(
             total_keywords=keyword_data.get('total_keywords', 0),
             avg_position=keyword_data.get('avg_position', 0.0),
             opportunities=keyword_data.get('opportunities', 0),
@@ -830,17 +817,9 @@ async def get_keyword_metrics(current_user: str = Depends(get_current_user)):
             keyword_insights=keyword_data.get('keyword_insights', ""),
             last_updated=datetime.utcnow().isoformat()
         )
-        
-        print(f"[DEBUG] Returning keyword response: {response_data}")
-        return response_data
-        
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Error fetching keyword metrics: {e}")
-        print(f"[ERROR] Exception type: {type(e)}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"

@@ -1018,10 +1018,10 @@
             
             // Update status indicator color
             const statusIndicator = document.getElementById('mobileStatus');
-            if (mobileFriendly === 'Pass') {
+            if (mobileFriendly === 'Pass' || mobileFriendly === 'Yes') {
                 statusIndicator.textContent = 'Good';
                 statusIndicator.className = 'status-indicator good';
-            } else if (mobileFriendly === 'Fail') {
+            } else if (mobileFriendly === 'Fail' || mobileFriendly === 'No') {
                 statusIndicator.textContent = 'Needs Work';
                 statusIndicator.className = 'status-indicator warning';
             } else {
@@ -1076,7 +1076,8 @@
             
             // Update status indicator color
             const statusIndicator = document.getElementById('indexingStatus');
-            if (sitemapStatus === 'Active' && indexStatus === 'PASS') {
+            if ((sitemapStatus === 'Active' && (indexStatus === 'PASS' || indexStatus === 'NEUTRAL')) ||
+                (sitemapStatus === 'Active' && !indexStatus)) {
                 statusIndicator.textContent = 'Good';
                 statusIndicator.className = 'status-indicator good';
             } else if (sitemapStatus === 'Pending' || indexStatus === 'Unknown') {
@@ -1545,28 +1546,44 @@
             });
         }
 
-        function calculateSEOScore(summary) {
-            // Simple SEO score calculation based on real metrics
+        function calculateSEOScore(summary, ux = {}, mobile = {}, indexing = {}, keywords = {}) {
+            // Define all metrics, their weights, and normalization functions
+            const metrics = [
+                // Visibility
+                { key: 'avg_ctr', value: summary.avg_ctr, weight: 10, norm: v => Math.min(v / 0.10, 1) },
+                { key: 'avg_position', value: summary.avg_position, weight: 10, norm: v => Math.max((10 - v) / 10, 0) },
+                { key: 'total_impressions', value: summary.total_impressions, weight: 5, norm: v => Math.min(Math.log10(v + 1) / 6, 1) },
+                { key: 'total_clicks', value: summary.total_clicks, weight: 5, norm: v => Math.min(Math.log10(v + 1) / 5, 1) },
+                // UX
+                { key: 'performance_score', value: ux.performance_score, weight: 10, norm: v => (v / 100) },
+                { key: 'lcp', value: ux.lcp, weight: 5, norm: v => 1 - Math.min(v, 4) / 4 },
+                { key: 'fcp', value: ux.fcp, weight: 5, norm: v => 1 - Math.min(v, 3) / 3 },
+                { key: 'cls', value: ux.cls, weight: 5, norm: v => 1 - Math.min(v, 0.25) / 0.25 },
+                // Mobile
+                { key: 'mobile_friendly', value: mobile.mobile_friendly, weight: 10, norm: v => (v === 'Yes' || v === 'Pass') ? 1 : 0 },
+                { key: 'issues_count', value: mobile.issues_count, weight: 5, norm: v => 1 - Math.min(v, 5) / 5 },
+                // Indexing
+                { key: 'sitemap_status', value: indexing.sitemap_status, weight: 5, norm: v => v === 'Active' ? 1 : 0 },
+                { key: 'index_status', value: indexing.index_status, weight: 5, norm: v => ['PASS', 'NEUTRAL'].includes(v) ? 1 : 0 },
+                // Keywords
+                { key: 'total_keywords', value: keywords.total_keywords, weight: 5, norm: v => Math.min(Math.log10(v + 1) / 4, 1) },
+                { key: 'opportunities', value: keywords.opportunities, weight: 5, norm: v => Math.min(v / 10, 1) },
+                { key: 'branded_keywords', value: (keywords.branded_keywords !== undefined && keywords.total_keywords) ? 1 - Math.min(keywords.branded_keywords / (keywords.total_keywords || 1), 1) : undefined, weight: 5, norm: v => v },
+            ];
+
+            // Filter out missing metrics
+            const present = metrics.filter(m => m.value !== undefined && m.value !== null && !Number.isNaN(m.value));
+            const totalWeight = present.reduce((sum, m) => sum + m.weight, 0);
+            if (totalWeight === 0) return 0;
+
+            // Dynamically scale weights so total is 100
             let score = 0;
-            
-            // Position score (lower is better, max 50 points)
-            if (summary.avg_position) {
-                const positionScore = Math.max(0, 50 - (summary.avg_position * 5));
-                score += positionScore;
-            }
-            
-            // CTR score (higher is better, max 30 points)
-            if (summary.avg_ctr) {
-                const ctrScore = Math.min(30, summary.avg_ctr * 2);
-                score += ctrScore;
-            }
-            
-            // Traffic score (higher is better, max 20 points)
-            if (summary.total_clicks) {
-                const trafficScore = Math.min(20, Math.log10(summary.total_clicks + 1) * 5);
-                score += trafficScore;
-            }
-            
+            present.forEach(m => {
+                const scaledWeight = m.weight * (100 / totalWeight);
+                let normValue = m.key === 'branded_keywords' ? m.value : m.norm(m.value);
+                normValue = Math.max(0, Math.min(normValue, 1));
+                score += normValue * scaledWeight;
+            });
             return Math.round(score);
         }
 
