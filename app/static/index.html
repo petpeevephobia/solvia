@@ -21,7 +21,7 @@
         <div class="form-container">
             <!-- Register Form -->
             <form class="form active" id="registerForm">
-                <div id="registerAlert" class="alert" style="display: none;"></div>
+                <div id="registerAlert" class="alert hidden"></div>
                 <div class="form-group">
                     <label for="registerEmail">Email</label>
                     <input type="email" id="registerEmail" required placeholder="Enter your email">
@@ -29,7 +29,7 @@
                 <div class="form-group">
                     <label for="registerPassword">Password</label>
                     <input type="password" id="registerPassword" required placeholder="Enter your password">
-                    <div class="password-requirements" id="passwordRequirements" style="display: none;">
+                    <div class="password-requirements hidden" id="passwordRequirements">
                         <div class="requirement" id="req-length">
                             <span class="requirement-icon">⭕</span>
                             At least 8 characters
@@ -55,7 +55,7 @@
 
             <!-- Login Form -->
             <form class="form" id="loginForm">
-                <div id="loginAlert" class="alert" style="display: none;"></div>
+                <div id="loginAlert" class="alert hidden"></div>
                 <div class="form-group">
                     <label for="loginEmail">Email</label>
                     <input type="email" id="loginEmail" required placeholder="Enter your email">
@@ -73,7 +73,7 @@
             <div id="alerts"></div>
 
             <!-- User Info (shown after login) -->
-            <div id="userInfo" class="user-info" style="display: none;">
+            <div id="userInfo" class="user-info hidden"></div>
                 <h3>👤 User Information</h3>
                 <p><strong>ID:</strong> <span id="userId"></span></p>
                 <p><strong>Email:</strong> <span id="userEmail"></span></p>
@@ -110,17 +110,17 @@
 
             alertDiv.className = `alert alert-${type}`;
             alertDiv.textContent = message;
-            alertDiv.style.display = 'block';
+            alertDiv.classList.remove('hidden');
 
             // Auto-remove after 5 seconds
             setTimeout(() => {
-                alertDiv.style.display = 'none';
+                alertDiv.classList.add('hidden');
             }, 5000);
         }
 
         function clearAlerts() {
-            document.getElementById('registerAlert').style.display = 'none';
-            document.getElementById('loginAlert').style.display = 'none';
+            document.getElementById('registerAlert').classList.add('hidden');
+            document.getElementById('loginAlert').classList.add('hidden');
         }
 
         function setLoading(buttonId, isLoading) {
@@ -277,7 +277,7 @@
                     document.getElementById('userVerified').textContent = userData.is_verified ? 'Yes' : 'No';
                     document.getElementById('userCreated').textContent = new Date(userData.created_at).toLocaleString();
                     
-                    document.getElementById('userInfo').style.display = 'block';
+                    document.getElementById('userInfo').classList.remove('hidden');
                 } else {
                     // Token might be expired
                     localStorage.removeItem('auth_token');
@@ -306,7 +306,7 @@
             // Clear local storage and UI
             localStorage.removeItem('auth_token');
             currentUser = null;
-            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('userInfo').classList.add('hidden');
             document.getElementById('loginForm').reset();
             
             showAlert('loginAlert', '👋 Logged out successfully!', 'info');
@@ -322,10 +322,10 @@
             const requirementsDiv = document.getElementById('passwordRequirements');
             
             if (password.length > 0) {
-                requirementsDiv.style.display = 'block';
+                requirementsDiv.classList.remove('hidden');
                 validatePassword(password);
             } else {
-                requirementsDiv.style.display = 'none';
+                requirementsDiv.classList.add('hidden');
             }
         });
 

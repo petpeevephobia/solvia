@@ -7,215 +7,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css?v=1.2">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        #metricsPopupContainer {
-            position: fixed;
-            right: 24px;
-            bottom: 24px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 12px;
-        }
-        #metricsLoadingPopup, #metricsSuccessPopup {
-            transition: transform 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.5s cubic-bezier(0.4,0,0.2,1);
-            transform: translateX(120%);
-            opacity: 0;
-            min-width: 260px;
-            max-width: 320px;
-            background: #FFF7ED; /* Updated to very light orange */
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-            padding: 1.25rem 1.5rem;
-            display: none;
-            flex-direction: column;
-            gap: 0.75rem;
-            margin: 0;
-            position: static;
-            border: 1px solid #FED7AA; /* Discreet border matching light orange */
-        }
-        #metricsSuccessPopup {
-            color: #D97706;
-            font-weight: 600;
-            text-align: left;
-        }
-        #metricsSuccessPopup .timer {
-            font-weight: 400;
-            color: #D97706;
-        }
-        #metricsLoadingPopup.metrics-loading-visible,
-        #metricsSuccessPopup.metrics-success-visible {
-            transform: translateX(0);
-            opacity: 1;
-            display: flex;
-        }
-        #metricsLoadingPopup.metrics-loading-hide,
-        #metricsSuccessPopup.metrics-success-hide {
-            transform: translateX(120%);
-            opacity: 0;
-        }
-        @media (max-width: 600px) {
-            #metricsPopupContainer {
-                left: 16px !important;
-                right: 16px !important;
-                width: auto !important;
-                max-width: calc(100vw - 32px) !important;
-                min-width: 0 !important;
-                box-sizing: border-box;
-                align-items: stretch;
-            }
-            #metricsLoadingPopup, #metricsSuccessPopup {
-                width: 100% !important;
-                max-width: 100% !important;
-            }
-        }
-        #metricsLoadingList div {
-            color: #D97706 !important;
-        }
-
-        /* Mobile Menu Styles */
-        .desktop-only {
-            display: block;
-        }
-
-        .mobile-menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 9998;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-
-        .mobile-menu-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .mobile-menu {
-            position: fixed;
-            top: 0;
-            right: -320px;
-            width: 320px;
-            height: 100vh;
-            background: white;
-            z-index: 9999;
-            transition: right 0.3s ease;
-            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .mobile-menu.active {
-            right: 0;
-        }
-
-        .mobile-menu-header {
-            display: flex;
-            align-items: center;
-            padding: 1.5rem;
-            border-bottom: 1px solid #e5e7eb;
-            background: #f9fafb;
-        }
-
-        .mobile-menu-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #f97316, #ea580c);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 1.2rem;
-            margin-right: 1rem;
-        }
-
-        .mobile-menu-user-info {
-            flex: 1;
-        }
-
-        .mobile-menu-email {
-            font-size: 0.9rem;
-            color: #374151;
-            font-weight: 500;
-        }
-
-        .mobile-menu-close {
-            background: none;
-            border: none;
-            color: #6b7280;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 6px;
-            transition: background-color 0.2s ease;
-        }
-
-        .mobile-menu-close:hover {
-            background: #e5e7eb;
-        }
-
-        .mobile-menu-content {
-            flex: 1;
-            padding: 1rem;
-        }
-
-        .mobile-menu-section {
-            margin-bottom: 2rem;
-        }
-
-        .mobile-menu-item {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            padding: 1rem;
-            background: none;
-            border: none;
-            border-radius: 8px;
-            color: #374151;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            text-align: left;
-        }
-
-        .mobile-menu-item:hover {
-            background: #f3f4f6;
-        }
-
-        .mobile-menu-item svg {
-            margin-right: 0.75rem;
-            color: #6b7280;
-        }
-
-        .mobile-menu-item span {
-            font-weight: 500;
-        }
-
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .desktop-only {
-                display: none !important;
-            }
-            
-            .user-avatar {
-                cursor: pointer;
-            }
-        }
-
-        @media (min-width: 769px) {
-            .mobile-menu,
-            .mobile-menu-overlay {
-                display: none !important;
-            }
-        }
-    </style>
 </head>
 <body class="dashboard-body">
     <nav class="navbar">
@@ -234,6 +25,7 @@
             <div class="mobile-menu-avatar" id="mobileMenuAvatar">S</div>
             <div class="mobile-menu-user-info">
                 <div class="mobile-menu-email" id="mobileMenuEmail">user@example.com</div>
+                <div class="mobile-menu-website" id="mobileMenuWebsite">No website selected</div>
             </div>
             <button class="mobile-menu-close" onclick="closeMobileMenu()">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -244,6 +36,18 @@
         </div>
         <div class="mobile-menu-content">
             <div class="mobile-menu-section">
+                <div class="mobile-menu-section-title">Website</div>
+                <button class="mobile-menu-item" onclick="changeWebsite(); closeMobileMenu();">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <span>Change Website</span>
+                </button>
+            </div>
+            <div class="mobile-menu-section">
+                <div class="mobile-menu-section-title">Account</div>
                 <button class="mobile-menu-item" onclick="logout()">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -260,7 +64,13 @@
         <!-- GSC Connection Banner -->
         <div id="gscBanner" class="gsc-banner hidden">
             <div class="banner-content">
-                <div class="banner-icon">🚀</div>
+                <div class="banner-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4.5 16.5c-1.5 1.5-1.5 4.5 0 6s4.5 1.5 6 0l10-10c1-1 1-2.5 0-3.5s-2.5-1-3.5 0l-10 10z"></path>
+                        <path d="M13.5 6.5l4 4"></path>
+                        <path d="M12 2l2 2-2 2-2-2 2-2z"></path>
+                    </svg>
+                </div>
                 <div class="banner-text">
                     <h3>Connect Google Search Console</h3>
                     <p>Get real SEO data for your dashboard by connecting your Google Search Console account.</p>
@@ -279,9 +89,15 @@
                     <span id="dateRange"></span>
                 </div>
                 <div id="websiteInfo" class="website-info hidden">
-                    <span>📊 Tracking: </span>
+                    <span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-icon">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                        Tracking: 
+                    </span>
                     <span id="trackedWebsite" class="tracked-website"></span>
-                    <button onclick="changeWebsite()" class="btn-link">Change</button>
                 </div>
             </div>
             <button onclick="refreshMetrics()" class="btn-refresh" id="refreshBtn" title="Refresh Data">
@@ -305,7 +121,13 @@
             <!-- Visibility Performance Section -->
             <div class="analysis-card">
                 <div class="card-header">
-                    <div class="header-icon">📊</div>
+                    <div class="header-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                    </div>
                     <h2>Visibility Performance</h2>
                     <div class="status-indicator" id="visibilityStatus">Good</div>
                 </div>
@@ -353,7 +175,11 @@
             <!-- Engagement & UX Performance Section -->
             <div class="analysis-card">
                 <div class="card-header">
-                    <div class="header-icon">⚡</div>
+                    <div class="header-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"></polygon>
+                        </svg>
+                    </div>
                     <h2>Engagement & UX</h2>
                     <div class="status-indicator" id="uxStatus">Good</div>
                 </div>
@@ -387,7 +213,12 @@
             <!-- Mobile Usability Section -->
             <div class="analysis-card">
                 <div class="card-header">
-                    <div class="header-icon">📱</div>
+                    <div class="header-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                        </svg>
+                    </div>
                     <h2>Mobile Usability</h2>
                     <div class="status-indicator" id="mobileStatus">Good</div>
                 </div>
@@ -411,7 +242,12 @@
             <!-- Indexing & Crawlability Section -->
             <div class="analysis-card">
                 <div class="card-header">
-                    <div class="header-icon">🔍</div>
+                    <div class="header-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="M21 21l-4.35-4.35"></path>
+                        </svg>
+                    </div>
                     <h2>Indexing & Crawlability</h2>
                     <div class="status-indicator" id="indexingStatus">Good</div>
                 </div>
@@ -435,7 +271,18 @@
             <!-- Business Context Section -->
             <div class="analysis-card">
                 <div class="card-header">
-                    <div class="header-icon">🏢</div>
+                    <div class="header-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 21h18"></path>
+                            <path d="M5 21V7l8-4v18"></path>
+                            <path d="M19 21V11l-6-4"></path>
+                            <path d="M9 9v.01"></path>
+                            <path d="M9 12v.01"></path>
+                            <path d="M9 15v.01"></path>
+                            
+                            <path d="M9 18v.01"></path>
+                        </svg>
+                    </div>
                     <h2>Business Context</h2>
                     <div class="status-indicator" id="businessStatus">Good</div>
                 </div>
@@ -459,7 +306,12 @@
             <!-- Keyword Trends Section -->
             <div class="analysis-card">
                 <div class="card-header">
-                    <div class="header-icon">📈</div>
+                    <div class="header-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22,7 13.5,15.5 8.5,10.5 2,17"></polyline>
+                            <polyline points="16,7 22,7 22,13"></polyline>
+                        </svg>
+                    </div>
                     <h2>Keyword Trends</h2>
                     <div class="status-indicator" id="keywordStatus">Good</div>
                 </div>
@@ -487,12 +339,12 @@
                     <div class="insights" id="keywordInsights">
                         <p>Loading keyword performance insights...</p>
                     </div>
-                    <div class="keywords-list" id="keywordsList" style="margin-top: 1rem;">
-                        <h4 style="margin-bottom: 0.5rem; color: #374151; font-size: 0.9rem;">Keywords Found:</h4>
-                        <div id="keywordsContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.5rem;">
-                            <p style="color: #6b7280; font-size: 0.85rem; margin: 0;">Loading keywords...</p>
-                        </div>
+                                    <div class="keywords-list" id="keywordsList">
+                    <h4>Keywords Found:</h4>
+                    <div id="keywordsContainer" class="keywords-container">
+                        <p class="keywords-loading">Loading keywords...</p>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -1342,7 +1194,7 @@
             let html = '';
 
             if (issues.length > 0) {
-                html += '<div><strong>Mobile Usability Issues Detected:</strong><ul style="margin-top: 0.5em;">';
+                html += '<div><strong>Mobile Usability Issues Detected:</strong><ul class="mobile-issues-list">';
                 issues.forEach(issue => {
                     html += `<li>${issue}</li>`;
                 });
@@ -1354,7 +1206,7 @@
 
             // Always show performance score if available
             if (performanceScore !== null) {
-                html += `<div style="margin-top: 0.5em;"><strong>Mobile Performance Score:</strong> ${performanceScore}</div>`;
+                html += `<div class="mobile-performance-score"><strong>Mobile Performance Score:</strong> ${performanceScore}</div>`;
             }
 
             document.getElementById('mobileInsights').innerHTML = html;
@@ -1878,14 +1730,14 @@
             const container = document.getElementById('keywordsContainer');
             
             if (!keywordsList || keywordsList.length === 0) {
-                container.innerHTML = '<p style="color: #6b7280; font-size: 0.85rem; margin: 0;">No keywords found yet.</p>';
+                container.innerHTML = '<p class="keywords-empty">No keywords found yet.</p>';
                 return;
             }
             
             // Sort keywords by clicks (descending) to show best performing first
             const sortedKeywords = keywordsList.sort((a, b) => b.clicks - a.clicks);
             
-            let html = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+            let html = '<div class="keywords-list-container">';
             
             sortedKeywords.forEach((keyword, index) => {
                 // Color coding based on position
@@ -1897,21 +1749,21 @@
                 }
                 
                 html += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.25rem 0; border-bottom: 1px solid #f3f4f6; font-size: 0.8rem;">
-                        <div style="flex: 1; min-width: 0;">
-                            <span style="font-weight: 500; color: #374151;">${keyword.keyword}</span>
+                    <div class="keyword-item">
+                        <div class="keyword-name">
+                            <span>${keyword.keyword}</span>
                         </div>
-                        <div style="display: flex; gap: 0.75rem; align-items: center; font-size: 0.75rem;">
-                            <span style="color: ${positionColor}; font-weight: 600;">
+                        <div class="keyword-metrics">
+                            <span class="keyword-position" style="color: ${positionColor};">
                                 #${keyword.position.toFixed(1)}
                             </span>
-                            <span style="color: #6b7280;">
+                            <span class="keyword-clicks">
                                 ${keyword.clicks} clicks
                             </span>
-                            <span style="color: #6b7280;">
+                            <span class="keyword-impressions">
                                 ${keyword.impressions.toLocaleString()} imp
                             </span>
-                            <span style="color: #6b7280;">
+                            <span class="keyword-ctr">
                                 ${(keyword.ctr * 100).toFixed(1)}% CTR
                             </span>
                         </div>
@@ -2010,6 +1862,7 @@
         function showWebsiteInfo(metrics) {
             const websiteInfo = document.getElementById('websiteInfo');
             const trackedWebsite = document.getElementById('trackedWebsite');
+            const mobileMenuWebsite = document.getElementById('mobileMenuWebsite');
 
             if (metrics && metrics.website_url) {
                 let displayUrl = metrics.website_url;
@@ -2017,6 +1870,7 @@
                     displayUrl = displayUrl.replace('sc-domain:', '');
                 }
                 trackedWebsite.textContent = displayUrl;
+                mobileMenuWebsite.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-icon"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>${displayUrl}`;
                 websiteInfo.classList.remove('hidden');
             } else {
                 hideWebsiteInfo();
@@ -2025,6 +1879,7 @@
 
         function hideWebsiteInfo() {
             document.getElementById('websiteInfo').classList.add('hidden');
+            document.getElementById('mobileMenuWebsite').textContent = 'No website selected';
         }
 
         function changeWebsite() {
@@ -2078,9 +1933,9 @@
             list.innerHTML = METRIC_GROUPS.map(m => {
                 const state = metricsLoadingState[m.key];
                 if (state === 'done') {
-                    return `<div style="display:flex;align-items:center;gap:0.5rem;color:#16a34a;font-weight:400;"><span style='display:inline-block;width:18px;height:18px;'><svg width='18' height='18'><polyline points='3,10 8,15 15,4' style='fill:none;stroke:#16a34a;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;'/></svg></span>${m.label}</div>`;
+                    return `<div style="display:flex;align-items:center;gap:0.5rem;color:#16a34a;font-weight:400;"><span class="metric-success-icon"><svg width='18' height='18'><polyline points='3,10 8,15 15,4' style='fill:none;stroke:#16a34a;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;'/></svg></span>${m.label}</div>`;
                 } else {
-                    return `<div style="display:flex;align-items:center;gap:0.5rem;color:#D97706;"><span class="metric-loading-spinner" style='display:inline-block;width:18px;height:18px;'><svg width='18' height='18' viewBox='0 0 50 50'><circle cx='25' cy='25' r='20' fill='none' stroke='#D97706' stroke-width='5' stroke-linecap='round' stroke-dasharray='31.4 31.4' stroke-dashoffset='0'><animateTransform attributeName='transform' type='rotate' from='0 25 25' to='360 25 25' dur='0.8s' repeatCount='indefinite'/></circle></svg></span>${m.label}</div>`;
+                    return `<div style="display:flex;align-items:center;gap:0.5rem;color:#D97706;"><span class="metric-loading-spinner"><svg width='18' height='18' viewBox='0 0 50 50'><circle cx='25' cy='25' r='20' fill='none' stroke='#D97706' stroke-width='5' stroke-linecap='round' stroke-dasharray='31.4 31.4' stroke-dashoffset='0'><animateTransform attributeName='transform' type='rotate' from='0 25 25' to='360 25 25' dur='0.8s' repeatCount='indefinite'/></circle></svg></span>${m.label}</div>`;
                 }
             }).join('');
         }
