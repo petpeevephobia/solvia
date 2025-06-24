@@ -1,8 +1,8 @@
 :root {
     --color-primary: #F97316;
     --color-primary-light: #FFF7ED;
-    --color-text-dark: #D97706;
-    --color-text-light: #6B7280;
+    --color-text-dark: #000000;
+    --color-text-light: #000000;
     --color-positive: #10B981;
     --color-negative: #EF4444;
     --background-body: #F9FAFB;
@@ -927,6 +927,15 @@ body {
     border-top-color: var(--color-primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
+}
+
+.analysis-card:focus {
+    box-shadow: none !important;
+    background: inherit !important;
+    transform: none !important;
+    cursor: default !important;
+    border: inherit !important;
+    outline: none !important;
 }
 
 

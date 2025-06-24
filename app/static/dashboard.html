@@ -42,7 +42,7 @@
         }
         #metricsSuccessPopup .timer {
             font-weight: 400;
-            color: #16a34a;
+            color: #D97706;
         }
         #metricsLoadingPopup.metrics-loading-visible,
         #metricsSuccessPopup.metrics-success-visible {
@@ -1014,22 +1014,22 @@
             // Update performance score
             const performanceScore = psiData.performance_score;
             console.log('[DEBUG] Performance score:', performanceScore);
-            document.getElementById('performanceScore').textContent = performanceScore || 'N/A';
+            document.getElementById('performanceScore').textContent = (performanceScore !== undefined && performanceScore !== null) ? performanceScore : 'N/A';
             
             // Update LCP
             const lcpValue = psiData.lcp?.value;
             console.log('[DEBUG] LCP value:', lcpValue);
-            document.getElementById('lcpValue').textContent = lcpValue ? `${lcpValue.toFixed(1)}s` : 'N/A';
+            document.getElementById('lcpValue').textContent = (lcpValue !== undefined && lcpValue !== null) ? `${lcpValue.toFixed(1)}s` : 'N/A';
             
             // Update FCP
             const fcpValue = psiData.fcp?.value;
             console.log('[DEBUG] FCP value:', fcpValue);
-            document.getElementById('fcpValue').textContent = fcpValue ? `${fcpValue.toFixed(1)}s` : 'N/A';
+            document.getElementById('fcpValue').textContent = (fcpValue !== undefined && fcpValue !== null) ? `${fcpValue.toFixed(1)}s` : 'N/A';
             
             // Update CLS
             const clsValue = psiData.cls?.value;
             console.log('[DEBUG] CLS value:', clsValue);
-            document.getElementById('clsValue').textContent = clsValue ? clsValue.toFixed(3) : 'N/A';
+            document.getElementById('clsValue').textContent = (clsValue !== undefined && clsValue !== null) ? Math.round(clsValue) : 'N/A';
             
             // Update status indicator
             const statusIndicator = document.getElementById('uxStatus');
@@ -1460,7 +1460,7 @@
         function showErrorMessage(message) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'error-message';
-            messageDiv.innerHTML = `<strong>❌ ${message}</strong>`;
+            messageDiv.textContent = message;
             messageDiv.style.position = 'fixed';
             messageDiv.style.top = '20px';
             messageDiv.style.right = '20px';
@@ -1470,9 +1470,8 @@
             messageDiv.style.backgroundColor = '#ef4444';
             messageDiv.style.color = 'white';
             messageDiv.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-            
+            messageDiv.style.fontWeight = '400';
             document.body.appendChild(messageDiv);
-            
             setTimeout(() => {
                 if (messageDiv.parentNode) {
                     messageDiv.remove();
@@ -1782,6 +1781,7 @@
                 let secondsLeft = 5;
                 const timerSpan = document.getElementById('metricsSuccessTimer');
                 timerSpan.textContent = `(${secondsLeft}s)`;
+                timerSpan.style.color = '';
                 const interval = setInterval(() => {
                     secondsLeft--;
                     timerSpan.textContent = `(${secondsLeft}s)`;
