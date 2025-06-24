@@ -235,7 +235,7 @@
                         </div>
                     </div>
                     <div class="insights" id="keywordInsights">
-                        <p>Keyword performance trends will be shown</p>
+                        <p>Loading keyword performance insights...</p>
                     </div>
                 </div>
             </div>
@@ -810,7 +810,7 @@
                 document.getElementById('keywordAvgPosition').textContent = 'N/A';
                 document.getElementById('keywordOpportunities').textContent = '0';
                 document.getElementById('brandedKeywords').textContent = '0';
-                document.getElementById('keywordInsights').innerHTML = '<p>Keyword performance trends will be shown</p>';
+                document.getElementById('keywordInsights').innerHTML = '<p>Loading keyword performance insights...</p>';
             }
         }
 
@@ -1149,8 +1149,21 @@
         }
 
         function generateBusinessInsightsFromData(businessData) {
-            const insights = businessData.insights || [];
-            const recommendations = businessData.seo_recommendations || [];
+            // Handle both string and array formats for insights and recommendations
+            let insights = businessData.insights || [];
+            let recommendations = businessData.seo_recommendations || [];
+            
+            // Convert strings to arrays if needed
+            if (typeof insights === 'string') {
+                insights = insights ? [insights] : [];
+            }
+            if (typeof recommendations === 'string') {
+                recommendations = recommendations ? [recommendations] : [];
+            }
+            
+            // Ensure they are arrays
+            if (!Array.isArray(insights)) insights = [];
+            if (!Array.isArray(recommendations)) recommendations = [];
             
             let insightsHtml = '';
             
@@ -1180,8 +1193,9 @@
         }
 
         function generateKeywordInsights(metrics) {
-            // This would be populated with real keyword data
-            document.getElementById('keywordInsights').innerHTML = '<p>Keyword performance insights will be available when keyword data is connected.</p>';
+            // This function is now handled by updateKeywordMetrics when real data is loaded
+            // The insights are generated on the backend and displayed via loadKeywordData()
+            document.getElementById('keywordInsights').innerHTML = '<p>Loading keyword performance insights...</p>';
         }
 
         async function initDashboard() {
@@ -1399,6 +1413,9 @@
                     createChartsWithRealData(metrics);
                     showWebsiteInfo(metrics);
                     showDateRange(metrics);
+                    
+                    // Fetch keyword data
+                    await loadKeywordData();
                 } else {
                     console.log('[DEBUG] Failed to load metrics, showing empty state');
                     updateDashboardMetrics(false);
@@ -1412,6 +1429,65 @@
                 createCharts(false);
                 hideWebsiteInfo();
                 hideDateRange();
+            }
+        }
+
+        async function loadKeywordData() {
+            try {
+                console.log('[DEBUG] Fetching keyword data...');
+                const response = await apiCall('/auth/keyword/metrics');
+                
+                console.log('[DEBUG] Keyword response status:', response.status);
+                console.log('[DEBUG] Keyword response ok:', response.ok);
+                
+                if (response.ok) {
+                    const keywordData = await response.json();
+                    console.log('[DEBUG] Keyword data received:', keywordData);
+                    updateKeywordMetrics(keywordData);
+                } else {
+                    const errorText = await response.text();
+                    console.log('[DEBUG] Failed to load keyword data. Status:', response.status);
+                    console.log('[DEBUG] Error response:', errorText);
+                    // Keep default values
+                }
+            } catch (error) {
+                console.error('Error loading keyword data:', error);
+                console.log('[DEBUG] Exception details:', error.message);
+                // Keep default values
+            }
+        }
+
+        function updateKeywordMetrics(keywordData) {
+            // Update keyword metrics in the dashboard
+            document.getElementById('totalKeywords').textContent = keywordData.total_keywords?.toLocaleString() || '0';
+            document.getElementById('keywordAvgPosition').textContent = keywordData.avg_position?.toFixed(1) || 'N/A';
+            document.getElementById('keywordOpportunities').textContent = keywordData.opportunities?.toLocaleString() || '0';
+            document.getElementById('brandedKeywords').textContent = keywordData.branded_keywords?.toLocaleString() || '0';
+            
+            // Update keyword insights
+            if (keywordData.keyword_insights) {
+                document.getElementById('keywordInsights').innerHTML = `<p>${keywordData.keyword_insights}</p>`;
+            }
+            
+            // Update status indicator based on keyword performance
+            const statusIndicator = document.getElementById('keywordStatus');
+            if (keywordData.total_keywords > 0) {
+                if (keywordData.avg_position <= 3) {
+                    statusIndicator.textContent = 'Excellent';
+                    statusIndicator.className = 'status-indicator good';
+                } else if (keywordData.avg_position <= 10) {
+                    statusIndicator.textContent = 'Good';
+                    statusIndicator.className = 'status-indicator good';
+                } else if (keywordData.avg_position <= 20) {
+                    statusIndicator.textContent = 'Needs Work';
+                    statusIndicator.className = 'status-indicator warning';
+                } else {
+                    statusIndicator.textContent = 'Poor';
+                    statusIndicator.className = 'status-indicator error';
+                }
+            } else {
+                statusIndicator.textContent = 'No Data';
+                statusIndicator.className = 'status-indicator warning';
             }
         }
 

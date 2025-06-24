@@ -46,6 +46,15 @@ class GSCMetricsResponse(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
+class KeywordMetricsResponse(BaseModel):
+    total_keywords: int
+    avg_position: float
+    opportunities: int
+    branded_keywords: int
+    top_keywords: str
+    keyword_insights: str
+    last_updated: str
+
 class DashboardDataResponse(BaseModel):
     user: Optional[UserResponse]
 
@@ -777,6 +786,61 @@ async def get_business_metrics(current_user: str = Depends(get_current_user)):
         raise
     except Exception as e:
         print(f"Error fetching business metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {e}"
+        )
+
+
+@router.get("/keyword/metrics", response_model=KeywordMetricsResponse)
+async def get_keyword_metrics(current_user: str = Depends(get_current_user)):
+    """Fetch keyword performance data for the user's website."""
+    try:
+        print(f"[DEBUG] Keyword metrics endpoint called for user: {current_user}")
+        
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            print(f"[DEBUG] No GSC property selected for user: {current_user}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        print(f"[DEBUG] Fetching keyword data for user '{current_user}' and property '{website_url}'")
+        
+        # Fetch keyword data
+        keyword_data = await gsc_fetcher.fetch_keyword_data(current_user, website_url)
+        
+        print(f"[DEBUG] Keyword data received: {keyword_data}")
+        
+        if not keyword_data:
+            print(f"[DEBUG] No keyword data returned for user: {current_user}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch keyword data."
+            )
+
+        response_data = KeywordMetricsResponse(
+            total_keywords=keyword_data.get('total_keywords', 0),
+            avg_position=keyword_data.get('avg_position', 0.0),
+            opportunities=keyword_data.get('opportunities', 0),
+            branded_keywords=keyword_data.get('branded_keywords', 0),
+            top_keywords=keyword_data.get('top_keywords', ""),
+            keyword_insights=keyword_data.get('keyword_insights', ""),
+            last_updated=datetime.utcnow().isoformat()
+        )
+        
+        print(f"[DEBUG] Returning keyword response: {response_data}")
+        return response_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Error fetching keyword metrics: {e}")
+        print(f"[ERROR] Exception type: {type(e)}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"

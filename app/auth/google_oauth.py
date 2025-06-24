@@ -526,6 +526,219 @@ class GSCDataFetcher:
             print(f"[ERROR] Error getting stored metrics: {e}")
             return None
 
+    async def fetch_keyword_data(self, user_email: str, property_url: str, days: int = 90) -> Dict:
+        """Fetch keyword performance data from Google Search Console."""
+        try:
+            print(f"[DEBUG] fetch_keyword_data called for {property_url}")
+            
+            # Get user's GSC credentials
+            credentials = self.oauth_handler.get_credentials(user_email)
+            if not credentials:
+                print("[ERROR] No GSC credentials found")
+                return {}
+            
+            print(f"[DEBUG] GSC credentials obtained successfully")
+            
+            # Build GSC service
+            service = build('webmasters', 'v3', credentials=credentials)
+            
+            # Calculate date range
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=days)
+            
+            # Request keyword data
+            request = {
+                'startDate': start_date.isoformat(),
+                'endDate': end_date.isoformat(),
+                'dimensions': ['query'],
+                'rowLimit': 5000,  # Get up to 5000 keywords
+                'startRow': 0
+            }
+            
+            print(f"[DEBUG] Keyword data request: {request}")
+            
+            # Execute the request
+            response = service.searchanalytics().query(
+                siteUrl=property_url, 
+                body=request
+            ).execute()
+            
+            print(f"[DEBUG] Keyword data response received")
+            print(f"[DEBUG] Response keys: {response.keys() if response else 'None'}")
+            
+            # Process the keyword data
+            keyword_data = self._process_keyword_data(response, property_url)
+            
+            print(f"[DEBUG] Processed keyword data: {keyword_data}")
+            
+            return keyword_data
+            
+        except Exception as e:
+            print(f"[ERROR] Error fetching keyword data: {e}")
+            import traceback
+            print(f"[ERROR] Traceback: {traceback.format_exc()}")
+            return {}
+
+    def _process_keyword_data(self, response: Dict, property_url: str) -> Dict:
+        """Process raw keyword data into structured format."""
+        try:
+            if not response or 'rows' not in response:
+                print("[DEBUG] No keyword data found in response")
+                return {
+                    'total_keywords': 0,
+                    'avg_position': 0.0,
+                    'opportunities': 0,
+                    'branded_keywords': 0,
+                    'top_keywords': "",
+                    'keyword_insights': "No keyword data available yet. This is normal for new websites."
+                }
+            
+            rows = response['rows']
+            print(f"[DEBUG] Processing {len(rows)} keyword rows")
+            
+            # Extract domain for branded keyword detection
+            from urllib.parse import urlparse
+            parsed = urlparse(property_url)
+            domain = parsed.netloc.replace("www.", "")
+            
+            # Process each keyword
+            total_keywords = len(rows)
+            total_position = 0
+            opportunities = 0
+            branded_keywords = 0
+            keyword_details = []
+            
+            for row in rows:
+                keyword = row['keys'][0]
+                position = row['position']
+                impressions = row['impressions']
+                clicks = row['clicks']
+                ctr = row['ctr']
+                
+                # Calculate total position
+                total_position += position
+                
+                # Check for opportunities (keywords in positions 4-20 with good impressions)
+                if 4 <= position <= 20 and impressions >= 10:
+                    opportunities += 1
+                
+                # Check for branded keywords
+                if self._is_branded_keyword(keyword, domain):
+                    branded_keywords += 1
+                
+                # Store keyword details for top keywords
+                keyword_details.append({
+                    'keyword': keyword,
+                    'position': position,
+                    'impressions': impressions,
+                    'clicks': clicks,
+                    'ctr': ctr
+                })
+            
+            # Calculate average position
+            avg_position = total_position / total_keywords if total_keywords > 0 else 0.0
+            
+            # Get top 5 keywords by clicks
+            top_keywords = sorted(keyword_details, key=lambda x: x['clicks'], reverse=True)[:5]
+            top_keywords_text = "; ".join([kw['keyword'] for kw in top_keywords])
+            
+            # Generate insights
+            keyword_insights = self._generate_keyword_insights(
+                total_keywords, avg_position, opportunities, branded_keywords, top_keywords
+            )
+            
+            return {
+                'total_keywords': total_keywords,
+                'avg_position': round(avg_position, 1),
+                'opportunities': opportunities,
+                'branded_keywords': branded_keywords,
+                'top_keywords': top_keywords_text,
+                'keyword_insights': keyword_insights
+            }
+            
+        except Exception as e:
+            print(f"[ERROR] Error processing keyword data: {e}")
+            return {
+                'total_keywords': 0,
+                'avg_position': 0.0,
+                'opportunities': 0,
+                'branded_keywords': 0,
+                'top_keywords': "",
+                'keyword_insights': f"Error processing keyword data: {str(e)}"
+            }
+
+    def _is_branded_keyword(self, keyword: str, domain: str) -> bool:
+        """Check if a keyword contains the brand/domain name."""
+        try:
+            # Extract brand name from domain (remove TLD)
+            brand_parts = domain.split('.')[0].lower()
+            
+            # Check if keyword contains brand name
+            keyword_lower = keyword.lower()
+            
+            # Common brand indicators
+            brand_indicators = [
+                brand_parts,
+                brand_parts.replace('-', ' '),
+                brand_parts.replace('_', ' '),
+                brand_parts.replace('-', ''),
+                brand_parts.replace('_', '')
+            ]
+            
+            return any(indicator in keyword_lower for indicator in brand_indicators)
+            
+        except Exception as e:
+            print(f"[ERROR] Error checking branded keyword: {e}")
+            return False
+
+    def _generate_keyword_insights(self, total_keywords: int, avg_position: float, 
+                                 opportunities: int, branded_keywords: int, 
+                                 top_keywords: list) -> str:
+        """Generate insights based on keyword performance data."""
+        try:
+            insights = []
+            
+            if total_keywords == 0:
+                return "No keyword data available yet. This is normal for new websites."
+            
+            # Overall keyword portfolio assessment
+            if total_keywords < 10:
+                insights.append("Small keyword portfolio. Focus on expanding content to target more relevant keywords.")
+            elif total_keywords < 100:
+                insights.append("Growing keyword portfolio. Continue creating content around relevant topics.")
+            else:
+                insights.append(f"Strong keyword portfolio with {total_keywords} ranking terms.")
+            
+            # Position analysis
+            if avg_position <= 3:
+                insights.append("Excellent average position. Focus on maintaining rankings and improving CTR.")
+            elif avg_position <= 10:
+                insights.append("Good average position. Opportunities to improve rankings for better visibility.")
+            else:
+                insights.append("Average position needs improvement. Focus on content optimization and backlink building.")
+            
+            # Opportunity analysis
+            if opportunities > 0:
+                insights.append(f"Found {opportunities} high-opportunity keywords in positions 4-20. Prioritize these for optimization.")
+            
+            # Branded keyword analysis
+            branded_percentage = (branded_keywords / total_keywords * 100) if total_keywords > 0 else 0
+            if branded_percentage > 50:
+                insights.append("High percentage of branded keywords. Consider expanding non-branded keyword targeting.")
+            elif branded_percentage < 10:
+                insights.append("Low branded keyword presence. Focus on brand awareness and branded search optimization.")
+            
+            # Top keyword insights
+            if top_keywords:
+                top_keyword = top_keywords[0]['keyword']
+                insights.append(f"Top performing keyword: '{top_keyword}' with {top_keywords[0]['clicks']} clicks.")
+            
+            return " ".join(insights)
+            
+        except Exception as e:
+            print(f"[ERROR] Error generating keyword insights: {e}")
+            return "Keyword performance analysis completed."
+
 class PageSpeedInsightsFetcher:
     """Handles fetching PageSpeed Insights data."""
     
