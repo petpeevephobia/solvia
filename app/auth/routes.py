@@ -46,6 +46,13 @@ class GSCMetricsResponse(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
+class KeywordData(BaseModel):
+    keyword: str
+    position: float
+    impressions: int
+    clicks: int
+    ctr: float
+
 class KeywordMetricsResponse(BaseModel):
     total_keywords: int
     avg_position: float
@@ -53,6 +60,7 @@ class KeywordMetricsResponse(BaseModel):
     branded_keywords: int
     top_keywords: str
     keyword_insights: str
+    keywords_list: list[KeywordData]
     last_updated: str
 
 class DashboardDataResponse(BaseModel):
@@ -808,6 +816,18 @@ async def get_keyword_metrics(current_user: str = Depends(get_current_user)):
                 detail="Failed to fetch keyword data."
             )
         print(f"[INFO] Keyword Trends: Total={keyword_data.get('total_keywords')}, Avg Position={keyword_data.get('avg_position')}, Opportunities={keyword_data.get('opportunities')}, Branded={keyword_data.get('branded_keywords')}")
+        
+        # Convert keyword details to KeywordData objects
+        keywords_list = []
+        for kw in keyword_data.get('keywords_list', []):
+            keywords_list.append(KeywordData(
+                keyword=kw['keyword'],
+                position=kw['position'],
+                impressions=kw['impressions'],
+                clicks=kw['clicks'],
+                ctr=kw['ctr']
+            ))
+        
         return KeywordMetricsResponse(
             total_keywords=keyword_data.get('total_keywords', 0),
             avg_position=keyword_data.get('avg_position', 0.0),
@@ -815,6 +835,7 @@ async def get_keyword_metrics(current_user: str = Depends(get_current_user)):
             branded_keywords=keyword_data.get('branded_keywords', 0),
             top_keywords=keyword_data.get('top_keywords', ""),
             keyword_insights=keyword_data.get('keyword_insights', ""),
+            keywords_list=keywords_list,
             last_updated=datetime.utcnow().isoformat()
         )
     except HTTPException:

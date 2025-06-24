@@ -1089,4 +1089,14 @@ body {
         flex-direction: column;
         gap: 0.5rem;
     }
+}
+
+/* Remove obsolete .charts-section styles for two separate charts if present. Ensure merged chart section is styled like other content cards. */
+#mergedChartsSection {
+    margin-bottom: 2rem;
+}
+#mergedTrendsChart {
+    width: 100% !important;
+    height: 300px !important;
+    display: block;
 } 

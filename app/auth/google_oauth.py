@@ -590,7 +590,8 @@ class GSCDataFetcher:
                     'opportunities': 0,
                     'branded_keywords': 0,
                     'top_keywords': "",
-                    'keyword_insights': "No keyword data available yet. This is normal for new websites."
+                    'keyword_insights': "No keyword data available yet. This is normal for new websites.",
+                    'keywords_list': []
                 }
             
             rows = response['rows']
@@ -653,7 +654,8 @@ class GSCDataFetcher:
                 'opportunities': opportunities,
                 'branded_keywords': branded_keywords,
                 'top_keywords': top_keywords_text,
-                'keyword_insights': keyword_insights
+                'keyword_insights': keyword_insights,
+                'keywords_list': keyword_details
             }
             
         except Exception as e:
@@ -664,7 +666,8 @@ class GSCDataFetcher:
                 'opportunities': 0,
                 'branded_keywords': 0,
                 'top_keywords': "",
-                'keyword_insights': f"Error processing keyword data: {str(e)}"
+                'keyword_insights': f"Error processing keyword data: {str(e)}",
+                'keywords_list': []
             }
 
     def _is_branded_keyword(self, keyword: str, domain: str) -> bool:
@@ -746,7 +749,7 @@ class PageSpeedInsightsFetcher:
         self.api_key = settings.PAGESPEED_API_KEY
         self.base_url = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
     
-    async def fetch_pagespeed_data(self, url: str, strategy: str = "mobile") -> Dict:
+    async def fetch_pagespeed_data(self, url: str, strategy: str = "mobile", raw: bool = False) -> Dict:
         """Fetch PageSpeed Insights data for a given URL."""
         if not self.api_key:
             print("[WARNING] PageSpeed API key not configured")
@@ -770,15 +773,26 @@ class PageSpeedInsightsFetcher:
                 'category': 'performance'
             }
             
-            print(f"[DEBUG] PageSpeed API request params: {params}")
-            
+            import aiohttp
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.base_url, params=params) as response:
                     print(f"[DEBUG] PageSpeed API response status: {response.status}")
                     if response.status == 200:
                         data = await response.json()
                         print(f"[DEBUG] PageSpeed API response received")
-                        return self._process_pagespeed_data(data)
+                        if raw:
+                            return data
+                        # Process and return summary for frontend
+                        lh = data.get("lighthouseResult", {})
+                        audits = lh.get("audits", {})
+                        categories = lh.get("categories", {})
+                        performance = categories.get("performance", {})
+                        return {
+                            "performance_score": round(performance.get("score", 0) * 100),
+                            "lcp": {"value": audits.get("largest-contentful-paint", {}).get("numericValue", 0) / 1000},
+                            "fcp": {"value": audits.get("first-contentful-paint", {}).get("numericValue", 0) / 1000},
+                            "cls": {"value": audits.get("cumulative-layout-shift", {}).get("numericValue", 0)},
+                        }
                     else:
                         error_text = await response.text()
                         print(f"[ERROR] PageSpeed API error: {response.status}")
@@ -875,8 +889,8 @@ class MobileUsabilityFetcher:
             final_url = await self._get_final_url(actual_url)
             print(f"[DEBUG] Final URL for mobile analysis: {final_url}")
             
-            # Get PageSpeed data for mobile performance
-            pagespeed_data = await self.pagespeed_fetcher.fetch_pagespeed_data(final_url, strategy="mobile")
+            # Get PageSpeed data for mobile performance (raw=True)
+            pagespeed_data = await self.pagespeed_fetcher.fetch_pagespeed_data(final_url, strategy="mobile", raw=True)
             
             # Get GSC mobile usability data
             gsc_mobile_data = await self._get_gsc_mobile_data(url, final_url)
@@ -929,6 +943,7 @@ class MobileUsabilityFetcher:
     def _process_mobile_data(self, pagespeed_data: Dict, gsc_mobile_data: Dict) -> Dict:
         """Process PageSpeed and GSC data to extract mobile usability info."""
         try:
+            print("[DEBUG] Raw PageSpeed data:", pagespeed_data)
             if not pagespeed_data:
                 print("[WARNING] No PageSpeed data available for mobile analysis")
                 return self._get_demo_data()
@@ -936,6 +951,7 @@ class MobileUsabilityFetcher:
             # Extract mobile-specific metrics from PageSpeed
             lighthouse_result = pagespeed_data.get('lighthouseResult', {})
             audits = lighthouse_result.get('audits', {})
+            print("[DEBUG] Audits received:", audits)
             
             # Mobile-specific audits
             viewport_audit = audits.get('viewport', {})
@@ -970,6 +986,30 @@ class MobileUsabilityFetcher:
             
             # Performance metrics
             performance_score = pagespeed_data.get('lighthouseResult', {}).get('categories', {}).get('performance', {}).get('score', 0) * 100
+            
+            # If performance score is 0 or very low, and no audit issues, explain why
+            if performance_score < 10 and not mobile_issues:
+                lcp = audits.get('largest-contentful-paint', {})
+                fcp = audits.get('first-contentful-paint', {})
+                cls = audits.get('cumulative-layout-shift', {})
+                reasons = []
+                if not lcp or lcp.get('numericValue') is None:
+                    reasons.append("LCP (Largest Contentful Paint) data missing or failed to load")
+                elif lcp.get('numericValue', 0) > 4000:
+                    reasons.append(f"LCP is very high: {lcp.get('numericValue', 0)/1000:.1f}s (should be <2.5s)")
+                if not fcp or fcp.get('numericValue') is None:
+                    reasons.append("FCP (First Contentful Paint) data missing or failed to load")
+                elif fcp.get('numericValue', 0) > 3000:
+                    reasons.append(f"FCP is very high: {fcp.get('numericValue', 0)/1000:.1f}s (should be <1.8s)")
+                if not cls or cls.get('numericValue') is None:
+                    reasons.append("CLS (Cumulative Layout Shift) data missing or failed to load")
+                elif cls.get('numericValue', 0) > 0.25:
+                    reasons.append(f"CLS is high: {cls.get('numericValue', 0):.2f} (should be <0.1)")
+                if not reasons:
+                    reasons.append("No performance data available—site may be blocking PageSpeed or loading failed.")
+                mobile_issues.extend(reasons)
+            
+            print("[DEBUG] Mobile issues detected:", mobile_issues)
             
             # Determine overall mobile friendliness
             is_mobile_friendly = critical_issues == 0 and performance_score > 50

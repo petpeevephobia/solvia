@@ -74,16 +74,6 @@
 
             <!-- Step 3: Setup Complete -->
             <div class="wizard-step" id="step3">
-                <h2>🎉 Setup Complete!</h2>
-                <p>Your Google Search Console is now connected and we're collecting your SEO data.</p>
-                
-                <div class="success-message">
-                    <strong>What's happening now:</strong>
-                    <p>• We're fetching your latest SEO metrics</p>
-                    <p>• Setting up automated data collection</p>
-                    <p>• Preparing your personalized dashboard</p>
-                </div>
-
                 <div id="setup-progress">
                     <div class="loading" style="margin: 1rem auto; display: block;"></div>
                     <p style="text-align: center;">Setting up your dashboard...</p>
@@ -293,8 +283,8 @@
                 html += `
                     <div class="property-item" onclick="selectPropertyItem(${index})">
                         <input type="radio" name="selectedProperty" value="${index}" id="property-${index}">
-                        <label for="property-${index}">
-                            <strong>${displayUrl}</strong>
+                        <label for="property-${index}" style="font-weight: 400;">
+                            ${displayUrl}
                             <div class="property-status">
                                 ${isVerified} • ${permissionLevel}${propertyType}
                             </div>
@@ -383,13 +373,13 @@
             const progressDiv = document.getElementById('setup-progress');
             progressDiv.innerHTML = `
                 <div class="success-message" style="margin-top: 2rem; text-align: center; display: block;">
-                        <strong>Setup Complete!</strong>
-                        <p>Redirecting you to the dashboard...</p>
+                    <strong>Setup Complete!</strong>
+                    <p>Redirecting you to the dashboard...</p>
                 </div>
             `;
             
             setTimeout(() => {
-            window.location.href = '/dashboard';
+                window.location.href = '/dashboard';
             }, 3000);
         }
 

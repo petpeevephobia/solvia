@@ -73,17 +73,188 @@
         #metricsLoadingList div {
             color: #D97706 !important;
         }
+
+        /* Mobile Menu Styles */
+        .desktop-only {
+            display: block;
+        }
+
+        .mobile-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9998;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .mobile-menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 320px;
+            height: 100vh;
+            background: white;
+            z-index: 9999;
+            transition: right 0.3s ease;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mobile-menu.active {
+            right: 0;
+        }
+
+        .mobile-menu-header {
+            display: flex;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+
+        .mobile-menu-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-right: 1rem;
+        }
+
+        .mobile-menu-user-info {
+            flex: 1;
+        }
+
+        .mobile-menu-email {
+            font-size: 0.9rem;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .mobile-menu-close {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+        }
+
+        .mobile-menu-close:hover {
+            background: #e5e7eb;
+        }
+
+        .mobile-menu-content {
+            flex: 1;
+            padding: 1rem;
+        }
+
+        .mobile-menu-section {
+            margin-bottom: 2rem;
+        }
+
+        .mobile-menu-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: none;
+            border: none;
+            border-radius: 8px;
+            color: #374151;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            text-align: left;
+        }
+
+        .mobile-menu-item:hover {
+            background: #f3f4f6;
+        }
+
+        .mobile-menu-item svg {
+            margin-right: 0.75rem;
+            color: #6b7280;
+        }
+
+        .mobile-menu-item span {
+            font-weight: 500;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .desktop-only {
+                display: none !important;
+            }
+            
+            .user-avatar {
+                cursor: pointer;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-menu,
+            .mobile-menu-overlay {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="dashboard-body">
     <nav class="navbar">
         <div class="navbar-brand">Solvia</div>
         <div class="navbar-user">
-            <div class="user-avatar" id="userAvatar">S</div>
-            <span id="userEmail">user@example.com</span>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <div class="user-avatar" id="userAvatar" onclick="toggleMobileMenu()">S</div>
+            <span id="userEmail" class="desktop-only">user@example.com</span>
+            <button class="logout-btn desktop-only" onclick="logout()">Logout</button>
         </div>
     </nav>
+
+    <!-- Mobile Side Menu -->
+    <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
+    <div id="mobileMenu" class="mobile-menu">
+        <div class="mobile-menu-header">
+            <div class="mobile-menu-avatar" id="mobileMenuAvatar">S</div>
+            <div class="mobile-menu-user-info">
+                <div class="mobile-menu-email" id="mobileMenuEmail">user@example.com</div>
+            </div>
+            <button class="mobile-menu-close" onclick="closeMobileMenu()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="mobile-menu-content">
+            <div class="mobile-menu-section">
+                <button class="mobile-menu-item" onclick="logout()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16,17 21,12 16,7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div class="container dashboard-container">
         <!-- GSC Connection Banner -->
@@ -124,7 +295,7 @@
                 <div class="score-header">
                     <h3>Overall SEO Score</h3>
                     <div class="score-badge" id="seoScore">0</div>
-                </div>
+            </div>
                 <div class="score-change" id="seoScoreChange">+0%</div>
                 <div class="score-description">Based on all metrics</div>
             </div>
@@ -164,8 +335,20 @@
                     <div class="insights" id="visibilityInsights">
                         <p>Connect Google Search Console to see visibility insights</p>
                     </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section" id="mergedChartsSection">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Organic Traffic & Impressions</h2>
+                </div>
+                <div class="card-body">
+                    <canvas id="mergedTrendsChart" height="300"></canvas>
                 </div>
             </div>
+        </div>
 
             <!-- Engagement & UX Performance Section -->
             <div class="analysis-card">
@@ -304,36 +487,20 @@
                     <div class="insights" id="keywordInsights">
                         <p>Loading keyword performance insights...</p>
                     </div>
+                    <div class="keywords-list" id="keywordsList" style="margin-top: 1rem;">
+                        <h4 style="margin-bottom: 0.5rem; color: #374151; font-size: 0.9rem;">Keywords Found:</h4>
+                        <div id="keywordsContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.5rem;">
+                            <p style="color: #6b7280; font-size: 0.85rem; margin: 0;">Loading keywords...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- Charts Section -->
-        <div class="charts-section">
-            <div class="content-card">
-                <div class="card-header">
-                    <h2>Organic Traffic Trends</h2>
-                </div>
-                <div class="card-body">
-                    <canvas id="organicTrafficChart" height="300"></canvas>
-                </div>
-            </div>
-            
-            <div class="content-card">
-                <div class="card-header">
-                    <h2>Impressions Trends</h2>
-                </div>
-                <div class="card-body">
-                    <canvas id="impressionsChart" height="300"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <div id="metricsPopupContainer">
         <div id="metricsSuccessPopup">
             All metrics loaded successfully! <span id="metricsSuccessTimer" class="timer"></span>
-        </div>
+            </div>
         <div id="metricsLoadingPopup">
             <div id="metricsLoadingList"></div>
         </div>
@@ -344,6 +511,15 @@
         let organicTrafficChart = null;
         let impressionsChart = null;
         let isRefreshingToken = false; // Flag to prevent multiple refresh attempts
+        
+        // Global variables for metric data
+        window.metricsData = {
+            summary: {},
+            ux: {},
+            mobile: {},
+            indexing: {},
+            keywords: {}
+        };
         let refreshAttempts = 0; // Track refresh attempts to prevent infinite loops
         const MAX_REFRESH_ATTEMPTS = 3; // Maximum number of refresh attempts
         let lastRefreshTime = 0; // Track when we last attempted a refresh
@@ -352,12 +528,12 @@
         
         const METRIC_GROUPS = [
           { key: 'visibility', label: 'Visibility Performance' },
+          { key: 'organic', label: 'Organic Traffic Trends' },
+          { key: 'impressions', label: 'Impressions Trends' },
           { key: 'ux', label: 'Engagement & UX' },
           { key: 'mobile', label: 'Mobile Usability' },
           { key: 'indexing', label: 'Indexing & Crawlability' },
           { key: 'keywords', label: 'Keyword Trends' },
-          { key: 'organic', label: 'Organic Traffic Trends' },
-          { key: 'impressions', label: 'Impressions Trends' },
         ];
         let metricsLoadingState = {};
         
@@ -508,6 +684,10 @@
                 console.log('[TOKEN DEBUG] Token is valid, updating UI');
                 document.getElementById('userEmail').textContent = userEmail;
                 document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+                
+                // Update mobile menu user info
+                document.getElementById('mobileMenuEmail').textContent = userEmail;
+                document.getElementById('mobileMenuAvatar').textContent = userName.charAt(0).toUpperCase();
             } catch (error) {
                 console.error('[TOKEN DEBUG] Error decoding token:', error);
                 clearInvalidToken();
@@ -755,57 +935,62 @@
             return dates;
         }
 
-        function createCharts(hasGSC = false) {
+        function createMergedTrendsChart(metrics) {
             const rootStyles = getComputedStyle(document.documentElement);
             const primaryColor = rootStyles.getPropertyValue('--color-primary').trim();
-            
-            const dates = generateLast30DaysData();
-            const organicTrafficData = hasGSC ? [10, 15, 12, 18, 22, 25, 20, 23, 28, 33, 30, 35, 38, 40, 37, 42, 45, 48, 50, 47, 52, 55, 58, 60, 57, 62, 65, 68, 70, 72] : new Array(30).fill(0);
-            const impressionsData = hasGSC ? [100, 120, 110, 130, 150, 160, 140, 155, 170, 202, 190, 210, 220, 230, 215, 240, 250, 260, 270, 255, 280, 290, 300, 310, 295, 320, 330, 340, 350, 360] : new Array(30).fill(0);
-            
-            if (organicTrafficChart) organicTrafficChart.destroy();
-            if (impressionsChart) impressionsChart.destroy();
+            const secondaryColor = '#6366F1'; // Indigo for impressions
+            const timeSeries = metrics.time_series || {};
+            const dates = timeSeries.dates || [];
+            const clicksData = timeSeries.clicks || [];
+            const impressionsData = timeSeries.impressions || [];
 
-            const chartOptions = {
+            if (window.mergedTrendsChart && typeof window.mergedTrendsChart.destroy === 'function') {
+                window.mergedTrendsChart.destroy();
+            }
+
+            const ctx = document.getElementById('mergedTrendsChart').getContext('2d');
+            window.mergedTrendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'Clicks',
+                            data: clicksData,
+                            borderColor: primaryColor,
+                            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Impressions',
+                            data: impressionsData,
+                            borderColor: secondaryColor,
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                    plugins: { legend: { display: true } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
                     x: { grid: { display: false }, ticks: {
                         callback: function(value, index, values) {
                             const label = this.getLabelForValue(value);
-                            if (label === 'Day 1' || label === 'Day 10' || label === 'Day 20' || label === 'Day 30') {
+                                if (label === dates[0] || label === dates[Math.floor(dates.length/2)] || label === dates[dates.length-1]) {
                                 return label;
                             }
                             return null;
                         }
                     } }
-                },
-                elements: {
-                    line: {
-                        borderColor: primaryColor,
-                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
                     }
                 }
-            };
-            
-            const organicTrafficCtx = document.getElementById('organicTrafficChart').getContext('2d');
-            organicTrafficChart = new Chart(organicTrafficCtx, {
-                type: 'line',
-                data: { labels: dates, datasets: [{ data: organicTrafficData }] },
-                options: chartOptions
-            });
-
-            const impressionsCtx = document.getElementById('impressionsChart').getContext('2d');
-            impressionsChart = new Chart(impressionsCtx, {
-                type: 'line',
-
-                data: { labels: dates, datasets: [{ data: impressionsData }] },
-                options: chartOptions
             });
         }
 
@@ -907,6 +1092,9 @@
             const summary = metrics.summary || {};
             console.log('[DEBUG] Summary data:', summary);
             
+            // Store summary data globally
+            window.metricsData.summary = summary;
+            
             // Calculate SEO score based on real metrics
             const seoScore = calculateSEOScore(summary);
             const seoScoreChange = '+5%'; // This would need to be calculated from historical data
@@ -978,8 +1166,8 @@
         }
 
         function generateUXInsights(metrics) {
-            // Fetch real PageSpeed data
-            fetchPageSpeedData();
+            // UX insights are now generated when fetchPageSpeedData() is called from loadRealMetrics()
+            document.getElementById('uxInsights').innerHTML = '<p>Loading performance insights...</p>';
         }
 
         async function fetchPageSpeedData() {
@@ -1010,6 +1198,14 @@
 
         function updateUXMetrics(psiData) {
             console.log('[DEBUG] Updating UX metrics with data:', psiData);
+            
+            // Store UX data globally
+            window.metricsData.ux = {
+                performance_score: psiData.performance_score,
+                lcp: psiData.lcp?.value,
+                fcp: psiData.fcp?.value,
+                cls: psiData.cls?.value
+            };
             
             // Update performance score
             const performanceScore = psiData.performance_score;
@@ -1046,6 +1242,9 @@
                 statusIndicator.textContent = 'Poor';
                 statusIndicator.className = 'status-indicator error';
             }
+            
+            // Recalculate overall SEO score
+            recalculateOverallSEOScore();
         }
 
         function generateUXInsightsFromData(psiData) {
@@ -1080,8 +1279,8 @@
         }
 
         function generateMobileInsights(metrics) {
-            // Fetch real mobile data
-            fetchMobileData();
+            // Mobile insights are now generated when fetchMobileData() is called from loadRealMetrics()
+            document.getElementById('mobileInsights').innerHTML = '<p>Loading mobile usability insights...</p>';
         }
 
         async function fetchMobileData() {
@@ -1107,6 +1306,12 @@
         }
 
         function updateMobileMetrics(mobileData) {
+            // Store mobile data globally
+            window.metricsData.mobile = {
+                mobile_friendly: mobileData.mobile_friendly,
+                issues_count: mobileData.issues_count || 0
+            };
+            
             // Update mobile friendly status
             const mobileFriendly = mobileData.mobile_friendly;
             document.getElementById('mobileFriendly').textContent = mobileFriendly || 'N/A';
@@ -1126,16 +1331,38 @@
             
             // Update issues count
             document.getElementById('mobileIssues').textContent = mobileData.issues_count || '0';
+            
+            // Recalculate overall SEO score
+            recalculateOverallSEOScore();
         }
 
         function generateMobileInsightsFromData(mobileData) {
-            const insights = mobileData.insights || 'Mobile usability data unavailable.';
-            document.getElementById('mobileInsights').innerHTML = `<p>${insights}</p>`;
+            const issues = mobileData.issues || [];
+            const performanceScore = mobileData.performance_score !== undefined ? mobileData.performance_score : null;
+            let html = '';
+
+            if (issues.length > 0) {
+                html += '<div><strong>Mobile Usability Issues Detected:</strong><ul style="margin-top: 0.5em;">';
+                issues.forEach(issue => {
+                    html += `<li>${issue}</li>`;
+                });
+                html += '</ul></div>';
+            } else {
+                // Show the positive insight if no issues
+                html += `<p>${mobileData.insights || 'No mobile usability issues detected.'}</p>`;
+            }
+
+            // Always show performance score if available
+            if (performanceScore !== null) {
+                html += `<div style="margin-top: 0.5em;"><strong>Mobile Performance Score:</strong> ${performanceScore}</div>`;
+            }
+
+            document.getElementById('mobileInsights').innerHTML = html;
         }
 
         function generateIndexingInsights(metrics) {
-            // Fetch real indexing data
-            fetchIndexingData();
+            // Indexing insights are now generated when fetchIndexingData() is called from loadRealMetrics()
+            document.getElementById('indexingInsights').innerHTML = '<p>Loading indexing insights...</p>';
         }
 
         async function fetchIndexingData() {
@@ -1165,6 +1392,12 @@
         }
 
         function updateIndexingMetrics(indexingData) {
+            // Store indexing data globally
+            window.metricsData.indexing = {
+                sitemap_status: indexingData.sitemap_status,
+                index_status: indexingData.index_status
+            };
+            
             // Update sitemap status
             const sitemapStatus = indexingData.sitemap_status;
             document.getElementById('sitemapStatus').textContent = sitemapStatus || 'N/A';
@@ -1189,6 +1422,9 @@
                 statusIndicator.textContent = 'Unknown';
                 statusIndicator.className = 'status-indicator';
             }
+            
+            // Recalculate overall SEO score
+            recalculateOverallSEOScore();
         }
 
         function generateIndexingInsightsFromData(indexingData) {
@@ -1202,8 +1438,8 @@
         }
 
         function generateBusinessInsights(metrics) {
-            // Fetch real business context data
-            fetchBusinessData();
+            // Business insights are now generated when fetchBusinessData() is called from loadRealMetrics()
+            document.getElementById('businessInsights').innerHTML = '<p>Loading business context insights...</p>';
         }
 
         async function fetchBusinessData() {
@@ -1302,6 +1538,47 @@
             document.getElementById('keywordInsights').innerHTML = '<p>Loading keyword performance insights...</p>';
         }
 
+        // Mobile Menu Functions
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            const overlay = document.getElementById('mobileMenuOverlay');
+            
+            if (menu.classList.contains('active')) {
+                closeMobileMenu();
+            } else {
+                openMobileMenu();
+            }
+        }
+
+        function openMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            const overlay = document.getElementById('mobileMenuOverlay');
+            
+            menu.classList.add('active');
+            overlay.classList.add('active');
+            
+            // Prevent body scroll when menu is open
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            const overlay = document.getElementById('mobileMenuOverlay');
+            
+            menu.classList.remove('active');
+            overlay.classList.remove('active');
+            
+            // Restore body scroll
+            document.body.style.overflow = '';
+        }
+
+        // Close menu on escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeMobileMenu();
+            }
+        });
+
         async function initDashboard() {
             checkAuth();
             const hasGSC = await checkGSCConnection();
@@ -1313,7 +1590,7 @@
             } else {
                 // Show empty state
                 updateDashboardMetrics(false);
-                createCharts(false);
+                createMergedTrendsChart({});
             }
         }
 
@@ -1488,20 +1765,32 @@
                 if (response.ok) {
                     const metrics = await response.json();
                     updateDashboardMetricsWithRealData(metrics);
-                    createChartsWithRealData(metrics);
+                    createMergedTrendsChart(metrics);
                     showWebsiteInfo(metrics);
                     showDateRange(metrics);
                     setMetricLoadingState('visibility', 'done');
                     setMetricLoadingState('organic', 'done');
                     setMetricLoadingState('impressions', 'done');
-                    // Fetch keyword data
-                    await loadKeywordData();
+                    
+                    // Fetch all other data types in parallel
+                    await Promise.all([
+                        loadKeywordData(),
+                        fetchPageSpeedData(),
+                        fetchMobileData(),
+                        fetchIndexingData(),
+                        fetchBusinessData()
+                    ]);
                 } else {
                     setMetricLoadingState('visibility', 'done');
                     setMetricLoadingState('organic', 'done');
                     setMetricLoadingState('impressions', 'done');
+                    setMetricLoadingState('keywords', 'done');
+                    setMetricLoadingState('ux', 'done');
+                    setMetricLoadingState('mobile', 'done');
+                    setMetricLoadingState('indexing', 'done');
+                    setMetricLoadingState('business', 'done');
                     updateDashboardMetrics(false);
-                    createCharts(false);
+                    createMergedTrendsChart({});
                     hideWebsiteInfo();
                     hideDateRange();
                 }
@@ -1509,8 +1798,13 @@
                 setMetricLoadingState('visibility', 'done');
                 setMetricLoadingState('organic', 'done');
                 setMetricLoadingState('impressions', 'done');
+                setMetricLoadingState('keywords', 'done');
+                setMetricLoadingState('ux', 'done');
+                setMetricLoadingState('mobile', 'done');
+                setMetricLoadingState('indexing', 'done');
+                setMetricLoadingState('business', 'done');
                 updateDashboardMetrics(false);
-                createCharts(false);
+                createMergedTrendsChart({});
                 hideWebsiteInfo();
                 hideDateRange();
             }
@@ -1533,6 +1827,14 @@
         }
 
         function updateKeywordMetrics(keywordData) {
+            // Store keyword data globally
+            window.metricsData.keywords = {
+                total_keywords: keywordData.total_keywords || 0,
+                avg_position: keywordData.avg_position,
+                opportunities: keywordData.opportunities || 0,
+                branded_keywords: keywordData.branded_keywords || 0
+            };
+            
             // Update keyword metrics in the dashboard
             document.getElementById('totalKeywords').textContent = keywordData.total_keywords?.toLocaleString() || '0';
             document.getElementById('keywordAvgPosition').textContent = keywordData.avg_position?.toFixed(1) || 'N/A';
@@ -1543,6 +1845,9 @@
             if (keywordData.keyword_insights) {
                 document.getElementById('keywordInsights').innerHTML = `<p>${keywordData.keyword_insights}</p>`;
             }
+            
+            // Update keywords list
+            updateKeywordsList(keywordData.keywords_list || []);
             
             // Update status indicator based on keyword performance
             const statusIndicator = document.getElementById('keywordStatus');
@@ -1564,60 +1869,71 @@
                 statusIndicator.textContent = 'No Data';
                 statusIndicator.className = 'status-indicator warning';
             }
+            
+            // Recalculate overall SEO score
+            recalculateOverallSEOScore();
         }
 
-        function createChartsWithRealData(metrics) {
-            const rootStyles = getComputedStyle(document.documentElement);
-            const primaryColor = rootStyles.getPropertyValue('--color-primary').trim();
+        function updateKeywordsList(keywordsList) {
+            const container = document.getElementById('keywordsContainer');
             
-            const timeSeries = metrics.time_series;
-            const dates = timeSeries.dates || [];
-            const clicksData = timeSeries.clicks || [];
-            const impressionsData = timeSeries.impressions || [];
+            if (!keywordsList || keywordsList.length === 0) {
+                container.innerHTML = '<p style="color: #6b7280; font-size: 0.85rem; margin: 0;">No keywords found yet.</p>';
+                return;
+            }
             
-            if (organicTrafficChart) organicTrafficChart.destroy();
-            if (impressionsChart) impressionsChart.destroy();
-
-            const chartOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
-                    x: { grid: { display: false }, ticks: {
-                        callback: function(value, index, values) {
-                            const label = this.getLabelForValue(value);
-                            if (label === dates[0] || label === dates[Math.floor(dates.length/2)] || label === dates[dates.length-1]) {
-                                return label;
-                            }
-                            return null;
-                        }
-                    } }
-                },
-                elements: {
-                    line: {
-                        borderColor: primaryColor,
-                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }
+            // Sort keywords by clicks (descending) to show best performing first
+            const sortedKeywords = keywordsList.sort((a, b) => b.clicks - a.clicks);
+            
+            let html = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+            
+            sortedKeywords.forEach((keyword, index) => {
+                // Color coding based on position
+                let positionColor = '#ef4444'; // red for poor positions
+                if (keyword.position <= 3) {
+                    positionColor = '#10b981'; // green for excellent positions
+                } else if (keyword.position <= 10) {
+                    positionColor = '#f59e0b'; // yellow for good positions
                 }
-            };
+                
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.25rem 0; border-bottom: 1px solid #f3f4f6; font-size: 0.8rem;">
+                        <div style="flex: 1; min-width: 0;">
+                            <span style="font-weight: 500; color: #374151;">${keyword.keyword}</span>
+                        </div>
+                        <div style="display: flex; gap: 0.75rem; align-items: center; font-size: 0.75rem;">
+                            <span style="color: ${positionColor}; font-weight: 600;">
+                                #${keyword.position.toFixed(1)}
+                            </span>
+                            <span style="color: #6b7280;">
+                                ${keyword.clicks} clicks
+                            </span>
+                            <span style="color: #6b7280;">
+                                ${keyword.impressions.toLocaleString()} imp
+                            </span>
+                            <span style="color: #6b7280;">
+                                ${(keyword.ctr * 100).toFixed(1)}% CTR
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
             
-            const organicTrafficCtx = document.getElementById('organicTrafficChart').getContext('2d');
-            organicTrafficChart = new Chart(organicTrafficCtx, {
-                type: 'line',
-                data: { labels: dates, datasets: [{ data: clicksData }] },
-                options: chartOptions
-            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
 
-            const impressionsCtx = document.getElementById('impressionsChart').getContext('2d');
-            impressionsChart = new Chart(impressionsCtx, {
-                type: 'line',
-                data: { labels: dates, datasets: [{ data: impressionsData }] },
-                options: chartOptions
-            });
+        function recalculateOverallSEOScore() {
+            const seoScore = calculateSEOScore(
+                window.metricsData.summary,
+                window.metricsData.ux,
+                window.metricsData.mobile,
+                window.metricsData.indexing,
+                window.metricsData.keywords
+            );
+            
+            document.getElementById('seoScore').textContent = seoScore;
+            console.log('[DEBUG] Recalculated SEO score:', seoScore, 'using data:', window.metricsData);
         }
 
         function calculateSEOScore(summary, ux = {}, mobile = {}, indexing = {}, keywords = {}) {
