@@ -362,7 +362,7 @@ class GSCDataFetcher:
             # Calculate start of current month for current period
             current_month_start = current_end_date.replace(day=1)
             current_start_date = current_month_start
-            
+
             # Calculate 30 days ago period (single day for comparison)
             comparison_date = current_end_date - timedelta(days=30)
             
@@ -1266,8 +1266,6 @@ class MobileUsabilityFetcher:
                     else:
                         issue_titles.append(str(issue))
                 return f'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Issues detected: {", ".join(issue_titles)}'
-            else:
-                return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Mobile experience needs improvement'
     
     def _get_demo_data(self) -> Dict:
         """Return empty mobile usability data when real data is not available."""

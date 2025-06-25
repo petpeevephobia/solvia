@@ -379,13 +379,13 @@
             const progressDiv = document.getElementById('setup-progress');
             progressDiv.innerHTML = `
                 <div class="success-message success-message-centered">
-                    <strong>Setup Complete!</strong>
-                    <p>Redirecting you to the dashboard...</p>
+                        <strong>Setup Complete!</strong>
+                        <p>Redirecting you to the dashboard...</p>
                 </div>
             `;
             
             setTimeout(() => {
-                window.location.href = '/dashboard';
+            window.location.href = '/dashboard';
             }, 3000);
         }
 

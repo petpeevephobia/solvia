@@ -299,10 +299,24 @@
                         <div class="metric">
                             <span class="metric-label">Business Type</span>
                             <span class="metric-value" id="businessType">N/A</span>
+                            <span class="metric-change" id="businessTypeChange">No Change</span>
                         </div>
                         <div class="metric">
                             <span class="metric-label">Target Market</span>
                             <span class="metric-value" id="targetMarket">N/A</span>
+                            <span class="metric-change" id="targetMarketChange">No Change</span>
+                        </div>
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Complexity Score</span>
+                            <span class="metric-value" id="businessComplexity">0</span>
+                            <span class="metric-change" id="businessComplexityChange">+0.0</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Service Count</span>
+                            <span class="metric-value" id="serviceCount">0</span>
+                            <span class="metric-change" id="serviceCountChange">+0</span>
                         </div>
                     </div>
                     <div class="insights" id="businessInsights">
@@ -382,7 +396,8 @@
             ux: {},
             mobile: {},
             indexing: {},
-            keywords: {}
+            keywords: {},
+            business: {}
         };
         let refreshAttempts = 0; // Track refresh attempts to prevent infinite loops
         const MAX_REFRESH_ATTEMPTS = 3; // Maximum number of refresh attempts
@@ -397,6 +412,7 @@
           { key: 'ux', label: 'Engagement & UX' },
           { key: 'mobile', label: 'Mobile Usability' },
           { key: 'indexing', label: 'Indexing & Crawlability' },
+          { key: 'business', label: 'Business Context' },
           { key: 'keywords', label: 'Keyword Trends' },
         ];
         let metricsLoadingState = {};
@@ -1041,8 +1057,11 @@
             document.getElementById('avgPositionValue').textContent = summary.avg_position?.toFixed(1) || 'N/A';
             
             // Update change indicators - use backend-provided changes when available
-            updateChangeIndicator('impressionsChange', summary.impressions_change || calculateChange('total_impressions', summary.total_impressions), '', true);
-            updateChangeIndicator('clicksChange', summary.clicks_change || calculateChange('total_clicks', summary.total_clicks), '', true);
+            console.log(`[GROWTH DEBUG] === VISIBILITY PERFORMANCE METRICS ===`);
+            const impressionsChange = summary.impressions_change || calculateChange('total_impressions', summary.total_impressions);
+            const clicksChange = summary.clicks_change || calculateChange('total_clicks', summary.total_clicks);
+            updateChangeIndicator('impressionsChange', impressionsChange, '', true);
+            updateChangeIndicator('clicksChange', clicksChange, '', true);
             updateChangeIndicator('ctrChange', summary.ctr_change, '%', true);
             updateChangeIndicator('avgPositionChange', summary.position_change, '', false);
             
@@ -1057,22 +1076,43 @@
 
         // Store previous values for change calculation
         let previousMetrics = JSON.parse(localStorage.getItem('previousMetrics') || '{}');
+        console.log(`[GROWTH DEBUG] Loaded previous metrics from localStorage:`, previousMetrics);
 
         function calculateChange(metricKey, currentValue) {
-            if (currentValue === undefined || currentValue === null) return 0;
-            
-            const previousValue = previousMetrics[metricKey];
-            if (previousValue === undefined || previousValue === null) {
-                // Store current value for next comparison and return 0 for first time
-                previousMetrics[metricKey] = currentValue;
-                localStorage.setItem('previousMetrics', JSON.stringify(previousMetrics));
+            if (currentValue === undefined || currentValue === null) {
+                console.log(`[GROWTH DEBUG] ${metricKey}: Current value is undefined/null`);
                 return 0;
             }
             
+            const previousValue = previousMetrics[metricKey];
+            if (previousValue === undefined || previousValue === null) {
+                console.log(`[GROWTH DEBUG] ${metricKey}: First data point - Previous: null, Current: ${currentValue}, Change: 0 (first time)`);
+                // Store current value for next comparison and return 0 for first time
+                previousMetrics[metricKey] = currentValue;
+                localStorage.setItem('previousMetrics', JSON.stringify(previousMetrics));
+                console.log(`[GROWTH DEBUG] ${metricKey}: Stored to localStorage for next comparison`);
+                return 0;
+            }
+            
+            // Handle string values (categorical data)
+            if (typeof currentValue === 'string') {
+                const hasChanged = currentValue !== previousValue;
+                const changeValue = hasChanged ? 1 : 0;
+                console.log(`[GROWTH DEBUG] ${metricKey}: String comparison - Previous: "${previousValue}", Current: "${currentValue}", Changed: ${hasChanged}, Change Value: ${changeValue}`);
+                // Update stored value
+                previousMetrics[metricKey] = currentValue;
+                localStorage.setItem('previousMetrics', JSON.stringify(previousMetrics));
+                console.log(`[GROWTH DEBUG] ${metricKey}: Updated localStorage with new string value`);
+                return changeValue;
+            }
+            
+            // Handle numeric values
             const change = currentValue - previousValue;
+            console.log(`[GROWTH DEBUG] ${metricKey}: Numeric calculation - Previous: ${previousValue}, Current: ${currentValue}, Change: ${change}`);
             // Update stored value
             previousMetrics[metricKey] = currentValue;
             localStorage.setItem('previousMetrics', JSON.stringify(previousMetrics));
+            console.log(`[GROWTH DEBUG] ${metricKey}: Updated localStorage with new numeric value`);
             
             return change;
         }
@@ -1080,8 +1120,26 @@
         function updateChangeIndicator(elementId, value, unit = '', higherIsBetter = true) {
             const element = document.getElementById(elementId);
             if (value === undefined || value === null) {
+                console.log(`[GROWTH DEBUG] ${elementId}: Updating indicator with N/A value`);
                 element.textContent = 'N/A';
                 element.className = 'metric-change';
+                return;
+            }
+
+            // Handle categorical changes (business type, target market)
+            if (elementId.includes('businessType') || elementId.includes('targetMarket')) {
+                let class_name = 'metric-change';
+                let displayText = '';
+                if (value === 0) {
+                    class_name += ' neutral';
+                    displayText = 'No Change';
+                } else {
+                    class_name += ' positive'; // Show changes as positive (informational)
+                    displayText = 'Updated';
+                }
+                console.log(`[GROWTH DEBUG] ${elementId}: Categorical indicator - Value: ${value}, Display: "${displayText}", Class: "${class_name}"`);
+                element.className = class_name;
+                element.textContent = displayText;
                 return;
             }
 
@@ -1102,8 +1160,10 @@
             
             const prefix = value > 0 ? '+' : (value < 0 ? '' : '+');
             const formattedValue = unit === '%' ? (value * 100).toFixed(2) : value.toFixed(1);
+            const displayText = `${prefix}${formattedValue}${unit}`;
             
-            element.textContent = `${prefix}${formattedValue}${unit}`;
+            console.log(`[GROWTH DEBUG] ${elementId}: Numeric indicator - Value: ${value}, Unit: "${unit}", Higher is Better: ${higherIsBetter}, Display: "${displayText}", Class: "${class_name}"`);
+            element.textContent = displayText;
         }
 
         function updateSEOScoreChange(change) {
@@ -1194,29 +1254,34 @@
                 cls: psiData.cls?.value
             };
             
+            console.log(`[GROWTH DEBUG] === ENGAGEMENT & UX METRICS ===`);
             // Update performance score
             const performanceScore = psiData.performance_score;
             console.log('[DEBUG] Performance score:', performanceScore);
             document.getElementById('performanceScore').textContent = (performanceScore !== undefined && performanceScore !== null) ? performanceScore : 'N/A';
-            updateChangeIndicator('performanceScoreChange', psiData.performance_score_change || calculateChange('performance_score', performanceScore), '', true);
+            const performanceScoreChange = psiData.performance_score_change || calculateChange('performance_score', performanceScore);
+            updateChangeIndicator('performanceScoreChange', performanceScoreChange, '', true);
             
             // Update LCP
             const lcpValue = psiData.lcp?.value;
             console.log('[DEBUG] LCP value:', lcpValue);
             document.getElementById('lcpValue').textContent = (lcpValue !== undefined && lcpValue !== null) ? `${lcpValue.toFixed(1)}s` : 'N/A';
-            updateChangeIndicator('lcpChange', psiData.lcp_change || calculateChange('lcp_value', lcpValue), 's', false);
+            const lcpChange = psiData.lcp_change || calculateChange('lcp_value', lcpValue);
+            updateChangeIndicator('lcpChange', lcpChange, 's', false);
             
             // Update FCP
             const fcpValue = psiData.fcp?.value;
             console.log('[DEBUG] FCP value:', fcpValue);
             document.getElementById('fcpValue').textContent = (fcpValue !== undefined && fcpValue !== null) ? `${fcpValue.toFixed(1)}s` : 'N/A';
-            updateChangeIndicator('fcpChange', psiData.fcp_change || calculateChange('fcp_value', fcpValue), 's', false);
+            const fcpChange = psiData.fcp_change || calculateChange('fcp_value', fcpValue);
+            updateChangeIndicator('fcpChange', fcpChange, 's', false);
             
             // Update CLS
             const clsValue = psiData.cls?.value;
             console.log('[DEBUG] CLS value:', clsValue);
             document.getElementById('clsValue').textContent = (clsValue !== undefined && clsValue !== null) ? Math.round(clsValue) : 'N/A';
-            updateChangeIndicator('clsChange', psiData.cls_change || calculateChange('cls_value', clsValue), '', false);
+            const clsChange = psiData.cls_change || calculateChange('cls_value', clsValue);
+            updateChangeIndicator('clsChange', clsChange, '', false);
             
             // Update status indicator
             const statusIndicator = document.getElementById('uxStatus');
@@ -1324,7 +1389,9 @@
             // Update issues count
             const issuesCount = mobileData.issues_count || 0;
             document.getElementById('mobileIssues').textContent = issuesCount;
-            updateChangeIndicator('mobileIssuesChange', calculateChange('mobile_issues_count', issuesCount), '', false);
+            console.log(`[GROWTH DEBUG] === MOBILE USABILITY METRICS ===`);
+            const mobileIssuesChange = calculateChange('mobile_issues_count', issuesCount);
+            updateChangeIndicator('mobileIssuesChange', mobileIssuesChange, '', false);
             
             // Recalculate overall SEO score
             recalculateOverallSEOScore();
@@ -1467,6 +1534,14 @@
         }
 
         function updateBusinessMetrics(businessData) {
+            // Store business data globally
+            window.metricsData.business = {
+                business_type: businessData.business_type,
+                target_market: businessData.target_market,
+                business_complexity_score: businessData.business_complexity_score || 0,
+                service_count: businessData.service_count || 0
+            };
+            
             // Update business type
             const businessType = businessData.business_type;
             document.getElementById('businessType').textContent = businessType || 'N/A';
@@ -1475,14 +1550,37 @@
             const targetMarket = businessData.target_market;
             document.getElementById('targetMarket').textContent = targetMarket || 'N/A';
             
-            // Update status indicator color
+            // Update complexity score and service count
+            const complexityScore = businessData.business_complexity_score || 0;
+            const serviceCount = businessData.service_count || 0;
+            document.getElementById('businessComplexity').textContent = complexityScore.toFixed(1);
+            document.getElementById('serviceCount').textContent = serviceCount.toString();
+            
+            // Update change indicators using the same calculation logic as primary indicators
+            console.log(`[GROWTH DEBUG] === BUSINESS CONTEXT METRICS ===`);
+            const businessTypeChange = calculateChange('business_type', businessType);
+            const targetMarketChange = calculateChange('target_market', targetMarket);
+            const businessComplexityChange = calculateChange('business_complexity_score', complexityScore);
+            const serviceCountChange = calculateChange('service_count', serviceCount);
+            updateChangeIndicator('businessTypeChange', businessTypeChange, '', true);
+            updateChangeIndicator('targetMarketChange', targetMarketChange, '', true);
+            updateChangeIndicator('businessComplexityChange', businessComplexityChange, '', true);
+            updateChangeIndicator('serviceCountChange', serviceCountChange, '', true);
+            
+            // Update status indicator color based on complexity score
             const statusIndicator = document.getElementById('businessStatus');
-            if (businessType && businessType !== 'Unknown') {
+            if (complexityScore >= 7) {
+                statusIndicator.textContent = 'Advanced';
+                statusIndicator.className = 'status-indicator good';
+            } else if (complexityScore >= 5) {
                 statusIndicator.textContent = 'Good';
                 statusIndicator.className = 'status-indicator good';
+            } else if (complexityScore >= 3) {
+                statusIndicator.textContent = 'Basic';
+                statusIndicator.className = 'status-indicator warning';
             } else {
-                statusIndicator.textContent = 'Unknown';
-                statusIndicator.className = 'status-indicator';
+                statusIndicator.textContent = 'Limited';
+                statusIndicator.className = 'status-indicator error';
             }
         }
 
@@ -1841,10 +1939,15 @@
             document.getElementById('brandedKeywords').textContent = brandedKeywords.toLocaleString();
             
             // Update change indicators
-            updateChangeIndicator('totalKeywordsChange', calculateChange('total_keywords', totalKeywords), '', true);
-            updateChangeIndicator('keywordAvgPositionChange', calculateChange('keyword_avg_position', avgPosition), '', false);
-            updateChangeIndicator('keywordOpportunitiesChange', calculateChange('keyword_opportunities', opportunities), '', true);
-            updateChangeIndicator('brandedKeywordsChange', calculateChange('branded_keywords', brandedKeywords), '', true);
+            console.log(`[GROWTH DEBUG] === KEYWORD TRENDS METRICS ===`);
+            const totalKeywordsChange = calculateChange('total_keywords', totalKeywords);
+            const keywordAvgPositionChange = calculateChange('keyword_avg_position', avgPosition);
+            const keywordOpportunitiesChange = calculateChange('keyword_opportunities', opportunities);
+            const brandedKeywordsChange = calculateChange('branded_keywords', brandedKeywords);
+            updateChangeIndicator('totalKeywordsChange', totalKeywordsChange, '', true);
+            updateChangeIndicator('keywordAvgPositionChange', keywordAvgPositionChange, '', false);
+            updateChangeIndicator('keywordOpportunitiesChange', keywordOpportunitiesChange, '', true);
+            updateChangeIndicator('brandedKeywordsChange', brandedKeywordsChange, '', true);
             
             // Update keyword insights
             if (keywordData.keyword_insights) {
@@ -1934,7 +2037,8 @@
                 window.metricsData.ux,
                 window.metricsData.mobile,
                 window.metricsData.indexing,
-                window.metricsData.keywords
+                window.metricsData.keywords,
+                window.metricsData.business
             );
             
             // Calculate and update SEO score change (use backend data if available, otherwise fallback to session-based)
@@ -1947,7 +2051,7 @@
             console.log('[DEBUG] Recalculated SEO score:', seoScore, 'change:', seoScoreChange, 'using data:', window.metricsData);
         }
 
-        function calculateSEOScore(summary, ux = {}, mobile = {}, indexing = {}, keywords = {}) {
+        function calculateSEOScore(summary, ux = {}, mobile = {}, indexing = {}, keywords = {}, business = {}) {
             // Define all metrics, their weights, and normalization functions
             const metrics = [
                 // Visibility
@@ -1970,6 +2074,9 @@
                 { key: 'total_keywords', value: keywords.total_keywords, weight: 5, norm: v => Math.min(Math.log10(v + 1) / 4, 1) },
                 { key: 'opportunities', value: keywords.opportunities, weight: 5, norm: v => Math.min(v / 10, 1) },
                 { key: 'branded_keywords', value: (keywords.branded_keywords !== undefined && keywords.total_keywords) ? 1 - Math.min(keywords.branded_keywords / (keywords.total_keywords || 1), 1) : undefined, weight: 5, norm: v => v },
+                // Business Context
+                { key: 'business_complexity_score', value: business.business_complexity_score, weight: 3, norm: v => Math.min(v / 10, 1) },
+                { key: 'service_count', value: business.service_count, weight: 2, norm: v => Math.min(Math.log10(v + 1) / 2, 1) },
             ];
 
             // Filter out missing metrics
