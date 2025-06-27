@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Your Website - Solvia</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="wizard-container">
+            <!-- Header -->
+            <div class="wizard-header">
+                <h1>Select Your Website</h1>
+            </div>
+
+            <!-- Property Selection -->
+            <div class="wizard-step active">
+                <div id="properties-container">
+                    <div class="loading loading-center"></div>
+                    <p class="text-center-margin">Loading your websites...</p>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="skipSelection()">Skip for now</button>
+                    <button id="select-btn" class="btn btn-primary" onclick="selectProperty()" disabled>
+                        <span id="select-btn-text">Select Website</span>
+                        <span id="select-btn-loading" class="loading hidden"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading Step -->
+            <div class="wizard-step" id="loading-step" style="display: none;">
+                <div id="setup-progress">
+                    <div class="loading loading-center-small"></div>
+                    <p class="text-center">Setting up your dashboard...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedProperty = null;
+        let gscProperties = [];
+
+        // Check authentication and load properties on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+            handleOAuthCallback();
+            loadGSCProperties();
+        });
+
+        function checkAuth() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/ui';
+                return false;
+            }
+            return true;
+        }
+
+        function handleOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const oauthSuccess = urlParams.get('oauth_success');
+            const oauthError = urlParams.get('oauth_error');
+            
+            if (oauthError) {
+                showError('Google authorization failed. Please try again.');
+                return;
+            }
+            
+            if (oauthSuccess === 'true') {
+                // Show success message
+                showSuccess('Successfully connected to Google Search Console!');
+            }
+        }
+
+        async function loadGSCProperties() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                
+                if (!token) {
+                    showError('No authentication token found. Please log in again.');
+                    return;
+                }
+                
+                const response = await fetch('/auth/gsc/properties', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    gscProperties = await response.json();
+                    console.log('[DEBUG] GSC properties:', gscProperties);
+                    displayProperties();
+                } else {
+                    const errorText = await response.text();
+                    console.log('[DEBUG] Error response:', errorText);
+                    
+                    // Check if it's a credentials issue
+                    if (response.status === 500 && errorText.includes('credentials')) {
+                        showError('Google Search Console connection issue detected. Please re-authenticate.');
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading GSC properties:', error);
+                showError(`Failed to load your Google Search Console properties: ${error.message}`);
+            }
+        }
+
+        function displayProperties() {
+            const container = document.getElementById('properties-container');
+            
+            if (gscProperties.length === 0) {
+                container.innerHTML = `
+                    <div class="error-message">
+                        <strong>No websites found</strong>
+                        <p>We couldn't find any verified websites in your Google Search Console account.</p>
+                        <p>Please make sure you have:</p>
+                        <ul>
+                            <li>Added your website to Google Search Console</li>
+                            <li>Verified ownership of your website</li>
+                        </ul>
+                        <div class="btn-group" style="margin-top: 1rem;">
+                            <button class="btn btn-primary" onclick="window.location.href='/dashboard'">Continue to Dashboard</button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            gscProperties.forEach((property, index) => {
+                const isVerified = property.isVerified ? 'Verified' : 'Not Verified';
+                const permissionLevel = property.permissionLevel === 'siteOwner' ? 'Owner' : 'User';
+                
+                // Clean up the URL for display
+                let displayUrl = property.siteUrl;
+                let propertyType = '';
+                if (displayUrl.startsWith('sc-domain:')) {
+                    displayUrl = displayUrl.replace('sc-domain:', '');
+                    propertyType = ' • Domain Property';
+                }
+
+                html += `
+                    <div class="property-item" onclick="selectPropertyItem(${index})">
+                        <input type="radio" name="selectedProperty" value="${index}" id="property-${index}">
+                        <label for="property-${index}" class="font-weight-normal">
+                            ${displayUrl}
+                            <div class="property-status">
+                                ${isVerified} • ${permissionLevel}${propertyType}
+                            </div>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function selectPropertyItem(index) {
+            // Update radio button
+            document.querySelectorAll('input[name="selectedProperty"]').forEach(radio => {
+                radio.checked = false;
+            });
+            document.getElementById(`property-${index}`).checked = true;
+            
+            // Update selected property
+            selectedProperty = gscProperties[index];
+            
+            // Enable select button
+            document.getElementById('select-btn').disabled = false;
+            
+            // Update visual selection
+            document.querySelectorAll('.property-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            document.querySelectorAll('.property-item')[index].classList.add('selected');
+        }
+
+        async function selectProperty() {
+            if (!selectedProperty) {
+                showError('Please select a website first.');
+                return;
+            }
+
+            const selectBtn = document.getElementById('select-btn');
+            const selectBtnText = document.getElementById('select-btn-text');
+            const selectBtnLoading = document.getElementById('select-btn-loading');
+            
+            // Set fixed width to prevent resizing
+            const btnWidth = selectBtn.offsetWidth;
+            selectBtn.style.width = `${btnWidth}px`;
+            
+            // Show loading state
+            selectBtn.disabled = true;
+            selectBtnText.style.display = 'none';
+            selectBtnLoading.classList.remove('hidden');
+            
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/auth/gsc/select-property', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        property_url: selectedProperty.siteUrl
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Property selected successfully:', data);
+                    showLoadingStep();
+                    finishSetup();
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to select property');
+                }
+            } catch (error) {
+                console.error('Error selecting property:', error);
+                showError(error.message || 'Failed to select website. Please try again.');
+                
+                // Reset button state
+                selectBtn.disabled = false;
+                selectBtnText.style.display = 'inline';
+                selectBtnLoading.classList.add('hidden');
+                selectBtn.style.width = ''; // Reset width
+            }
+        }
+
+        function showLoadingStep() {
+            // Hide property selection step
+            document.querySelector('.wizard-step.active').style.display = 'none';
+            
+            // Show loading step
+            const loadingStep = document.getElementById('loading-step');
+            loadingStep.style.display = 'block';
+            loadingStep.classList.add('active');
+        }
+
+        function finishSetup() {
+            const progressDiv = document.getElementById('setup-progress');
+            progressDiv.innerHTML = `
+                <div class="success-message success-message-centered">
+                    <strong>Setup Complete!</strong>
+                    <p>Redirecting you to the dashboard...</p>
+                </div>
+            `;
+            
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 2000);
+        }
+
+        function skipSelection() {
+            // Redirect to dashboard without selecting a property
+            window.location.href = '/dashboard';
+        }
+
+        function showError(message) {
+            // Remove any existing error messages
+            const existingErrors = document.querySelectorAll('.error-message');
+            existingErrors.forEach(error => error.remove());
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `<strong>Error:</strong> ${message}`;
+            
+            const container = document.querySelector('.wizard-step.active');
+            container.insertBefore(errorDiv, container.firstChild);
+            
+            // Remove error after 5 seconds
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            // Remove any existing success messages
+            const existingSuccess = document.querySelectorAll('.success-message');
+            existingSuccess.forEach(success => success.remove());
+            
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.style.backgroundColor = '#f0fdf4';
+            successDiv.style.color = '#15803d';
+            successDiv.style.border = '1px solid #bbf7d0';
+            successDiv.style.padding = '12px 16px';
+            successDiv.style.borderRadius = '6px';
+            successDiv.style.marginBottom = '16px';
+            successDiv.innerHTML = `${message}`;
+            
+            const container = document.querySelector('.wizard-step.active');
+            container.insertBefore(successDiv, container.firstChild);
+            
+            // Success message stays on page permanently
+        }
+    </script>
+</body>
+</html> 

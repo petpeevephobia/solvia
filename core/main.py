@@ -1,6 +1,9 @@
 import os
 import sys
 import json
+import time
+import logging
+from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import pandas as pd
 from dotenv import load_dotenv
@@ -12,9 +15,17 @@ from pyairtable import Api
 import pickle
 from urllib.parse import urlparse, quote
 import requests
-from datetime import datetime, timedelta
-from modules.business_analysis import BusinessAnalyzer
-from modules.report_generator import ReportGenerator
+from data_collector import (
+    get_gsc_metrics, 
+    get_psi_metrics, 
+    get_sitemaps_status, 
+    get_mobile_usability_from_psi,
+    get_keyword_performance,
+    get_url_inspection
+)
+from analysis_processor import generate_seo_analysis, get_business_analysis
+from core.modules.business_analysis import BusinessAnalyzer
+from core.modules.report_generator import ReportGenerator
 import openai
 from core.auth_setup import get_gsc_credentials, check_gsc_access, get_gsc_service
 from core.data_collector import (
@@ -719,7 +730,7 @@ def enhance_business_analysis_with_ai(initial_business_data, technical_metrics):
     Returns:
         dict: Enhanced business analysis with AI improvements
     """
-    print(f"\n🤖 Enhancing business analysis with AI...")
+    print(f"\n�� Enhancing business analysis with AI...")
     
     # Load enhancement prompt template
     prompt_file_path = os.path.join(os.path.dirname(__file__), 'prompts', 'business_analysis_enhancement.txt')

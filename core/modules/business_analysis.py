@@ -21,6 +21,12 @@ class BusinessAnalyzer:
         """Complete business intelligence analysis of a website."""
         print(f"\t🔍 Analyzing business intelligence for {url}...")
         
+        # Convert sc-domain: format to proper HTTP URL
+        if url.startswith('sc-domain:'):
+            domain = url.replace('sc-domain:', '')
+            url = f'https://{domain}'
+            print(f"\t\t\tConverted sc-domain to HTTPS URL: {url}")
+        
         # Get website content
         response = self.session.get(url, timeout=15)
         response.raise_for_status()

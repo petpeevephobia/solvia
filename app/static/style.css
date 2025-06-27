@@ -38,7 +38,7 @@ body {
     border: none;
     border-radius: 8px;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.3s ease;
     text-decoration: none;
@@ -119,9 +119,13 @@ body {
 /* === Dashboard Specific === */
 .dashboard-header {
     margin-bottom: 2rem;
+}
+
+.dashboard-title-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 0.5rem;
 }
 
 .dashboard-header h1 {
@@ -517,7 +521,7 @@ body {
     border: none;
     border-radius: 8px;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.3s ease;
 }
@@ -685,7 +689,7 @@ body {
     border: none;
     border-radius: 10px;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -793,12 +797,13 @@ body {
     transform: translateY(-2px);
 }
 .btn-secondary {
-    background: var(--background-body);
-    color: var(--color-text-light);
-    border: 1px solid var(--border-color);
+    background: #6b7280;
+    color: white;
+    border: 1px solid #6b7280;
 }
 .btn-secondary:hover {
-    background: var(--border-color);
+    background: #4b5563;
+    border-color: #4b5563;
 }
 .btn:disabled {
     opacity: 0.6;
@@ -1312,6 +1317,15 @@ body {
     background: #f3f4f6;
 }
 
+.mobile-menu-item.active {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+}
+
+.mobile-menu-item.active svg {
+    color: var(--color-primary);
+}
+
 .mobile-menu-item svg {
     margin-right: 0.75rem;
     color: #6b7280;
@@ -1615,4 +1629,341 @@ body {
     .mobile-menu-overlay {
         display: none !important;
     }
-} 
+}
+
+.dashboard-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #EA580C;
+    transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-primary.btn-disabled {
+    background: #9e9e9e !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.btn-primary.btn-disabled:hover {
+    transform: none !important;
+    background: #9e9e9e !important;
+}
+
+.btn-secondary {
+    background: #6b7280;
+    color: white;
+    border: 1px solid #6b7280;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 400;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.btn-secondary:hover {
+    background: #4b5563;
+    border-color: #4b5563;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(107, 114, 128, 0.3);
+}
+
+.report-info {
+    margin-top: 8px;
+}
+
+.report-info small {
+    color: #666;
+    font-size: 12px;
+}
+
+/* Action Plan Overview at Top */
+.action-plan-overview {
+    margin-bottom: 24px;
+}
+
+.action-plan-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 0;
+}
+
+.metric-box {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.metric-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.metric-box .metric-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 8px;
+    line-height: 1;
+}
+
+.metric-box .metric-label {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+    margin-bottom: 0;
+}
+
+.metric-box.top-priority {
+    border-color: var(--color-primary);
+    background: linear-gradient(135deg, #fef3e2 0%, #fff8f0 100%);
+}
+
+.metric-box.top-priority .metric-value {
+    color: var(--color-primary);
+}
+
+.metric-box .metric-detail {
+    font-size: 12px;
+    color: #374151;
+    margin-top: 8px;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+/* Mobile responsiveness for metric boxes */
+@media (max-width: 768px) {
+    .action-plan-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .metric-box {
+        padding: 16px;
+    }
+    
+    .metric-box .metric-value {
+        font-size: 24px;
+    }
+    
+    .metric-box .metric-label {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .action-plan-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Error Banner Styles */
+.error-banner {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    border: 1px solid #f87171;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(248, 113, 113, 0.15);
+    transition: all 0.3s ease;
+}
+
+.error-banner.hidden {
+    display: none;
+}
+
+.error-banner .banner-content {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    gap: 16px;
+}
+
+.error-banner .banner-icon {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    background: #dc2626;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.error-banner .banner-text {
+    flex: 1;
+}
+
+.error-banner .banner-text h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #991b1b;
+}
+
+.error-banner .banner-text p {
+    margin: 0;
+    font-size: 14px;
+    color: #7f1d1d;
+    line-height: 1.4;
+}
+
+.error-banner .banner-actions {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.error-banner .btn-dismiss,
+.error-banner .btn-retry {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.error-banner .btn-dismiss {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.error-banner .btn-dismiss:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.error-banner .btn-retry {
+    background: #dc2626;
+    color: white;
+}
+
+.error-banner .btn-retry:hover {
+    background: #b91c1c;
+}
+
+@media (max-width: 768px) {
+    .error-banner .banner-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+    }
+    
+    .error-banner .banner-actions {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* === Business Context Visual Hierarchy === */
+.primary-metric {
+    /* Enhanced styling for primary business metrics */
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 16px !important;
+    margin-bottom: 8px;
+}
+
+.primary-metric .metric-label {
+    font-weight: 400;
+    font-size: 14px;
+    color: var(--color-text-dark);
+    margin-bottom: 4px;
+}
+
+.primary-metric .metric-value {
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--color-text-dark);
+}
+
+.primary-metric .metric-change {
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.secondary-metric {
+    /* Subdued styling for secondary business metrics */
+    opacity: 0.75;
+    transition: opacity 0.2s ease;
+}
+
+.secondary-metric:hover {
+    opacity: 1;
+}
+
+.secondary-metric .metric-label {
+    font-size: 12px;
+    color: var(--color-text-dark);
+    font-weight: 400;
+}
+
+.secondary-metric .metric-value {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--color-text-dark);
+}
+
+.secondary-metrics {
+    border-top: 1px solid #E5E7EB;
+    margin-top: 20px;
+    padding-top: 15px;
+}
+
+/* Mobile responsiveness for business metrics */
+@media (max-width: 768px) {
+    .primary-metric {
+        padding: 12px !important;
+        margin-bottom: 6px;
+    }
+    
+    .primary-metric .metric-value {
+        font-size: 16px;
+    }
+    
+    .secondary-metric .metric-value {
+        font-size: 13px;
+    }
+    
+    .secondary-metrics {
+        margin-top: 15px;
+        padding-top: 12px;
+    }
+}

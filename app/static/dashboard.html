@@ -36,6 +36,24 @@
         </div>
         <div class="mobile-menu-content">
             <div class="mobile-menu-section">
+                <div class="mobile-menu-section-title">Navigation</div>
+                <button class="mobile-menu-item active" onclick="closeMobileMenu();">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Dashboard</span>
+                </button>
+                <button class="mobile-menu-item" onclick="window.location.href='/fixes'; closeMobileMenu();">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                    </svg>
+                    <span>SEO Fixes</span>
+                </button>
+            </div>
+            <div class="mobile-menu-section">
                 <div class="mobile-menu-section-title">Website</div>
                 <button class="mobile-menu-item" onclick="changeWebsite(); closeMobileMenu();">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -82,8 +100,13 @@
         </div>
 
         <div class="dashboard-header">
-            <div>
+            <div class="dashboard-title-row">
                 <h1>Your Dashboard</h1>
+                <button onclick="refreshMetrics()" class="btn-refresh" id="refreshBtn" title="Refresh Data">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rotate-cw"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                </button>
+            </div>
+            <div>
                 <div id="dateRangeInfo" class="date-range-info hidden">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                     <span id="dateRange"></span>
@@ -100,9 +123,6 @@
                     <span id="trackedWebsite" class="tracked-website"></span>
                 </div>
             </div>
-            <button onclick="refreshMetrics()" class="btn-refresh" id="refreshBtn" title="Refresh Data">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rotate-cw"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-            </button>
         </div>
 
         <div class="stats-grid">
@@ -266,8 +286,35 @@
                             <span class="metric-value" id="sitemapStatus">N/A</span>
                         </div>
                         <div class="metric">
+                            <span class="metric-label">Sitemap Count</span>
+                            <span class="metric-value" id="sitemapCount">N/A</span>
+                        </div>
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Indexed Pages</span>
+                            <span class="metric-value" id="indexedPages">N/A</span>
+                            <span class="metric-change" id="indexedPagesChange">+0</span>
+                        </div>
+                        <div class="metric">
                             <span class="metric-label">Index Status</span>
                             <span class="metric-value" id="indexStatus">N/A</span>
+                        </div>
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Crawl Errors</span>
+                            <span class="metric-value" id="crawlErrors">N/A</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Crawl Success Rate</span>
+                            <span class="metric-value" id="crawlSuccessRate">N/A</span>
+                        </div>
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Last Crawl</span>
+                            <span class="metric-value" id="lastCrawl">N/A</span>
                         </div>
                     </div>
                     <div class="insights" id="indexingInsights">
@@ -295,30 +342,76 @@
                     <div class="status-indicator" id="businessStatus">Good</div>
                 </div>
                 <div class="card-body">
+                    <!-- Primary Business Metrics (High Priority) -->
                     <div class="metrics-row">
-                        <div class="metric">
+                        <div class="metric primary-metric">
                             <span class="metric-label">Business Type</span>
                             <span class="metric-value" id="businessType">N/A</span>
                             <span class="metric-change" id="businessTypeChange">No Change</span>
                         </div>
-                        <div class="metric">
+                        <div class="metric primary-metric">
                             <span class="metric-label">Target Market</span>
                             <span class="metric-value" id="targetMarket">N/A</span>
                             <span class="metric-change" id="targetMarketChange">No Change</span>
                         </div>
                     </div>
                     <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Complexity Score</span>
-                            <span class="metric-value" id="businessComplexity">0</span>
-                            <span class="metric-change" id="businessComplexityChange">+0.0</span>
+                        <div class="metric primary-metric">
+                            <span class="metric-label">Industry Sector</span>
+                            <span class="metric-value" id="industrySector">N/A</span>
                         </div>
-                        <div class="metric">
-                            <span class="metric-label">Service Count</span>
-                            <span class="metric-value" id="serviceCount">0</span>
-                            <span class="metric-change" id="serviceCountChange">+0</span>
+                        <div class="metric primary-metric">
+                            <span class="metric-label">Company Size</span>
+                            <span class="metric-value" id="companySize">N/A</span>
                         </div>
                     </div>
+                    <div class="metrics-row">
+                        <div class="metric primary-metric" style="width: 50%;">
+                            <span class="metric-label">Primary Age Group</span>
+                            <span class="metric-value" id="primaryAgeGroup">N/A</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Secondary Business Metrics (Lower Priority) -->
+                    <div class="secondary-metrics" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #E5E7EB;">
+                        <div class="metrics-row">
+                            <div class="metric secondary-metric">
+                                <span class="metric-label">Income Level</span>
+                                <span class="metric-value" id="incomeLevel">N/A</span>
+                            </div>
+                            <div class="metric secondary-metric">
+                                <span class="metric-label">Audience Sophistication</span>
+                                <span class="metric-value" id="audienceSophistication">N/A</span>
+                            </div>
+                        </div>
+                        <div class="metrics-row">
+                            <div class="metric secondary-metric">
+                                <span class="metric-label">Geographic Focus</span>
+                                <span class="metric-value" id="geographicFocus">N/A</span>
+                            </div>
+                            <div class="metric secondary-metric">
+                                <span class="metric-label">Business Maturity</span>
+                                <span class="metric-value" id="businessMaturity">N/A</span>
+                            </div>
+                        </div>
+                        <div class="metrics-row">
+                            <div class="metric secondary-metric">
+                                <span class="metric-label">Technology Platform</span>
+                                <span class="metric-value" id="technologyPlatform">N/A</span>
+                            </div>
+                            <div class="metric secondary-metric">
+                                <span class="metric-label">Content Strategy</span>
+                                <span class="metric-value" id="contentStrategy">N/A</span>
+                            </div>
+                        </div>
+                        <div class="metrics-row">
+                            <div class="metric secondary-metric" style="width: 50%;">
+                                <span class="metric-label">Competitive Position</span>
+                                <span class="metric-value" id="competitivePosition">N/A</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="insights" id="businessInsights">
                         <p>Business analysis will provide context</p>
                     </div>
@@ -505,7 +598,7 @@
                     isRedirecting = true;
                 window.location.href = '/ui';
                 }
-                return;
+                return false;
             }
 
             // First, validate token format
@@ -513,7 +606,7 @@
             if (!isValidTokenFormat(token)) {
                 console.log('[TOKEN DEBUG] Invalid token format detected, clearing token');
                 clearInvalidToken();
-                return;
+                return false;
             }
 
             try {
@@ -545,7 +638,7 @@
                             isRedirecting = true;
                             window.location.href = '/ui';
                         }
-                        return;
+                        return false;
                     }
                     
                     if (!isRefreshingToken && refreshAttempts < MAX_REFRESH_ATTEMPTS) {
@@ -558,7 +651,7 @@
                             window.location.href = '/ui';
                         }
                     }
-                    return;
+                    return false;
                 }
                 
                 console.log('[TOKEN DEBUG] Token is valid, updating UI');
@@ -568,9 +661,12 @@
                 // Update mobile menu user info
                 document.getElementById('mobileMenuEmail').textContent = userEmail;
                 document.getElementById('mobileMenuAvatar').textContent = userName.charAt(0).toUpperCase();
+                
+                return true; // Authentication successful
             } catch (error) {
                 console.error('[TOKEN DEBUG] Error decoding token:', error);
                 clearInvalidToken();
+                return false; // Authentication failed
             }
         }
 
@@ -816,6 +912,9 @@
         }
 
         function createMergedTrendsChart(metrics) {
+            console.log('[DEBUG] === STARTING createMergedTrendsChart ===');
+            console.log('[DEBUG] Metrics for chart:', JSON.stringify(metrics, null, 2));
+            
             const rootStyles = getComputedStyle(document.documentElement);
             const primaryColor = rootStyles.getPropertyValue('--color-primary').trim();
             const secondaryColor = '#6366F1'; // Indigo for impressions
@@ -823,6 +922,13 @@
             const dates = timeSeries.dates || [];
             const clicksData = timeSeries.clicks || [];
             const impressionsData = timeSeries.impressions || [];
+
+            console.log('[DEBUG] Chart data extracted:');
+            console.log('- dates:', dates);
+            console.log('- clicksData:', clicksData);
+            console.log('- impressionsData:', impressionsData);
+            console.log('- primaryColor:', primaryColor);
+            console.log('- secondaryColor:', secondaryColor);
 
             // Generate complete month dates including future dates with zero values
             let completeDates = [];
@@ -970,13 +1076,28 @@
                 document.getElementById('mobileInsights').innerHTML = '<p>Mobile-friendly with no issues detected. Good user experience across devices.</p>';
 
                 // Update indexing & crawlability
-                document.getElementById('sitemapStatus').textContent = 'Healthy';
+                document.getElementById('sitemapStatus').textContent = 'Active';
+                document.getElementById('sitemapCount').textContent = '2';
+                document.getElementById('indexedPages').textContent = '127';
                 document.getElementById('indexStatus').textContent = 'Good';
+                document.getElementById('crawlErrors').textContent = '0';
+                document.getElementById('crawlSuccessRate').textContent = '95%';
+                document.getElementById('lastCrawl').textContent = '2024-01-15';
                 document.getElementById('indexingInsights').innerHTML = '<p>Sitemap is properly configured and indexed. No crawl issues detected.</p>';
 
                 // Update business context
                 document.getElementById('businessType').textContent = 'SaaS';
                 document.getElementById('targetMarket').textContent = 'B2B';
+                document.getElementById('industrySector').textContent = 'Technology';
+                document.getElementById('companySize').textContent = 'Startup';
+                document.getElementById('primaryAgeGroup').textContent = '25-44';
+                document.getElementById('incomeLevel').textContent = 'Premium';
+                document.getElementById('audienceSophistication').textContent = 'Expert';
+                document.getElementById('geographicFocus').textContent = 'Global';
+                document.getElementById('businessMaturity').textContent = 'Growth';
+                document.getElementById('technologyPlatform').textContent = 'Advanced';
+                document.getElementById('contentStrategy').textContent = 'Comprehensive';
+                document.getElementById('competitivePosition').textContent = 'Leader';
                 document.getElementById('businessInsights').innerHTML = '<p>B2B SaaS business with technical audience. Focus on educational content and case studies.</p>';
 
                 // Update keyword trends
@@ -1014,12 +1135,27 @@
 
                 // Reset indexing & crawlability
                 document.getElementById('sitemapStatus').textContent = 'N/A';
+                document.getElementById('sitemapCount').textContent = 'N/A';
+                document.getElementById('indexedPages').textContent = 'N/A';
                 document.getElementById('indexStatus').textContent = 'N/A';
+                document.getElementById('crawlErrors').textContent = 'N/A';
+                document.getElementById('crawlSuccessRate').textContent = 'N/A';
+                document.getElementById('lastCrawl').textContent = 'N/A';
                 document.getElementById('indexingInsights').innerHTML = '<p>Indexing health will be analyzed</p>';
 
                 // Reset business context
                 document.getElementById('businessType').textContent = 'N/A';
                 document.getElementById('targetMarket').textContent = 'N/A';
+                document.getElementById('industrySector').textContent = 'N/A';
+                document.getElementById('companySize').textContent = 'N/A';
+                document.getElementById('primaryAgeGroup').textContent = 'N/A';
+                document.getElementById('incomeLevel').textContent = 'N/A';
+                document.getElementById('audienceSophistication').textContent = 'N/A';
+                document.getElementById('geographicFocus').textContent = 'N/A';
+                document.getElementById('businessMaturity').textContent = 'N/A';
+                document.getElementById('technologyPlatform').textContent = 'N/A';
+                document.getElementById('contentStrategy').textContent = 'N/A';
+                document.getElementById('competitivePosition').textContent = 'N/A';
                 document.getElementById('businessInsights').innerHTML = '<p>Business analysis will provide context</p>';
 
                 // Reset keyword trends
@@ -1031,90 +1167,194 @@
             }
         }
 
+        function showErrorMessage(message) {
+            // Create or update error banner
+            let errorBanner = document.getElementById('errorBanner');
+            if (!errorBanner) {
+                errorBanner = document.createElement('div');
+                errorBanner.id = 'errorBanner';
+                errorBanner.className = 'error-banner';
+                errorBanner.innerHTML = `
+                    <div class="banner-content">
+                        <div class="banner-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="banner-text">
+                            <h3>Data Loading Error</h3>
+                            <p id="errorMessage">${message}</p>
+                        </div>
+                        <div class="banner-actions">
+                            <button onclick="hideErrorMessage()" class="btn-dismiss">Dismiss</button>
+                            <button onclick="location.reload()" class="btn-retry">Retry</button>
+                        </div>
+                    </div>
+                `;
+                
+                // Insert after GSC banner
+                const gscBanner = document.getElementById('gscBanner');
+                if (gscBanner && gscBanner.nextSibling) {
+                    gscBanner.parentNode.insertBefore(errorBanner, gscBanner.nextSibling);
+                } else {
+                    document.querySelector('.dashboard-container').insertBefore(errorBanner, document.querySelector('.dashboard-header'));
+                }
+            } else {
+                document.getElementById('errorMessage').textContent = message;
+            }
+            
+            errorBanner.classList.remove('hidden');
+        }
+
+        function hideErrorMessage() {
+            const errorBanner = document.getElementById('errorBanner');
+            if (errorBanner) {
+                errorBanner.classList.add('hidden');
+            }
+        }
+
         function updateDashboardMetricsWithRealData(metrics) {
-            console.log('[DEBUG] Updating dashboard with real data:', metrics);
+            console.log('[DEBUG] === STARTING updateDashboardMetricsWithRealData ===');
+            console.log('[DEBUG] Full metrics object received:', JSON.stringify(metrics, null, 2));
+            
+            // Validate input data
+            if (!metrics) {
+                console.error('[ERROR] No metrics data provided to updateDashboardMetricsWithRealData');
+                return;
+            }
             
             const summary = metrics.summary || {};
-            console.log('[DEBUG] Summary data:', summary);
+            console.log('[DEBUG] Extracted summary data:', JSON.stringify(summary, null, 2));
+            
+            // Validate summary data structure
+            if (Object.keys(summary).length === 0) {
+                console.warn('[WARNING] Empty summary data received');
+            }
             
             // Store summary data globally
+            window.metricsData = window.metricsData || {};
             window.metricsData.summary = summary;
+            console.log('[DEBUG] Stored in window.metricsData.summary:', window.metricsData.summary);
             
-            // Calculate SEO score based on real metrics
-            const seoScore = calculateSEOScore(summary);
+            // Extract individual values with detailed logging
+            const impressionsValue = summary.total_impressions;
+            const clicksValue = summary.total_clicks;
+            const ctrValue = summary.avg_ctr;
+            const positionValue = summary.avg_position;
             
-            // Calculate SEO score change (use backend data if available, otherwise fallback to session-based)
-            const seoScoreChange = summary.seo_score_change !== undefined ? summary.seo_score_change : calculateChange('seo_score', seoScore);
+            console.log('[DEBUG] Extracted values:');
+            console.log('- impressionsValue:', impressionsValue, typeof impressionsValue);
+            console.log('- clicksValue:', clicksValue, typeof clicksValue);
+            console.log('- ctrValue:', ctrValue, typeof ctrValue);
+            console.log('- positionValue:', positionValue, typeof positionValue);
             
-            // Update overall score
-            document.getElementById('seoScore').textContent = seoScore;
+            // Calculate SEO score based on real metrics with fallback
+            let seoScore = 0;
+            try {
+                seoScore = calculateSEOScore(summary);
+                console.log('[DEBUG] Calculated SEO Score:', seoScore);
+                if (isNaN(seoScore) || seoScore < 0 || seoScore > 100) {
+                    console.warn('[WARNING] Invalid SEO score calculated:', seoScore, 'using fallback');
+                    seoScore = 0;
+                }
+            } catch (error) {
+                console.error('[ERROR] Failed to calculate SEO score:', error);
+                seoScore = 0;
+            }
+            
+            // Calculate SEO score change using backend-provided 30-day comparison
+            const seoScoreChange = summary.seo_score_change !== undefined ? summary.seo_score_change : 0;
+            console.log(`[DEBUG] SEO Score: Current=${seoScore}, 30-day change=${seoScoreChange}`);
+            
+            // Update overall score with validation
+            console.log('[DEBUG] Updating seoScore element...');
+            const seoScoreElement = document.getElementById('seoScore');
+            if (seoScoreElement) {
+                console.log('[DEBUG] Found seoScore element, setting to:', seoScore);
+                seoScoreElement.textContent = seoScore;
+                console.log('[DEBUG] seoScore element updated, current text:', seoScoreElement.textContent);
+            } else {
+                console.error('[ERROR] seoScore element not found');
+            }
             updateSEOScoreChange(seoScoreChange);
 
-            // Update visibility performance with real data
-            document.getElementById('impressionsValue').textContent = summary.total_impressions?.toLocaleString() || '0';
-            document.getElementById('clicksValue').textContent = summary.total_clicks?.toLocaleString() || '0';
-            document.getElementById('ctrValue').textContent = summary.avg_ctr ? `${(summary.avg_ctr * 100).toFixed(2)}%` : '0%';
-            document.getElementById('avgPositionValue').textContent = summary.avg_position?.toFixed(1) || 'N/A';
+            // Safely update DOM elements with extensive logging
+            console.log('[DEBUG] Preparing to update visibility metrics...');
+            const elements = {
+                'impressionsValue': (impressionsValue || 0).toLocaleString(),
+                'clicksValue': (clicksValue || 0).toLocaleString(),
+                'ctrValue': `${((ctrValue || 0) * 100).toFixed(2)}%`,
+                'avgPositionValue': positionValue > 0 ? positionValue.toFixed(1) : 'N/A'
+            };
             
-            // Update change indicators - use backend-provided changes when available
-            console.log(`[GROWTH DEBUG] === VISIBILITY PERFORMANCE METRICS ===`);
-            const impressionsChange = summary.impressions_change || calculateChange('total_impressions', summary.total_impressions);
-            const clicksChange = summary.clicks_change || calculateChange('total_clicks', summary.total_clicks);
+            console.log('[DEBUG] Element values to set:', elements);
+            
+            Object.entries(elements).forEach(([id, value]) => {
+                console.log(`[DEBUG] Updating element ${id} with value:`, value);
+                const element = document.getElementById(id);
+                if (element) {
+                    console.log(`[DEBUG] Found element ${id}, current text:`, element.textContent);
+                    element.textContent = value;
+                    console.log(`[DEBUG] Updated element ${id}, new text:`, element.textContent);
+                } else {
+                    console.error(`[ERROR] Element not found: ${id}`);
+                }
+            });
+            
+            // Also check if the elements are visible
+            console.log('[DEBUG] Checking element visibility...');
+            Object.keys(elements).forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    const style = window.getComputedStyle(element);
+                    console.log(`[DEBUG] Element ${id} visibility - display: ${style.display}, visibility: ${style.visibility}, opacity: ${style.opacity}`);
+                }
+            });
+            
+            // Update change indicators - all use backend-provided 30-day comparisons
+            console.log(`[DEBUG] === UPDATING CHANGE INDICATORS ===`);
+            const impressionsChange = summary.impressions_change !== undefined ? summary.impressions_change : 0;
+            const clicksChange = summary.clicks_change !== undefined ? summary.clicks_change : 0;
+            const ctrChange = summary.ctr_change !== undefined ? summary.ctr_change : 0;
+            const positionChange = summary.position_change !== undefined ? summary.position_change : 0;
+            
+            console.log(`[DEBUG] Change values:`);
+            console.log(`- Impressions: Current=${impressionsValue}, 30-day change=${impressionsChange}`);
+            console.log(`- Clicks: Current=${clicksValue}, 30-day change=${clicksChange}`);
+            console.log(`- CTR: Current=${ctrValue}, 30-day change=${ctrChange}`);
+            console.log(`- Position: Current=${positionValue}, 30-day change=${positionChange}`);
+            
             updateChangeIndicator('impressionsChange', impressionsChange, '', true);
             updateChangeIndicator('clicksChange', clicksChange, '', true);
-            updateChangeIndicator('ctrChange', summary.ctr_change, '%', true);
-            updateChangeIndicator('avgPositionChange', summary.position_change, '', false);
+            updateChangeIndicator('ctrChange', ctrChange, '%', true);
+            updateChangeIndicator('avgPositionChange', positionChange, '', false);
             
             // Generate insights based on real data
+            try {
+                console.log('[DEBUG] Generating insights...');
             generateVisibilityInsights(summary);
             generateUXInsights(metrics);
             generateMobileInsights(metrics);
             generateIndexingInsights(metrics);
             generateBusinessInsights(metrics);
             generateKeywordInsights(metrics);
+            } catch (error) {
+                console.error('[ERROR] Failed to generate insights:', error);
+            }
+            
+            console.log('[DEBUG] === COMPLETED updateDashboardMetricsWithRealData ===');
         }
 
-        // Store previous values for change calculation
-        let previousMetrics = JSON.parse(localStorage.getItem('previousMetrics') || '{}');
-        console.log(`[GROWTH DEBUG] Loaded previous metrics from localStorage:`, previousMetrics);
+        // 30-day comparison is now handled by the backend
+        // All growth indicators compare today's data vs exactly 30 days ago
+        console.log(`[GROWTH DEBUG] Using backend-provided 30-day comparisons`);
 
         function calculateChange(metricKey, currentValue) {
-            if (currentValue === undefined || currentValue === null) {
-                console.log(`[GROWTH DEBUG] ${metricKey}: Current value is undefined/null`);
-                return 0;
-            }
-            
-            const previousValue = previousMetrics[metricKey];
-            if (previousValue === undefined || previousValue === null) {
-                console.log(`[GROWTH DEBUG] ${metricKey}: First data point - Previous: null, Current: ${currentValue}, Change: 0 (first time)`);
-                // Store current value for next comparison and return 0 for first time
-                previousMetrics[metricKey] = currentValue;
-                localStorage.setItem('previousMetrics', JSON.stringify(previousMetrics));
-                console.log(`[GROWTH DEBUG] ${metricKey}: Stored to localStorage for next comparison`);
-                return 0;
-            }
-            
-            // Handle string values (categorical data)
-            if (typeof currentValue === 'string') {
-                const hasChanged = currentValue !== previousValue;
-                const changeValue = hasChanged ? 1 : 0;
-                console.log(`[GROWTH DEBUG] ${metricKey}: String comparison - Previous: "${previousValue}", Current: "${currentValue}", Changed: ${hasChanged}, Change Value: ${changeValue}`);
-                // Update stored value
-                previousMetrics[metricKey] = currentValue;
-                localStorage.setItem('previousMetrics', JSON.stringify(previousMetrics));
-                console.log(`[GROWTH DEBUG] ${metricKey}: Updated localStorage with new string value`);
-                return changeValue;
-            }
-            
-            // Handle numeric values
-            const change = currentValue - previousValue;
-            console.log(`[GROWTH DEBUG] ${metricKey}: Numeric calculation - Previous: ${previousValue}, Current: ${currentValue}, Change: ${change}`);
-            // Update stored value
-            previousMetrics[metricKey] = currentValue;
-            localStorage.setItem('previousMetrics', JSON.stringify(previousMetrics));
-            console.log(`[GROWTH DEBUG] ${metricKey}: Updated localStorage with new numeric value`);
-            
-            return change;
+            // This function is now only used as a fallback when backend doesn't provide comparison data
+            console.log(`[GROWTH DEBUG] ${metricKey}: Using fallback calculation (backend comparison not available)`);
+            return 0; // Default to no change when backend comparison is unavailable
         }
 
         function updateChangeIndicator(elementId, value, unit = '', higherIsBetter = true) {
@@ -1122,7 +1362,17 @@
             if (value === undefined || value === null) {
                 console.log(`[GROWTH DEBUG] ${elementId}: Updating indicator with N/A value`);
                 element.textContent = 'N/A';
-                element.className = 'metric-change';
+                element.className = 'metric-change neutral';
+                element.style.color = '#6B7280'; // Grey for N/A
+                return;
+            }
+
+            // Handle loading state
+            if (value === 'loading' || value === '...') {
+                console.log(`[GROWTH DEBUG] ${elementId}: Updating indicator with loading state`);
+                element.textContent = '...';
+                element.className = 'metric-change neutral';
+                element.style.color = '#6B7280'; // Grey for loading
                 return;
             }
 
@@ -1133,9 +1383,11 @@
                 if (value === 0) {
                     class_name += ' neutral';
                     displayText = 'No Change';
+                    element.style.color = '#6B7280'; // Grey for no change
                 } else {
                     class_name += ' positive'; // Show changes as positive (informational)
                     displayText = 'Updated';
+                    element.style.color = ''; // Reset to CSS default
                 }
                 console.log(`[GROWTH DEBUG] ${elementId}: Categorical indicator - Value: ${value}, Display: "${displayText}", Class: "${class_name}"`);
                 element.className = class_name;
@@ -1145,22 +1397,31 @@
 
             const isPositive = higherIsBetter ? value > 0 : value < 0;
             const isNegative = higherIsBetter ? value < 0 : value > 0;
-            const isZero = value === 0;
+            const isZero = value === 0 || Math.abs(value) < 0.001; // Consider very small values as zero
             
             let class_name = 'metric-change';
             if (isZero) {
                 class_name += ' neutral';
+                element.style.color = '#6B7280'; // Grey for zero/no change
             } else if (isPositive) {
                 class_name += ' positive';
+                element.style.color = ''; // Reset to CSS default
             } else if (isNegative) {
                 class_name += ' negative';
+                element.style.color = ''; // Reset to CSS default
             }
 
             element.className = class_name;
             
-            const prefix = value > 0 ? '+' : (value < 0 ? '' : '+');
+            // Format the display value
+            let displayText;
+            if (isZero) {
+                displayText = unit === '%' ? '0%' : '0';
+            } else {
+                const prefix = value > 0 ? '+' : '';
             const formattedValue = unit === '%' ? (value * 100).toFixed(2) : value.toFixed(1);
-            const displayText = `${prefix}${formattedValue}${unit}`;
+                displayText = `${prefix}${formattedValue}${unit}`;
+            }
             
             console.log(`[GROWTH DEBUG] ${elementId}: Numeric indicator - Value: ${value}, Unit: "${unit}", Higher is Better: ${higherIsBetter}, Display: "${displayText}", Class: "${class_name}"`);
             element.textContent = displayText;
@@ -1176,7 +1437,7 @@
 
             const isPositive = change > 0;
             const isNegative = change < 0;
-            const isZero = change === 0;
+            const isZero = change === 0 || Math.abs(change) < 0.001; // Consider very small values as zero
             
             let class_name = 'score-change';
             if (isZero) {
@@ -1192,8 +1453,15 @@
 
             element.className = class_name;
             
-            const prefix = change > 0 ? '+' : (change < 0 ? '' : '+');
-            element.textContent = `${prefix}${change}`;
+            // Format the display value
+            let displayText;
+            if (isZero) {
+                displayText = '0';
+            } else {
+                const prefix = change > 0 ? '+' : '';
+                displayText = `${prefix}${change}`;
+            }
+            element.textContent = displayText;
         }
 
         function generateVisibilityInsights(summary) {
@@ -1255,32 +1523,36 @@
             };
             
             console.log(`[GROWTH DEBUG] === ENGAGEMENT & UX METRICS ===`);
-            // Update performance score
+            // Update performance score with 30-day comparison
             const performanceScore = psiData.performance_score;
             console.log('[DEBUG] Performance score:', performanceScore);
             document.getElementById('performanceScore').textContent = (performanceScore !== undefined && performanceScore !== null) ? performanceScore : 'N/A';
-            const performanceScoreChange = psiData.performance_score_change || calculateChange('performance_score', performanceScore);
+            const performanceScoreChange = psiData.performance_score_change !== undefined ? psiData.performance_score_change : calculateChange('performance_score', performanceScore);
+            console.log(`[GROWTH DEBUG] Performance Score: Current=${performanceScore}, 30-day change=${performanceScoreChange}`);
             updateChangeIndicator('performanceScoreChange', performanceScoreChange, '', true);
             
-            // Update LCP
+            // Update LCP with 30-day comparison
             const lcpValue = psiData.lcp?.value;
             console.log('[DEBUG] LCP value:', lcpValue);
             document.getElementById('lcpValue').textContent = (lcpValue !== undefined && lcpValue !== null) ? `${lcpValue.toFixed(1)}s` : 'N/A';
-            const lcpChange = psiData.lcp_change || calculateChange('lcp_value', lcpValue);
+            const lcpChange = psiData.lcp_change !== undefined ? psiData.lcp_change : calculateChange('lcp_value', lcpValue);
+            console.log(`[GROWTH DEBUG] LCP: Current=${lcpValue}s, 30-day change=${lcpChange}s`);
             updateChangeIndicator('lcpChange', lcpChange, 's', false);
             
-            // Update FCP
+            // Update FCP with 30-day comparison
             const fcpValue = psiData.fcp?.value;
             console.log('[DEBUG] FCP value:', fcpValue);
             document.getElementById('fcpValue').textContent = (fcpValue !== undefined && fcpValue !== null) ? `${fcpValue.toFixed(1)}s` : 'N/A';
-            const fcpChange = psiData.fcp_change || calculateChange('fcp_value', fcpValue);
+            const fcpChange = psiData.fcp_change !== undefined ? psiData.fcp_change : calculateChange('fcp_value', fcpValue);
+            console.log(`[GROWTH DEBUG] FCP: Current=${fcpValue}s, 30-day change=${fcpChange}s`);
             updateChangeIndicator('fcpChange', fcpChange, 's', false);
             
-            // Update CLS
+            // Update CLS with 30-day comparison
             const clsValue = psiData.cls?.value;
             console.log('[DEBUG] CLS value:', clsValue);
-            document.getElementById('clsValue').textContent = (clsValue !== undefined && clsValue !== null) ? Math.round(clsValue) : 'N/A';
-            const clsChange = psiData.cls_change || calculateChange('cls_value', clsValue);
+            document.getElementById('clsValue').textContent = (clsValue !== undefined && clsValue !== null) ? clsValue.toFixed(3) : 'N/A';
+            const clsChange = psiData.cls_change !== undefined ? psiData.cls_change : calculateChange('cls_value', clsValue);
+            console.log(`[GROWTH DEBUG] CLS: Current=${clsValue}, 30-day change=${clsChange}`);
             updateChangeIndicator('clsChange', clsChange, '', false);
             
             // Update status indicator
@@ -1342,16 +1614,20 @@
         async function fetchMobileData() {
             setMetricLoadingState('mobile', 'loading');
             try {
+                console.log('[DEBUG] Fetching mobile data...');
                 const response = await apiCall('/auth/mobile/metrics');
+                console.log('[DEBUG] Mobile response status:', response.status);
                 
                 if (response.ok) {
                     const mobileData = await response.json();
+                    console.log('[DEBUG] Mobile data received:', mobileData);
                     updateMobileMetrics(mobileData);
                     generateMobileInsightsFromData(mobileData);
                     setMetricLoadingState('mobile', 'done');
                 } else {
                     setMetricLoadingState('mobile', 'done');
-                    console.log('[DEBUG] Failed to load mobile data, showing placeholder');
+                    const errorText = await response.text();
+                    console.log('[DEBUG] Failed to load mobile data:', errorText);
                     document.getElementById('mobileInsights').innerHTML = '<p>Mobile test results will appear here</p>';
                 }
             } catch (error) {
@@ -1362,11 +1638,15 @@
         }
 
         function updateMobileMetrics(mobileData) {
+            console.log('[DEBUG] Updating mobile metrics with data:', mobileData);
+            
             // Store mobile data globally
             window.metricsData.mobile = {
                 mobile_friendly: mobileData.mobile_friendly,
                 issues_count: mobileData.issues_count || 0,
-                performance_score: mobileData.performance_score
+                performance_score: mobileData.performance_score,
+                critical_issues: mobileData.critical_issues || 0,
+                warning_issues: mobileData.warning_issues || 0
             };
             
             // Update mobile friendly status
@@ -1390,6 +1670,7 @@
             const issuesCount = mobileData.issues_count || 0;
             document.getElementById('mobileIssues').textContent = issuesCount;
             console.log(`[GROWTH DEBUG] === MOBILE USABILITY METRICS ===`);
+            console.log(`[GROWTH DEBUG] Mobile Issues: Current=${issuesCount}, Critical=${mobileData.critical_issues}, Warning=${mobileData.warning_issues}`);
             const mobileIssuesChange = calculateChange('mobile_issues_count', issuesCount);
             updateChangeIndicator('mobileIssuesChange', mobileIssuesChange, '', false);
             
@@ -1431,18 +1712,24 @@
         }
 
         async function fetchIndexingData() {
+            console.log('[DEBUG] ========== FETCHING INDEXING DATA ==========');
             setMetricLoadingState('indexing', 'loading');
             try {
-                console.log('[DEBUG] Fetching indexing data...');
+                console.log('[DEBUG] Making API call to /auth/indexing/metrics...');
                 const response = await apiCall('/auth/indexing/metrics');
                 console.log('[DEBUG] Indexing response status:', response.status);
+                console.log('[DEBUG] Indexing response object:', response);
                 
                 if (response.ok) {
                     const indexingData = await response.json();
-                    console.log('[DEBUG] Indexing data received:', indexingData);
+                    console.log('[DEBUG] ========== INDEXING DATA RECEIVED ==========');
+                    console.log('[DEBUG] Raw indexing data:', JSON.stringify(indexingData, null, 2));
+                    console.log('[DEBUG] Calling updateIndexingMetrics...');
                     updateIndexingMetrics(indexingData);
+                    console.log('[DEBUG] Calling generateIndexingInsightsFromData...');
                     generateIndexingInsightsFromData(indexingData);
                     setMetricLoadingState('indexing', 'done');
+                    console.log('[DEBUG] ========== INDEXING DATA PROCESSING COMPLETED ==========');
                 } else {
                     setMetricLoadingState('indexing', 'done');
                     const errorText = await response.text();
@@ -1451,36 +1738,87 @@
                 }
             } catch (error) {
                 setMetricLoadingState('indexing', 'done');
-                console.error('Error loading indexing data:', error);
+                console.error('[ERROR] Exception in fetchIndexingData:', error);
                 document.getElementById('indexingInsights').innerHTML = '<p>Indexing health will be analyzed when connected to Google Search Console.</p>';
             }
         }
 
         function updateIndexingMetrics(indexingData) {
+            console.log('[DEBUG] ========== UPDATING INDEXING METRICS ==========');
+            console.log('[DEBUG] Received indexing data:', JSON.stringify(indexingData, null, 2));
+            
             // Store indexing data globally
             window.metricsData.indexing = {
                 sitemap_status: indexingData.sitemap_status,
-                index_status: indexingData.index_status
+                sitemap_count: indexingData.sitemap_count || 0,
+                indexed_pages: indexingData.indexed_pages || 0,
+                index_status: indexingData.index_status,
+                crawl_errors: indexingData.crawl_errors || 0,
+                crawl_success_rate: indexingData.crawl_success_rate || 0,
+                last_crawl: indexingData.last_crawl
             };
             
-            // Update sitemap status
+            console.log(`[GROWTH DEBUG] === INDEXING & CRAWLABILITY METRICS ===`);
+            
+            // Update sitemap status and count
             const sitemapStatus = indexingData.sitemap_status;
+            const sitemapCount = indexingData.sitemap_count || 0;
+            console.log('[DEBUG] Setting sitemapStatus to:', sitemapStatus);
+            console.log('[DEBUG] Setting sitemapCount to:', sitemapCount);
             document.getElementById('sitemapStatus').textContent = sitemapStatus || 'N/A';
+            document.getElementById('sitemapCount').textContent = sitemapCount.toString();
+            
+            // Update indexed pages with change indicator
+            const indexedPages = indexingData.indexed_pages || 0;
+            document.getElementById('indexedPages').textContent = indexedPages.toLocaleString();
+            const indexedPagesChange = indexingData.indexed_pages_change !== undefined ? indexingData.indexed_pages_change : calculateChange('indexed_pages', indexedPages);
+            console.log(`[GROWTH DEBUG] Indexed Pages: Current=${indexedPages}, 30-day change=${indexedPagesChange}`);
+            updateChangeIndicator('indexedPagesChange', indexedPagesChange, '', true);
             
             // Update index status
             const indexStatus = indexingData.index_status;
             document.getElementById('indexStatus').textContent = indexStatus || 'N/A';
             
+            // Update crawl metrics
+            const crawlErrors = indexingData.crawl_errors || 0;
+            const crawlSuccessRate = indexingData.crawl_success_rate || 0;
+            const lastCrawl = indexingData.last_crawl;
+            
+            console.log('[DEBUG] Setting crawlErrors to:', crawlErrors);
+            console.log('[DEBUG] Setting crawlSuccessRate to:', crawlSuccessRate);
+            console.log('[DEBUG] Setting lastCrawl to:', lastCrawl);
+            
+            // Format the last crawl date
+            let formattedLastCrawl = 'N/A';
+            if (lastCrawl) {
+                try {
+                    const date = new Date(lastCrawl);
+                    const day = date.getDate();
+                    const month = date.toLocaleString('en', { month: 'short' });
+                    const year = date.getFullYear();
+                    formattedLastCrawl = `${day} ${month} ${year}`;
+                } catch (error) {
+                    console.warn('[DEBUG] Failed to format last crawl date:', lastCrawl, error);
+                    formattedLastCrawl = lastCrawl; // Fallback to original format
+                }
+            }
+            
+            document.getElementById('crawlErrors').textContent = crawlErrors.toString();
+            document.getElementById('crawlSuccessRate').textContent = crawlSuccessRate ? `${crawlSuccessRate}%` : 'N/A';
+            document.getElementById('lastCrawl').textContent = formattedLastCrawl;
+            
             // Update status indicator color
             const statusIndicator = document.getElementById('indexingStatus');
-            if ((sitemapStatus === 'Active' && (indexStatus === 'PASS' || indexStatus === 'NEUTRAL')) ||
-                (sitemapStatus === 'Active' && !indexStatus)) {
+            if (sitemapStatus === 'Active' && crawlErrors === 0 && crawlSuccessRate >= 80) {
+                statusIndicator.textContent = 'Excellent';
+                statusIndicator.className = 'status-indicator good';
+            } else if (sitemapStatus === 'Active' && crawlErrors <= 5 && crawlSuccessRate >= 60) {
                 statusIndicator.textContent = 'Good';
                 statusIndicator.className = 'status-indicator good';
-            } else if (sitemapStatus === 'Pending' || indexStatus === 'Unknown') {
+            } else if (sitemapStatus === 'Pending' || crawlErrors > 5 || crawlSuccessRate < 60) {
                 statusIndicator.textContent = 'Needs Work';
                 statusIndicator.className = 'status-indicator warning';
-            } else if (sitemapStatus === 'Error' || indexStatus === 'FAIL') {
+            } else if (sitemapStatus === 'Error' || crawlErrors > 20 || crawlSuccessRate < 30) {
                 statusIndicator.textContent = 'Poor';
                 statusIndicator.className = 'status-indicator error';
             } else {
@@ -1534,54 +1872,82 @@
         }
 
         function updateBusinessMetrics(businessData) {
-            // Store business data globally
+            console.log('[DEBUG] ========== UPDATING BUSINESS METRICS ==========');
+            console.log('[DEBUG] Received business data:', JSON.stringify(businessData, null, 2));
+            
+            // Store comprehensive business data globally
             window.metricsData.business = {
                 business_type: businessData.business_type,
                 target_market: businessData.target_market,
-                business_complexity_score: businessData.business_complexity_score || 0,
-                service_count: businessData.service_count || 0
+                industry_sector: businessData.industry_sector,
+                company_size: businessData.company_size,
+                primary_age_group: businessData.primary_age_group,
+                income_level: businessData.income_level,
+                audience_sophistication: businessData.audience_sophistication,
+                geographic_focus: businessData.geographic_focus,
+                business_maturity: businessData.business_maturity,
+                technology_platform: businessData.technology_platform,
+                content_strategy: businessData.content_strategy,
+                competitive_position: businessData.competitive_position
             };
             
-            // Update business type
-            const businessType = businessData.business_type;
-            document.getElementById('businessType').textContent = businessType || 'N/A';
+            // Update all business context fields
+            const businessFields = {
+                'businessType': businessData.business_type,
+                'targetMarket': businessData.target_market,
+                'industrySector': businessData.industry_sector,
+                'companySize': businessData.company_size,
+                'primaryAgeGroup': businessData.primary_age_group,
+                'incomeLevel': businessData.income_level,
+                'audienceSophistication': businessData.audience_sophistication,
+                'geographicFocus': businessData.geographic_focus,
+                'businessMaturity': businessData.business_maturity,
+                'technologyPlatform': businessData.technology_platform,
+                'contentStrategy': businessData.content_strategy,
+                'competitivePosition': businessData.competitive_position
+            };
             
-            // Update target market
-            const targetMarket = businessData.target_market;
-            document.getElementById('targetMarket').textContent = targetMarket || 'N/A';
+            console.log('[DEBUG] Updating business fields:', businessFields);
             
-            // Update complexity score and service count
-            const complexityScore = businessData.business_complexity_score || 0;
-            const serviceCount = businessData.service_count || 0;
-            document.getElementById('businessComplexity').textContent = complexityScore.toFixed(1);
-            document.getElementById('serviceCount').textContent = serviceCount.toString();
+            // Update DOM elements for all business fields
+            Object.entries(businessFields).forEach(([elementId, value]) => {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    const displayValue = value || 'N/A';
+                    element.textContent = displayValue;
+                    console.log(`[DEBUG] Set ${elementId} to: ${displayValue}`);
+                } else {
+                    console.warn(`[DEBUG] Business element not found: ${elementId}`);
+                }
+            });
             
-            // Update change indicators using the same calculation logic as primary indicators
+            // Update change indicators for key fields
             console.log(`[GROWTH DEBUG] === BUSINESS CONTEXT METRICS ===`);
-            const businessTypeChange = calculateChange('business_type', businessType);
-            const targetMarketChange = calculateChange('target_market', targetMarket);
-            const businessComplexityChange = calculateChange('business_complexity_score', complexityScore);
-            const serviceCountChange = calculateChange('service_count', serviceCount);
+            const businessTypeChange = calculateChange('business_type', businessData.business_type);
+            const targetMarketChange = calculateChange('target_market', businessData.target_market);
             updateChangeIndicator('businessTypeChange', businessTypeChange, '', true);
             updateChangeIndicator('targetMarketChange', targetMarketChange, '', true);
-            updateChangeIndicator('businessComplexityChange', businessComplexityChange, '', true);
-            updateChangeIndicator('serviceCountChange', serviceCountChange, '', true);
             
-            // Update status indicator color based on complexity score
+            // Update status indicator based on business sophistication
             const statusIndicator = document.getElementById('businessStatus');
-            if (complexityScore >= 7) {
+            const sophistication = businessData.audience_sophistication?.toLowerCase();
+            const maturity = businessData.business_maturity?.toLowerCase();
+            
+            if (sophistication === 'expert' && maturity !== 'startup') {
                 statusIndicator.textContent = 'Advanced';
                 statusIndicator.className = 'status-indicator good';
-            } else if (complexityScore >= 5) {
+            } else if (sophistication === 'intermediate' || maturity === 'growth') {
                 statusIndicator.textContent = 'Good';
                 statusIndicator.className = 'status-indicator good';
-            } else if (complexityScore >= 3) {
-                statusIndicator.textContent = 'Basic';
+            } else if (sophistication === 'beginner' || maturity === 'startup') {
+                statusIndicator.textContent = 'Developing';
                 statusIndicator.className = 'status-indicator warning';
             } else {
-                statusIndicator.textContent = 'Limited';
-                statusIndicator.className = 'status-indicator error';
+                statusIndicator.textContent = 'Basic';
+                statusIndicator.className = 'status-indicator warning';
             }
+            
+            console.log('[DEBUG] ========== BUSINESS METRICS UPDATE COMPLETED ==========');
         }
 
         function generateBusinessInsightsFromData(businessData) {
@@ -1673,6 +2039,10 @@
 
         async function initDashboard() {
             checkAuth();
+            
+            // Handle OAuth callback parameters
+            handleOAuthCallback();
+            
             const hasGSC = await checkGSCConnection();
             console.log('[DEBUG] Dashboard init - hasGSC:', hasGSC);
             
@@ -1685,6 +2055,29 @@
                 createMergedTrendsChart({});
             }
         }
+
+        function handleOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const oauthSuccess = urlParams.get('oauth_success');
+            const oauthError = urlParams.get('oauth_error');
+            
+            if (oauthSuccess === 'true') {
+                console.log('[DEBUG] OAuth success detected, will show property selector after GSC check');
+                // Clean up URL parameters
+                const cleanUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+            } else if (oauthError === 'true') {
+                console.log('[DEBUG] OAuth error detected');
+                // Clean up URL parameters
+                const cleanUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+                
+                // Show error message
+                alert('Failed to connect to Google Search Console. Please try again.');
+            }
+        }
+
+
 
         async function checkGSCConnection() {
             try {
@@ -1731,9 +2124,21 @@
                     return false;
                 }
 
-                console.log('[DEBUG] Valid GSC connection found, hiding banner');
+                // Check if a property is already selected
+                const selectedResponse = await apiCall('/auth/gsc/selected');
+                if (selectedResponse && selectedResponse.ok) {
+                    const selectedProperty = await selectedResponse.json();
+                    console.log('[DEBUG] Property already selected:', selectedProperty);
                 hideGSCBanner();
                 return true;
+                } else {
+                    console.log('[DEBUG] No property selected yet, response status:', selectedResponse?.status);
+                }
+
+                // Properties available but none selected - show banner to prompt selection
+                console.log('[DEBUG] Properties available but none selected, showing banner');
+                showGSCBanner();
+                return false;
             } catch (error) {
                 console.log('[DEBUG] Exception in checkGSCConnection:', error);
                 showGSCBanner();
@@ -1767,8 +2172,8 @@
                 });
 
                 if (response.ok) {
-                    // Redirect to setup wizard
-                    window.location.href = '/setup';
+                    // Redirect to Google OAuth directly, bypassing setup wizard
+                    window.location.href = '/auth/google/authorize';
                 } else {
                     alert('Failed to clear credentials. Please try again.');
                 }
@@ -1778,9 +2183,41 @@
             }
         }
 
-        function connectGSC() {
-            window.location.href = '/setup';
+        async function connectGSC() {
+            try {
+                console.log('[DEBUG] Connecting to GSC...');
+                
+                // Make authenticated API call to get the authorization URL
+                const response = await apiCall('/auth/google/authorize');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('[DEBUG] Got authorization URL:', data.auth_url);
+                    
+                    // Redirect to Google OAuth authorization page
+                    window.location.href = data.auth_url;
+                } else {
+                    const errorText = await response.text();
+                    console.error('[ERROR] Failed to get authorization URL:', errorText);
+                    throw new Error('Failed to initialize Google OAuth');
+                }
+            } catch (error) {
+                console.error('[ERROR] Error connecting to GSC:', error);
+                
+                // Show error message to user
+                const banner = document.getElementById('gscBanner');
+                const bannerText = banner.querySelector('.banner-text p');
+                
+                if (bannerText) {
+                    bannerText.textContent = 'Unable to connect to Google Search Console. Please check your internet connection and try again.';
+                }
+                banner.classList.remove('hidden');
+            }
         }
+
+        // Property selector modal removed - now handled by property_selection.html
+
+        // Property selector functions removed - now handled by property_selection.html
 
         async function refreshMetrics() {
             const refreshBtn = document.getElementById('refreshBtn');
@@ -1806,7 +2243,7 @@
                 }
             } catch (error) {
                 console.error('Error refreshing metrics:', error);
-                showErrorMessage('Could not refresh data. Your connection to Google may have been lost.');
+                // showErrorMessage('Could not refresh data. Your connection to Google may have been lost.');
                 
                 // Force the banner to show with a helpful message
                 const banner = document.getElementById('gscBanner');
@@ -1824,211 +2261,6 @@
                     refreshBtn.classList.remove('loading');
                 }, 500);
             }
-        }
-
-        function showErrorMessage(message) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'error-message';
-            messageDiv.textContent = message;
-            messageDiv.style.position = 'fixed';
-            messageDiv.style.top = '20px';
-            messageDiv.style.right = '20px';
-            messageDiv.style.zIndex = '1000';
-            messageDiv.style.padding = '1rem';
-            messageDiv.style.borderRadius = '8px';
-            messageDiv.style.backgroundColor = '#ef4444';
-            messageDiv.style.color = 'white';
-            messageDiv.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-            messageDiv.style.fontWeight = '400';
-            document.body.appendChild(messageDiv);
-            setTimeout(() => {
-                if (messageDiv.parentNode) {
-                    messageDiv.remove();
-                }
-            }, 3000);
-        }
-
-        async function loadRealMetrics() {
-            showMetricsLoadingPopup();
-            resetMetricsLoadingState();
-            try {
-                setMetricLoadingState('visibility', 'loading');
-                const response = await apiCall('/auth/gsc/metrics');
-                if (response.ok) {
-                    const metrics = await response.json();
-                    updateDashboardMetricsWithRealData(metrics);
-                    createMergedTrendsChart(metrics);
-                    showWebsiteInfo(metrics);
-                    showDateRange(metrics);
-                    setMetricLoadingState('visibility', 'done');
-                    setMetricLoadingState('organic', 'done');
-                    setMetricLoadingState('impressions', 'done');
-                    
-                    // Fetch all other data types in parallel
-                    await Promise.all([
-                        loadKeywordData(),
-                        fetchPageSpeedData(),
-                        fetchMobileData(),
-                        fetchIndexingData(),
-                        fetchBusinessData()
-                    ]);
-                } else {
-                    setMetricLoadingState('visibility', 'done');
-                    setMetricLoadingState('organic', 'done');
-                    setMetricLoadingState('impressions', 'done');
-                    setMetricLoadingState('keywords', 'done');
-                    setMetricLoadingState('ux', 'done');
-                    setMetricLoadingState('mobile', 'done');
-                    setMetricLoadingState('indexing', 'done');
-                    setMetricLoadingState('business', 'done');
-                    updateDashboardMetrics(false);
-                    createMergedTrendsChart({});
-                    hideWebsiteInfo();
-                    hideDateRange();
-                }
-            } catch (error) {
-                setMetricLoadingState('visibility', 'done');
-                setMetricLoadingState('organic', 'done');
-                setMetricLoadingState('impressions', 'done');
-                setMetricLoadingState('keywords', 'done');
-                setMetricLoadingState('ux', 'done');
-                setMetricLoadingState('mobile', 'done');
-                setMetricLoadingState('indexing', 'done');
-                setMetricLoadingState('business', 'done');
-                updateDashboardMetrics(false);
-                createMergedTrendsChart({});
-                hideWebsiteInfo();
-                hideDateRange();
-            }
-        }
-
-        async function loadKeywordData() {
-            setMetricLoadingState('keywords', 'loading');
-            try {
-                const response = await apiCall('/auth/keyword/metrics');
-                if (response.ok) {
-                    const keywordData = await response.json();
-                    updateKeywordMetrics(keywordData);
-                    setMetricLoadingState('keywords', 'done');
-                } else {
-                    setMetricLoadingState('keywords', 'done');
-                }
-            } catch (error) {
-                setMetricLoadingState('keywords', 'done');
-            }
-        }
-
-        function updateKeywordMetrics(keywordData) {
-            // Store keyword data globally
-            window.metricsData.keywords = {
-                total_keywords: keywordData.total_keywords || 0,
-                avg_position: keywordData.avg_position,
-                opportunities: keywordData.opportunities || 0,
-                branded_keywords: keywordData.branded_keywords || 0
-            };
-            
-            // Update keyword metrics in the dashboard
-            const totalKeywords = keywordData.total_keywords || 0;
-            const avgPosition = keywordData.avg_position;
-            const opportunities = keywordData.opportunities || 0;
-            const brandedKeywords = keywordData.branded_keywords || 0;
-            
-            document.getElementById('totalKeywords').textContent = totalKeywords.toLocaleString();
-            document.getElementById('keywordAvgPosition').textContent = avgPosition?.toFixed(1) || 'N/A';
-            document.getElementById('keywordOpportunities').textContent = opportunities.toLocaleString();
-            document.getElementById('brandedKeywords').textContent = brandedKeywords.toLocaleString();
-            
-            // Update change indicators
-            console.log(`[GROWTH DEBUG] === KEYWORD TRENDS METRICS ===`);
-            const totalKeywordsChange = calculateChange('total_keywords', totalKeywords);
-            const keywordAvgPositionChange = calculateChange('keyword_avg_position', avgPosition);
-            const keywordOpportunitiesChange = calculateChange('keyword_opportunities', opportunities);
-            const brandedKeywordsChange = calculateChange('branded_keywords', brandedKeywords);
-            updateChangeIndicator('totalKeywordsChange', totalKeywordsChange, '', true);
-            updateChangeIndicator('keywordAvgPositionChange', keywordAvgPositionChange, '', false);
-            updateChangeIndicator('keywordOpportunitiesChange', keywordOpportunitiesChange, '', true);
-            updateChangeIndicator('brandedKeywordsChange', brandedKeywordsChange, '', true);
-            
-            // Update keyword insights
-            if (keywordData.keyword_insights) {
-                document.getElementById('keywordInsights').innerHTML = `<p>${keywordData.keyword_insights}</p>`;
-            }
-            
-            // Update keywords list
-            updateKeywordsList(keywordData.keywords_list || []);
-            
-            // Update status indicator based on keyword performance
-            const statusIndicator = document.getElementById('keywordStatus');
-            if (keywordData.total_keywords > 0) {
-                if (keywordData.avg_position <= 3) {
-                    statusIndicator.textContent = 'Excellent';
-                    statusIndicator.className = 'status-indicator good';
-                } else if (keywordData.avg_position <= 10) {
-                    statusIndicator.textContent = 'Good';
-                    statusIndicator.className = 'status-indicator good';
-                } else if (keywordData.avg_position <= 20) {
-                    statusIndicator.textContent = 'Needs Work';
-                    statusIndicator.className = 'status-indicator warning';
-                } else {
-                    statusIndicator.textContent = 'Poor';
-                    statusIndicator.className = 'status-indicator error';
-                }
-            } else {
-                statusIndicator.textContent = 'No Data';
-                statusIndicator.className = 'status-indicator warning';
-            }
-            
-            // Recalculate overall SEO score
-            recalculateOverallSEOScore();
-        }
-
-        function updateKeywordsList(keywordsList) {
-            const container = document.getElementById('keywordsContainer');
-            
-            if (!keywordsList || keywordsList.length === 0) {
-                container.innerHTML = '<p class="keywords-empty">No keywords found yet.</p>';
-                return;
-            }
-            
-            // Sort keywords by clicks (descending) to show best performing first
-            const sortedKeywords = keywordsList.sort((a, b) => b.clicks - a.clicks);
-            
-            let html = '<div class="keywords-list-container">';
-            
-            sortedKeywords.forEach((keyword, index) => {
-                // Color coding based on position
-                let positionColor = '#ef4444'; // red for poor positions
-                if (keyword.position <= 3) {
-                    positionColor = '#10b981'; // green for excellent positions
-                } else if (keyword.position <= 10) {
-                    positionColor = '#f59e0b'; // yellow for good positions
-                }
-                
-                html += `
-                    <div class="keyword-item">
-                        <div class="keyword-name">
-                            <span>${keyword.keyword}</span>
-                        </div>
-                        <div class="keyword-metrics">
-                            <span class="keyword-position" style="color: ${positionColor};">
-                                #${keyword.position.toFixed(1)}
-                            </span>
-                            <span class="keyword-clicks">
-                                ${keyword.clicks} clicks
-                            </span>
-                            <span class="keyword-impressions">
-                                ${keyword.impressions.toLocaleString()} imp
-                            </span>
-                            <span class="keyword-ctr">
-                                ${(keyword.ctr * 100).toFixed(1)}% CTR
-                            </span>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            container.innerHTML = html;
         }
 
         function recalculateOverallSEOScore() {
@@ -2133,7 +2365,9 @@
             if (metrics && metrics.website_url) {
                 let displayUrl = metrics.website_url;
                 if (displayUrl.startsWith('sc-domain:')) {
-                    displayUrl = displayUrl.replace('sc-domain:', '');
+                    // Convert sc-domain:example.com to https://example.com
+                    const domain = displayUrl.replace('sc-domain:', '');
+                    displayUrl = `https://${domain}`;
                 }
                 trackedWebsite.textContent = displayUrl;
                 mobileMenuWebsite.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-icon"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>${displayUrl}`;
@@ -2208,6 +2442,12 @@
         function setMetricLoadingState(key, state) {
             metricsLoadingState[key] = state;
             updateMetricsLoadingList();
+            
+            // Set loading state for growth indicators
+            if (state === 'loading') {
+                setGrowthIndicatorsLoading(key);
+            }
+            
             // If all done, show success popup and hide both after 5s with countdown
             if (METRIC_GROUPS.every(m => metricsLoadingState[m.key] === 'done')) {
                 const loadingPopup = document.getElementById('metricsLoadingPopup');
@@ -2230,12 +2470,763 @@
                 }, 1000);
             }
         }
+
+        function setGrowthIndicatorsLoading(section) {
+            console.log(`[DEBUG] Setting growth indicators loading for section: ${section}`);
+            const indicatorMap = {
+                'visibility': [
+                    'impressionsChange', 'clicksChange', 'ctrChange', 'avgPositionChange'
+                ],
+                'organic': [
+                    'impressionsChange', 'clicksChange'
+                ],
+                'impressions': [
+                    'impressionsChange'
+                ],
+                'keywords': [
+                    'totalKeywordsChange', 'keywordAvgPositionChange', 'keywordOpportunitiesChange', 'brandedKeywordsChange'
+                ],
+                'ux': [
+                    'performanceScoreChange', 'lcpChange', 'fcpChange', 'clsChange'
+                ],
+                'mobile': [
+                    'mobileIssuesChange'
+                ],
+                'indexing': [
+                    'indexedPagesChange'
+                ],
+                'business': [
+                    'businessTypeChange', 'targetMarketChange', 'businessComplexityChange', 'serviceCountChange'
+                ]
+            };
+
+            const indicators = indicatorMap[section] || [];
+            indicators.forEach(indicatorId => {
+                const element = document.getElementById(indicatorId);
+                if (element) {
+                    updateChangeIndicator(indicatorId, 'loading');
+                } else {
+                    console.warn(`[DEBUG] Growth indicator element not found: ${indicatorId}`);
+                }
+            });
+        }
         function resetMetricsLoadingState() {
             METRIC_GROUPS.forEach(m => metricsLoadingState[m.key] = 'loading');
             updateMetricsLoadingList();
         }
         
+        async function loadRealMetrics() {
+            console.log('[DEBUG] Starting loadRealMetrics...');
+            showMetricsLoadingPopup();
+            resetMetricsLoadingState();
+            
+            try {
+                console.log('[DEBUG] Fetching GSC metrics...');
+                setMetricLoadingState('visibility', 'loading');
+                const response = await apiCall('/auth/gsc/metrics');
+                console.log('[DEBUG] GSC metrics response status:', response.status);
+                
+                if (response.ok) {
+                    const metrics = await response.json();
+                    console.log('[DEBUG] GSC metrics received:', metrics);
+                    
+                    // Validate metrics data structure
+                    if (!metrics || !metrics.summary) {
+                        console.error('[ERROR] Invalid metrics data structure:', metrics);
+                        throw new Error('Invalid metrics data structure received from API');
+                    }
+                    
+                    console.log('[DEBUG] Updating dashboard with metrics...');
+                    updateDashboardMetricsWithRealData(metrics);
+                    
+                    console.log('[DEBUG] Creating charts...');
+                    createMergedTrendsChart(metrics);
+                    
+                    console.log('[DEBUG] Showing website info...');
+                    showWebsiteInfo(metrics);
+                    showDateRange(metrics);
+                    
+                    // Mark core metrics as loaded
+                    setMetricLoadingState('visibility', 'done');
+                    setMetricLoadingState('organic', 'done');
+                    setMetricLoadingState('impressions', 'done');
+                    
+                    console.log('[DEBUG] Fetching additional metrics in parallel...');
+                    // Fetch all other data types in parallel
+                    const additionalMetricsPromises = [
+                        loadKeywordData().catch(e => console.error('[ERROR] Keyword data failed:', e)),
+                        fetchPageSpeedData().catch(e => console.error('[ERROR] PageSpeed data failed:', e)),
+                        fetchMobileData().catch(e => console.error('[ERROR] Mobile data failed:', e)),
+                        fetchIndexingData().catch(e => console.error('[ERROR] Indexing data failed:', e)),
+                        fetchBusinessData().catch(e => console.error('[ERROR] Business data failed:', e))
+                    ];
+                    
+                    await Promise.allSettled(additionalMetricsPromises);
+                    console.log('[DEBUG] All metrics loading completed');
+                    
+                } else {
+                    const errorText = await response.text();
+                    console.error('[ERROR] Failed to load GSC metrics:', response.status, errorText);
+                    
+                    // Set all states to done since we can't fetch data
+                    setMetricLoadingState('visibility', 'done');
+                    setMetricLoadingState('organic', 'done');
+                    setMetricLoadingState('impressions', 'done');
+                    setMetricLoadingState('keywords', 'done');
+                    setMetricLoadingState('ux', 'done');
+                    setMetricLoadingState('mobile', 'done');
+                    setMetricLoadingState('indexing', 'done');
+                    setMetricLoadingState('business', 'done');
+                    
+                    // Show empty state
+                    updateDashboardMetrics(false);
+                    createMergedTrendsChart({});
+                    hideWebsiteInfo();
+                    hideDateRange();
+                }
+            } catch (error) {
+                console.error('[ERROR] Exception in loadRealMetrics:', error);
+                
+                // Set all states to done
+                setMetricLoadingState('visibility', 'done');
+                setMetricLoadingState('organic', 'done');
+                setMetricLoadingState('impressions', 'done');
+                setMetricLoadingState('keywords', 'done');
+                setMetricLoadingState('ux', 'done');
+                setMetricLoadingState('mobile', 'done');
+                setMetricLoadingState('indexing', 'done');
+                setMetricLoadingState('business', 'done');
+                
+                // Show empty state
+                updateDashboardMetrics(false);
+                createMergedTrendsChart({});
+                hideWebsiteInfo();
+                hideDateRange();
+            } finally {
+                // Note: Loading popup will be hidden by setMetricLoadingState when all metrics are done
+                // The 5-second countdown timer handles hiding both loading and success popups
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', initDashboard);
+
+        // Hide error banner on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            hideErrorMessage();
+        });
+
+        async function loadKeywordData() {
+            setMetricLoadingState('keywords', 'loading');
+            try {
+                const response = await apiCall('/auth/keyword/metrics');
+                if (response.ok) {
+                    const keywordData = await response.json();
+                    updateKeywordMetrics(keywordData);
+                    setMetricLoadingState('keywords', 'done');
+                } else {
+                    setMetricLoadingState('keywords', 'done');
+                }
+            } catch (error) {
+                setMetricLoadingState('keywords', 'done');
+            }
+        }
+
+        function updateKeywordMetrics(keywordData) {
+            console.log('[DEBUG] ========== UPDATING KEYWORD METRICS ==========');
+            console.log('[DEBUG] Received keyword data:', JSON.stringify(keywordData, null, 2));
+            
+            // Store keyword data globally
+            window.metricsData = window.metricsData || {};
+            window.metricsData.keywords = {
+                total_keywords: keywordData.total_keywords || 0,
+                avg_position: keywordData.avg_position,
+                opportunities: keywordData.opportunities || 0,
+                branded_keywords: keywordData.branded_keywords || 0,
+                keywords_list: keywordData.keywords_list || [],
+                top_keywords: keywordData.top_keywords
+            };
+            
+            // Update keyword metrics in the dashboard
+            const totalKeywords = keywordData.total_keywords || 0;
+            const avgPosition = keywordData.avg_position;
+            const opportunities = keywordData.opportunities || 0;
+            const brandedKeywords = keywordData.branded_keywords || 0;
+            
+            // Safely update DOM elements
+            const elements = {
+                'totalKeywords': totalKeywords.toLocaleString(),
+                'keywordAvgPosition': avgPosition?.toFixed(1) || 'N/A',
+                'keywordOpportunities': opportunities.toLocaleString(),
+                'brandedKeywords': brandedKeywords.toLocaleString()
+            };
+            
+            console.log('[DEBUG] Updating keyword summary elements:', elements);
+            Object.entries(elements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = value;
+                    console.log(`[DEBUG] Set ${id} to: ${value}`);
+                } else {
+                    console.warn(`[DEBUG] Element not found: ${id}`);
+                }
+            });
+            
+            // Update keyword insights
+            if (keywordData.keyword_insights) {
+                const insightsElement = document.getElementById('keywordInsights');
+                if (insightsElement) {
+                    insightsElement.innerHTML = `<p>${keywordData.keyword_insights}</p>`;
+                    console.log('[DEBUG] Updated keyword insights');
+                }
+            }
+            
+            // Update keywords list
+            const keywordsList = keywordData.keywords_list || [];
+            console.log('[DEBUG] Processing keywords list:', keywordsList);
+            
+            const keywordsListElement = document.getElementById('keywordsList');
+            if (keywordsListElement && keywordsList.length > 0) {
+                console.log('[DEBUG] Updating keywords list with', keywordsList.length, 'keywords');
+                
+                let keywordsHtml = '<h4>Keywords Found:</h4><div class="keywords-list-container">';
+                
+                keywordsList.forEach((keyword, index) => {
+                    const position = keyword.position ? Math.round(keyword.position) : 'N/A';
+                    const impressions = keyword.impressions || 0;
+                    const clicks = keyword.clicks || 0;
+                    const ctr = keyword.ctr ? (keyword.ctr * 100).toFixed(1) : '0.0';
+                    
+                    keywordsHtml += `
+                        <div class="keyword-item">
+                            <div class="keyword-name">
+                                <span>${keyword.keyword || 'Unknown'}</span>
+                            </div>
+                            <div class="keyword-metrics">
+                                <div class="keyword-position">Pos: ${position}</div>
+                                <div class="keyword-impressions">Imp: ${impressions.toLocaleString()}</div>
+                                <div class="keyword-clicks">Clicks: ${clicks.toLocaleString()}</div>
+                                <div class="keyword-ctr">CTR: ${ctr}%</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                keywordsHtml += '</div>';
+                keywordsListElement.innerHTML = keywordsHtml;
+                console.log('[DEBUG] Keywords list updated with HTML');
+            } else if (keywordsListElement) {
+                console.log('[DEBUG] No keywords to display, showing empty state');
+                keywordsListElement.innerHTML = '<div class="keywords-empty">No keywords data available</div>';
+            }
+            
+            // Update top keywords if available
+            if (keywordData.top_keywords) {
+                console.log('[DEBUG] Top keywords:', keywordData.top_keywords);
+                // You can add logic here to display top keywords in a separate section if needed
+            }
+            
+            console.log('[DEBUG] ========== KEYWORD METRICS UPDATE COMPLETED ==========');
+        }
+
+        async function fetchPageSpeedData() {
+            setMetricLoadingState('ux', 'loading');
+            try {
+                const response = await apiCall('/auth/pagespeed/metrics');
+                if (response.ok) {
+                    const psiData = await response.json();
+                    updateUXMetrics(psiData);
+                    setMetricLoadingState('ux', 'done');
+                } else {
+                    setMetricLoadingState('ux', 'done');
+                }
+            } catch (error) {
+                setMetricLoadingState('ux', 'done');
+            }
+        }
+
+        function updateUXMetrics(psiData) {
+            console.log('[DEBUG] ========== UPDATING UX METRICS ==========');
+            console.log('[DEBUG] Received UX data:', JSON.stringify(psiData, null, 2));
+            
+            // Store UX data globally
+            window.metricsData = window.metricsData || {};
+            window.metricsData.ux = {
+                performance_score: psiData.performance_score,
+                lcp: psiData.lcp?.value,
+                fcp: psiData.fcp?.value,
+                cls: psiData.cls?.value,
+                insights: psiData.insights || [],
+                recommendations: psiData.recommendations || []
+            };
+            
+            // Update UX metrics in the dashboard
+            const performanceScore = psiData.performance_score;
+            const lcpValue = psiData.lcp?.value;
+            const fcpValue = psiData.fcp?.value;
+            const clsValue = psiData.cls?.value;
+            
+            // Safely update DOM elements
+            const elements = {
+                'performanceScore': performanceScore !== undefined ? performanceScore : 'N/A',
+                'lcpValue': lcpValue !== undefined ? `${lcpValue.toFixed(1)}s` : 'N/A',
+                'fcpValue': fcpValue !== undefined ? `${fcpValue.toFixed(1)}s` : 'N/A',
+                'clsValue': clsValue !== undefined ? clsValue.toFixed(3) : 'N/A'
+            };
+            
+            console.log('[DEBUG] Updating UX metric elements:', elements);
+            Object.entries(elements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = value;
+                    console.log(`[DEBUG] Set ${id} to: ${value}`);
+                } else {
+                    console.warn(`[DEBUG] Element not found: ${id}`);
+                }
+            });
+            
+            // Generate and update performance insights
+            console.log('[DEBUG] Generating performance insights...');
+            generatePerformanceInsights(psiData);
+            
+            console.log('[DEBUG] ========== UX METRICS UPDATE COMPLETED ==========');
+        }
+
+        function generatePerformanceInsights(psiData) {
+            const insights = [];
+            const performanceScore = psiData.performance_score;
+            const lcpValue = psiData.lcp?.value;
+            const fcpValue = psiData.fcp?.value;
+            const clsValue = psiData.cls?.value;
+            
+            // Generate insights based on performance metrics
+            if (performanceScore !== undefined) {
+                if (performanceScore >= 90) {
+                    insights.push("Excellent performance score! Your website loads quickly and provides a great user experience.");
+                } else if (performanceScore >= 70) {
+                    insights.push("Good performance score. Consider optimizing further to reach excellent performance.");
+                } else if (performanceScore >= 50) {
+                    insights.push("Moderate performance score. There are opportunities to improve loading speed and user experience.");
+                } else {
+                    insights.push("Poor performance score. Immediate optimization is needed to improve user experience and SEO rankings.");
+                }
+            }
+            
+            // LCP insights
+            if (lcpValue !== undefined) {
+                if (lcpValue <= 2.5) {
+                    insights.push("Largest Contentful Paint is excellent - users see your main content quickly.");
+                } else if (lcpValue <= 4.0) {
+                    insights.push("Largest Contentful Paint needs improvement - consider optimizing images and server response times.");
+                } else {
+                    insights.push("Largest Contentful Paint is poor - users wait too long to see your main content. Optimize images, reduce server response time, and eliminate render-blocking resources.");
+                }
+            }
+            
+            // FCP insights
+            if (fcpValue !== undefined) {
+                if (fcpValue <= 1.8) {
+                    insights.push("First Contentful Paint is excellent - users see content appear quickly.");
+                } else if (fcpValue <= 3.0) {
+                    insights.push("First Contentful Paint needs improvement - optimize critical rendering path and reduce server response time.");
+                } else {
+                    insights.push("First Contentful Paint is poor - users experience significant delays. Optimize server response time and eliminate render-blocking resources.");
+                }
+            }
+            
+            // CLS insights
+            if (clsValue !== undefined) {
+                if (clsValue <= 0.1) {
+                    insights.push("Cumulative Layout Shift is excellent - your page layout is stable and doesn't shift unexpectedly.");
+                } else if (clsValue <= 0.25) {
+                    insights.push("Cumulative Layout Shift needs improvement - some elements may shift during loading, affecting user experience.");
+                } else {
+                    insights.push("Cumulative Layout Shift is poor - page elements shift significantly during loading. Add dimensions to images and reserve space for ads.");
+                }
+            }
+            
+            // Use API insights if available, otherwise use generated insights
+            let finalInsights = [];
+            if (psiData.insights && Array.isArray(psiData.insights) && psiData.insights.length > 0) {
+                finalInsights = psiData.insights;
+            } else if (psiData.insights && typeof psiData.insights === 'string') {
+                finalInsights = [psiData.insights];
+            } else {
+                finalInsights = insights;
+            }
+            
+            // Add recommendations if available
+            if (psiData.recommendations) {
+                if (Array.isArray(psiData.recommendations)) {
+                    finalInsights.push(...psiData.recommendations);
+                } else if (typeof psiData.recommendations === 'string') {
+                    finalInsights.push(psiData.recommendations);
+                }
+            }
+            
+            // Update the insights container
+            const uxInsightsElement = document.getElementById('uxInsights');
+            if (uxInsightsElement) {
+                if (finalInsights.length > 0) {
+                    const insightsHtml = finalInsights.map(insight => `<p>${insight}</p>`).join('');
+                    uxInsightsElement.innerHTML = insightsHtml;
+                    console.log('[DEBUG] Updated UX insights with', finalInsights.length, 'insights');
+                } else {
+                    uxInsightsElement.innerHTML = '<p>Performance analysis completed. No specific insights available.</p>';
+                    console.log('[DEBUG] No UX insights available, showing default message');
+                }
+            } else {
+                console.warn('[DEBUG] UX insights element not found');
+            }
+        }
+
+        // Duplicate fetchMobileData function removed - using the comprehensive version above
+
+
+
+        async function fetchBusinessData() {
+            setMetricLoadingState('business', 'loading');
+            try {
+                const response = await apiCall('/auth/business/metrics');
+                if (response.ok) {
+                    const businessData = await response.json();
+                    updateBusinessMetrics(businessData);
+                    setMetricLoadingState('business', 'done');
+                } else {
+                    setMetricLoadingState('business', 'done');
+                }
+            } catch (error) {
+                setMetricLoadingState('business', 'done');
+            }
+        }
+
+        function updateBusinessMetrics(businessData) {
+            // Store business data globally
+            window.metricsData = window.metricsData || {};
+            window.metricsData.business = {
+                business_complexity_score: businessData.business_complexity_score,
+                service_count: businessData.service_count
+            };
+            
+            // Update business metrics
+            const businessType = businessData.business_type || 'Unknown';
+            const targetMarket = businessData.target_market || 'Unknown';
+            
+            const elements = {
+                'businessType': businessType,
+                'targetMarket': targetMarket
+            };
+            
+            Object.entries(elements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = value;
+                }
+            });
+        }
+
+        async function loadRealMetrics() {
+            console.log('[DEBUG] Starting loadRealMetrics...');
+            showMetricsLoadingPopup();
+            resetMetricsLoadingState();
+            
+            try {
+                console.log('[DEBUG] Fetching GSC metrics...');
+                setMetricLoadingState('visibility', 'loading');
+                const response = await apiCall('/auth/gsc/metrics');
+                console.log('[DEBUG] GSC metrics response status:', response.status);
+                
+                if (response.ok) {
+                    const metrics = await response.json();
+                    console.log('[DEBUG] GSC metrics received:', metrics);
+                    
+                    // Validate metrics data structure
+                    if (!metrics || !metrics.summary) {
+                        console.error('[ERROR] Invalid metrics data structure:', metrics);
+                        throw new Error('Invalid metrics data structure received from API');
+                    }
+                    
+                    console.log('[DEBUG] Updating dashboard with metrics...');
+                    updateDashboardMetricsWithRealData(metrics);
+                    
+                    console.log('[DEBUG] Creating charts...');
+                    createMergedTrendsChart(metrics);
+                    
+                    console.log('[DEBUG] Showing website info...');
+                    showWebsiteInfo(metrics);
+                    showDateRange(metrics);
+                    
+                    // Mark core metrics as loaded
+                    setMetricLoadingState('visibility', 'done');
+                    setMetricLoadingState('organic', 'done');
+                    setMetricLoadingState('impressions', 'done');
+                    
+                    console.log('[DEBUG] Fetching additional metrics in parallel...');
+                    // Fetch all other data types in parallel
+                    const additionalMetricsPromises = [
+                        loadKeywordData().catch(e => console.error('[ERROR] Keyword data failed:', e)),
+                        fetchPageSpeedData().catch(e => console.error('[ERROR] PageSpeed data failed:', e)),
+                        fetchMobileData().catch(e => console.error('[ERROR] Mobile data failed:', e)),
+                        fetchIndexingData().catch(e => console.error('[ERROR] Indexing data failed:', e)),
+                        fetchBusinessData().catch(e => console.error('[ERROR] Business data failed:', e))
+                    ];
+                    
+                    await Promise.allSettled(additionalMetricsPromises);
+                    console.log('[DEBUG] All metrics loading completed');
+                    
+                } else {
+                    const errorText = await response.text();
+                    console.error('[ERROR] Failed to load GSC metrics:', response.status, errorText);
+                    
+                    // Set all states to done since we can't fetch data
+                    setMetricLoadingState('visibility', 'done');
+                    setMetricLoadingState('organic', 'done');
+                    setMetricLoadingState('impressions', 'done');
+                    setMetricLoadingState('keywords', 'done');
+                    setMetricLoadingState('ux', 'done');
+                    setMetricLoadingState('mobile', 'done');
+                    setMetricLoadingState('indexing', 'done');
+                    setMetricLoadingState('business', 'done');
+                    
+                    // Show empty state
+                    updateDashboardMetrics(false);
+                    createMergedTrendsChart({});
+                    hideWebsiteInfo();
+                    hideDateRange();
+                }
+            } catch (error) {
+                console.error('[ERROR] Exception in loadRealMetrics:', error);
+                
+                // Set all states to done
+                setMetricLoadingState('visibility', 'done');
+                setMetricLoadingState('organic', 'done');
+                setMetricLoadingState('impressions', 'done');
+                setMetricLoadingState('keywords', 'done');
+                setMetricLoadingState('ux', 'done');
+                setMetricLoadingState('mobile', 'done');
+                setMetricLoadingState('indexing', 'done');
+                setMetricLoadingState('business', 'done');
+                
+                // Show empty state
+                updateDashboardMetrics(false);
+                createMergedTrendsChart({});
+                hideWebsiteInfo();
+                hideDateRange();
+            } finally {
+                // Note: Loading popup will be hidden by setMetricLoadingState when all metrics are done
+                // The 5-second countdown timer handles hiding both loading and success popups
+            }
+        }
+
+        // TEST FUNCTION - Call this from console to debug
+        async function testDataLoading() {
+            console.log('=== MANUAL DATA LOADING TEST ===');
+            
+            // Step 1: Check authentication
+            console.log('1. Checking authentication...');
+            if (!checkAuthStatus()) {
+                console.log('❌ Authentication failed, stopping test');
+                return;
+            }
+            
+            // Step 2: Test API call
+            console.log('2. Testing API call...');
+            try {
+                const response = await apiCall('/auth/gsc/metrics');
+                console.log('- Response status:', response.status);
+                
+                if (response && response.ok) {
+                    const data = await response.json();
+                    console.log('- Response data:', JSON.stringify(data, null, 2));
+                    
+                    // Step 3: Test data processing
+                    console.log('3. Testing updateDashboardMetricsWithRealData...');
+                    updateDashboardMetricsWithRealData(data);
+                    console.log('✅ Data loading test completed successfully');
+                } else {
+                    console.log('❌ API call failed');
+                    const errorText = await response.text();
+                    console.log('Error details:', errorText);
+                }
+            } catch (error) {
+                console.error('❌ Exception during API call:', error);
+            }
+        }
+
+        // COMPREHENSIVE TEST FUNCTION
+        async function runFullDiagnostic() {
+            console.log('🔍 === FULL DIAGNOSTIC TEST ===');
+            
+            // 1. Authentication check
+            console.log('\n1️⃣ AUTHENTICATION CHECK:');
+            const authOk = checkAuthStatus();
+            
+            if (!authOk) {
+                console.log('🛑 Stopping diagnostic - authentication failed');
+                return;
+            }
+            
+            // 2. GSC Properties check
+            console.log('\n2️⃣ GSC PROPERTIES CHECK:');
+            await checkGSCProperties();
+            
+            // 3. Metrics fetch test
+            console.log('\n3️⃣ METRICS FETCH TEST:');
+            await testDataLoading();
+            
+            console.log('\n✅ Full diagnostic completed');
+        }
+
+        // TEST FUNCTION - Call this from console to debug date ranges
+        async function testDifferentDateRanges() {
+            console.log('=== TESTING DIFFERENT DATE RANGES ===');
+            
+            const token = localStorage.getItem('auth_token');
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+
+            // Test with different date ranges by calling GSC API directly
+            const testRanges = [
+                { days: 7, name: '7 days' },
+                { days: 30, name: '30 days' },
+                { days: 90, name: '90 days' }
+            ];
+            
+            for (const range of testRanges) {
+                console.log(`\n--- Testing ${range.name} ---`);
+                
+                try {
+                    // We'll use the existing endpoint but test if different periods return data
+                    const response = await fetch('/auth/gsc/metrics', { headers });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log(`Status: ${response.status}`);
+                        console.log(`Date range: ${data.start_date} to ${data.end_date}`);
+                        
+                        const summary = data.summary || {};
+                        console.log('Summary data:');
+                        console.log(`- total_impressions: ${summary.total_impressions}`);
+                        console.log(`- total_clicks: ${summary.total_clicks}`);
+                        console.log(`- avg_ctr: ${summary.avg_ctr}`);
+                        console.log(`- avg_position: ${summary.avg_position}`);
+                        console.log(`- Has time_series: ${Object.keys(data.time_series || {}).length > 0}`);
+                        
+                        if (data.time_series && data.time_series.dates) {
+                            console.log(`- Time series dates: ${data.time_series.dates.length} entries`);
+                            console.log(`- Sample dates: ${data.time_series.dates.slice(0, 3).join(', ')}`);
+                        }
+                    } else {
+                        console.log(`Failed: ${response.status}`);
+                        const error = await response.text();
+                        console.log(`Error: ${error}`);
+                    }
+                    
+                } catch (error) {
+                    console.error(`Exception for ${range.name}:`, error);
+                }
+            }
+        }
+
+        // TEST FUNCTION - Direct GSC property check
+        async function checkGSCProperties() {
+            console.log('=== CHECKING GSC PROPERTIES ===');
+            
+            const token = localStorage.getItem('auth_token');
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+
+            try {
+                const response = await fetch('/auth/gsc/properties', { headers });
+                
+                if (response.ok) {
+                    const properties = await response.json();
+                    console.log('Available properties:', properties);
+                    console.log('Number of properties:', properties.length);
+                    
+                    // Check which one is selected
+                    const selectedResponse = await fetch('/auth/gsc/selected', { headers });
+                    if (selectedResponse.ok) {
+                        const selected = await selectedResponse.json();
+                        console.log('Selected property:', selected);
+                    }
+                } else {
+                    console.log('Failed to fetch properties:', response.status);
+                }
+            } catch (error) {
+                console.error('Error checking properties:', error);
+            }
+        }
+
+        // TEST FUNCTION - Check authentication status
+        function checkAuthStatus() {
+            console.log('=== AUTHENTICATION STATUS CHECK ===');
+            
+            const token = localStorage.getItem('auth_token');
+            console.log('1. Token exists:', !!token);
+            
+            if (!token) {
+                console.log('❌ No authentication token found');
+                console.log('💡 Solution: You need to log in first');
+                console.log('   - Go to /ui and log in');
+                console.log('   - Or click "Connect to Google" if available');
+                return false;
+            }
+            
+            try {
+                console.log('2. Token format:', token.substring(0, 50) + '...');
+                
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const currentTime = Math.floor(Date.now() / 1000);
+                const isExpired = payload.exp && payload.exp < currentTime;
+                
+                console.log('3. Token details:', {
+                    userEmail: payload.sub,
+                    issuedAt: new Date(payload.iat * 1000).toLocaleString(),
+                    expiresAt: new Date(payload.exp * 1000).toLocaleString(),
+                    isExpired: isExpired,
+                    timeUntilExpiry: isExpired ? 'EXPIRED' : `${Math.round((payload.exp - currentTime) / 60)} minutes`
+                });
+                
+                if (isExpired) {
+                    console.log('❌ Token has expired');
+                    console.log('💡 Solution: Refresh the page to get a new token');
+                    return false;
+                }
+                
+                console.log('✅ Authentication token is valid');
+                
+                // Test API call
+                console.log('4. Testing API call...');
+                fetch('/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }).then(response => {
+                    console.log('API test result:', response.status);
+                    if (response.ok) {
+                        console.log('✅ API authentication working');
+                    } else {
+                        console.log('❌ API authentication failed');
+                        console.log('💡 Solution: Clear localStorage and log in again');
+                    }
+                }).catch(error => {
+                    console.error('API test error:', error);
+                });
+                
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Error parsing token:', error);
+                console.log('💡 Solution: Clear localStorage and log in again');
+                console.log('   - Run: localStorage.clear()');
+                console.log('   - Then go to /ui and log in');
+                return false;
+            }
+        }
     </script>
 </body>
 </html> 

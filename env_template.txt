@@ -1,34 +1,43 @@
-# Solvia Environment Variables Template
-# Copy this file to .env and fill in your actual values
+# Solvia Authentication Configuration
+
+# Google Sheets Configuration
+GOOGLE_SHEETS_CREDENTIALS_FILE=credentials.json
+USERS_SHEET_ID
 
 # Google OAuth Configuration
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
-
-# PageSpeed Insights API
-PAGESPEED_API_KEY=your_pagespeed_api_key_here
-
-# Note: For mobile usability testing, you also need to enable the Search Console API
-# in your Google Cloud Console project. The same API key is used for both services.
-
-# Google Sheets Configuration (existing)
-GOOGLE_SHEETS_CREDENTIALS_FILE=credentials.json
-USERS_SHEET_ID=your_users_sheet_id_here
-WEBSITES_SHEET_ID=your_websites_sheet_id_here
-METRICS_SHEET_ID=your_metrics_sheet_id_here
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI
 
 # JWT Configuration
-JWT_SECRET_KEY=your_jwt_secret_key_here
+JWT_SECRET_KEY
 JWT_ALGORITHM=HS256
 
-# Email Configuration (optional)
+# Email Settings (Gmail example)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USERNAME=your_email@gmail.com
-SMTP_PASSWORD=your_app_password_here
+EMAIL_USERNAME
+EMAIL_PASSWORD
+EMAIL_FROM
+
+# Security Settings
+VERIFICATION_TOKEN_EXPIRE_HOURS=24
+RESET_TOKEN_EXPIRE_HOURS=1
+
+# Rate Limiting
+LOGIN_ATTEMPTS_LIMIT=5
+LOGIN_ATTEMPTS_WINDOW_MINUTES=15
+
+# Application Settings
+DEBUG=True 
+
+# Pagespeed Insights API
+PAGESPEED_API_KEY
 
 # App Configuration
 DEBUG=True
 APP_NAME=Solvia
-APP_VERSION=1.0.0 
+APP_VERSION=1.0.0
+
+# Required for AI analysis
+OPENAI_API_KEY

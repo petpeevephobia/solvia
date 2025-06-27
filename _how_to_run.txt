@@ -6,3 +6,8 @@ http://localhost:8000/ui
 
 # optional: access interactive api docs
 http://localhost:8000/docs
+
+
+25 jun 2025:
+- data is not laoded in dashboard
+- google sheets is not connected

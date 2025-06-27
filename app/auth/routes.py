@@ -348,7 +348,7 @@ async def refresh_token_manual(request: Request):
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: str = Depends(get_current_user)):
-    """Get current user profile."""
+    """Get current user information."""
     user = db.get_user_by_email(current_user)
     if not user:
         raise HTTPException(
@@ -356,15 +356,22 @@ async def get_current_user_info(current_user: str = Depends(get_current_user)):
             detail="User not found"
         )
     
-    # Generate a user ID (since we don't store it in the current DB structure)
-    user_id = str(uuid.uuid4())
-    
     return UserResponse(
-        id=user_id,
+        id=str(uuid.uuid4()),  # Generate a UUID since we don't store user IDs
         email=user.email,
-        is_verified=user.is_verified,
-        created_at=user.created_at if user.created_at else None
+        message="User information retrieved successfully",
+        created_at=user.created_at if hasattr(user, 'created_at') and user.created_at else datetime.utcnow().isoformat()
     )
+
+
+@router.get("/website")
+async def get_user_website(current_user: str = Depends(get_current_user)):
+    """Get the user's selected website URL."""
+    user_website = db.get_user_website(current_user)
+    if not user_website:
+        return {"website_url": None}
+    
+    return {"website_url": user_website.get("website_url")}
 
 
 @router.get("/verify-email")
@@ -469,17 +476,17 @@ async def google_callback(
         
         print(f"[DEBUG] OAuth callback result: {result}")
         
-        # Redirect to setup wizard
+        # Redirect to property selection page after successful OAuth
         if result.get("success"):
-            return RedirectResponse(url=f"/setup?oauth_success=true&user={user_email}")
+            return RedirectResponse(url=f"/property-selection?oauth_success=true")
         else:
-            return RedirectResponse(url=f"/setup?oauth_error=true&user={user_email}")
+            return RedirectResponse(url=f"/property-selection?oauth_error=true")
             
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error handling Google callback: {e}")
-        return RedirectResponse(url="/setup?oauth_error=true")
+        return RedirectResponse(url="/dashboard?oauth_error=true")
 
 
 @router.get("/google/callback/test")
@@ -556,6 +563,33 @@ async def select_gsc_property(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to select property and collect data"
+        )
+
+
+@router.get("/gsc/selected")
+async def get_selected_gsc_property(current_user: str = Depends(get_current_user)):
+    """Get the currently selected GSC property for the user."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        return {
+            "success": True,
+            "website_url": website_url,
+            "selected": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting selected GSC property: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get selected property"
         )
 
 
@@ -805,16 +839,34 @@ async def get_keyword_metrics(current_user: str = Depends(get_current_user)):
     try:
         website_url = db.get_selected_gsc_property(current_user)
         if not website_url:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No GSC property selected. Please select a property first."
+            # Return empty keyword data instead of error
+            print(f"[WARNING] No GSC property selected for user: {current_user}")
+            return KeywordMetricsResponse(
+                total_keywords=0,
+                avg_position=0.0,
+                opportunities=0,
+                branded_keywords=0,
+                top_keywords="",
+                keyword_insights="No website configured. Please add a website URL first.",
+                keywords_list=[],
+                last_updated=datetime.utcnow().isoformat()
             )
+        
         keyword_data = await gsc_fetcher.fetch_keyword_data(current_user, website_url)
         if not keyword_data:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch keyword data."
+            # Return empty keyword data instead of error
+            print(f"[WARNING] Failed to fetch keyword data for user: {current_user}")
+            return KeywordMetricsResponse(
+                total_keywords=0,
+                avg_position=0.0,
+                opportunities=0,
+                branded_keywords=0,
+                top_keywords="",
+                keyword_insights="No keyword data available. This is normal for new websites or when GSC is not connected.",
+                keywords_list=[],
+                last_updated=datetime.utcnow().isoformat()
             )
+        
         print(f"[INFO] Keyword Trends: Total={keyword_data.get('total_keywords')}, Avg Position={keyword_data.get('avg_position')}, Opportunities={keyword_data.get('opportunities')}, Branded={keyword_data.get('branded_keywords')}")
         
         # Convert keyword details to KeywordData objects
@@ -841,7 +893,15 @@ async def get_keyword_metrics(current_user: str = Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}"
+        print(f"[ERROR] Unexpected error in keyword metrics: {e}")
+        # Return empty keyword data instead of 500 error
+        return KeywordMetricsResponse(
+            total_keywords=0,
+            avg_position=0.0,
+            opportunities=0,
+            branded_keywords=0,
+            top_keywords="",
+            keyword_insights=f"Error loading keyword data: {str(e)}",
+            keywords_list=[],
+            last_updated=datetime.utcnow().isoformat()
         ) 

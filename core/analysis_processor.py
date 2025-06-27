@@ -2,9 +2,10 @@ import os
 import json
 from urllib.parse import urlparse
 import openai
-from modules.business_analysis import BusinessAnalyzer
-from modules.report_generator import ReportGenerator
-from modules.prompt_loader import load_prompt
+from core.modules.business_analysis import BusinessAnalyzer
+from core.modules.report_generator import ReportGenerator
+from core.modules.prompt_loader import load_prompt
+from .recommendation_aggregator import RecommendationAggregator
 
 model = "gpt-4o-mini"
 
@@ -327,31 +328,28 @@ def enhance_business_analysis_with_ai(initial_business_data, technical_metrics):
 
 def generate_seo_analysis(website_data, business_context):
     """
-    Generate SEO analysis using OpenAI.
+    Generate comprehensive SEO analysis with prioritized recommendations.
     
     Args:
-        website_data (dict): Website performance data
-        business_context (dict): Business context data
-    
+        website_data (dict): Website performance and technical data
+        business_context (dict): Business analysis context for personalization
+        
     Returns:
-        dict: SEO analysis results
+        dict: Enhanced analysis with prioritized recommendations
     """
-    print("\nStarting SEO analysis generation...")
     
-    # Load the prompt template and JSON template separately
-    print("Loading prompt template...")
-    prompt_template = load_prompt('seo_analysis_prompt.txt')
-    if not prompt_template:
-        raise ValueError("Failed to load SEO analysis prompt template")
-    print("Prompt template loaded successfully")
+    # Load the SEO analysis prompt
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    prompt_path = os.path.join(current_dir, 'prompts', 'seo_analysis_json.txt')
     
-    print("Loading JSON template...")
-    json_template = load_prompt('seo_analysis_json.txt')
-    if not json_template:
-        raise ValueError("Failed to load SEO analysis JSON template")
-    print("JSON template loaded successfully")
-    
-    # Prepare the analysis data
+    try:
+        with open(prompt_path, 'r', encoding='utf-8') as file:
+            prompt_template = file.read()
+    except FileNotFoundError:
+        print(f"Prompt file not found at {prompt_path}")
+        return {}
+
+    # Prepare analysis data with all available context
     print("Preparing analysis data...")
     analysis_data = {
         'url': website_data.get('url', ''),
@@ -362,50 +360,25 @@ def generate_seo_analysis(website_data, business_context):
         'performance_score': website_data.get('performance_score', 0),
         'first_contentful_paint': website_data.get('first_contentful_paint', 0),
         'largest_contentful_paint': website_data.get('largest_contentful_paint', 0),
-        'speed_index': website_data.get('speed_index', 0),
-        'time_to_interactive': website_data.get('time_to_interactive', 0),
-        'total_blocking_time': website_data.get('total_blocking_time', 0),
         'cumulative_layout_shift': website_data.get('cumulative_layout_shift', 0),
-        'mobile_friendly_status': website_data.get('mobile_friendly_status', ''),
-        'mobile_friendly_issues_count': website_data.get('mobile_friendly_issues_count', 0),
-        'mobile_friendly_issues': website_data.get('mobile_friendly_issues', ''),
-        'mobile_test_loading_state': website_data.get('mobile_test_loading_state', ''),
-        'mobile_passed': website_data.get('mobile_passed', ''),
-        'top_keywords': website_data.get('top_keywords', ''),
-        'total_keywords_tracked': website_data.get('total_keywords_tracked', 0),
-        'avg_keyword_position': website_data.get('avg_keyword_position', 0),
-        'high_opportunity_keywords': website_data.get('high_opportunity_keywords', 0),
-        'branded_keywords_count': website_data.get('branded_keywords_count', 0),
-        'keyword_cannibalization_risk': website_data.get('keyword_cannibalization_risk', ''),
-        'sitemaps_submitted': website_data.get('sitemaps_submitted', ''),
-        'sitemap_count': website_data.get('sitemap_count', 0),
-        'sitemap_errors': website_data.get('sitemap_errors', 0),
-        'sitemap_warnings': website_data.get('sitemap_warnings', 0),
-        'last_submission': website_data.get('last_submission', ''),
-        'index_verdict': website_data.get('index_verdict', ''),
-        'coverage_state': website_data.get('coverage_state', ''),
-        'robots_txt_state': website_data.get('robots_txt_state', ''),
-        'indexing_state': website_data.get('indexing_state', ''),
-        'last_crawl_time': website_data.get('last_crawl_time', ''),
-        'page_fetch_state': website_data.get('page_fetch_state', ''),
         'business_model': business_context.get('business_model', ''),
         'target_market': business_context.get('target_market', ''),
         'industry_sector': business_context.get('industry_sector', ''),
         'company_size': business_context.get('company_size', ''),
-        'geographic_scope': business_context.get('geographic_scope', ''),
-        'target_locations': business_context.get('target_locations', ''),
         'has_ecommerce': business_context.get('has_ecommerce', False),
         'has_local_presence': business_context.get('has_local_presence', False),
-        'is_location_based': business_context.get('is_location_based', False),
         'business_complexity_score': business_context.get('business_complexity_score', 0),
         'primary_age_group': business_context.get('primary_age_group', ''),
         'income_level': business_context.get('income_level', ''),
         'audience_sophistication': business_context.get('audience_sophistication', ''),
         'services_offered': business_context.get('services_offered', ''),
-        'service_count': business_context.get('service_count', 0),
         'has_public_pricing': business_context.get('has_public_pricing', False),
+        'service_count': business_context.get('service_count', 0),
+        'geographic_scope': business_context.get('geographic_scope', ''),
+        'target_locations': business_context.get('target_locations', ''),
+        'is_location_based': business_context.get('is_location_based', False),
         'business_maturity': business_context.get('business_maturity', ''),
-        'establishment_year': business_context.get('establishment_year', 0),
+        'establishment_year': business_context.get('establishment_year', ''),
         'experience_indicators': business_context.get('experience_indicators', False),
         'platform_detected': business_context.get('platform_detected', ''),
         'has_advanced_features': business_context.get('has_advanced_features', False),
@@ -438,54 +411,77 @@ def generate_seo_analysis(website_data, business_context):
     client = openai.OpenAI()
     print("Making API request...")
     
-    messages = [
-        {"role": "system", "content": f"You are an SEO strategist and SaaS product assistant for early-stage founders. You MUST respond with valid JSON only, following this exact template:\n\n{json_template}"},
-        {"role": "user", "content": prompt}
-    ]
-    
-    response = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        response_format={ "type": "json_object" }
-    )
-    print("API request completed")
-    
-    # Extract and parse the analysis
-    print("Processing API response...")
-    
-    if not response.choices:
-        raise ValueError("No choices in response")
-        
-    analysis_text = response.choices[0].message.content
-    
-    if not analysis_text:
-        raise ValueError("Empty response content")
-    
     try:
-        analysis = json.loads(analysis_text)
-        print(f"\tParsed JSON: {json.dumps(analysis, indent=2)}")
-    except json.JSONDecodeError as e:
-        print(f"\nDEBUG - JSON Parse Error:")
-        print(f"Error message: {str(e)}")
-        print(f"Error position: {e.pos}")
-        print(f"Error line: {e.lineno}")
-        print(f"Error column: {e.colno}")
-        print(f"Error doc: {e.doc}")
-        raise
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert SEO analyst. Provide detailed, actionable SEO recommendations in valid JSON format."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=2000
+        )
         
-    # Validate required fields
-    if not isinstance(analysis, dict):
-        raise ValueError("Analysis must be a dictionary")
-    if "executive_summary" not in analysis:
-        raise ValueError("Missing required field: executive_summary")
-    if "key_findings" not in analysis:
-        raise ValueError("Missing required field: key_findings")
-    if not isinstance(analysis["key_findings"], list):
-        raise ValueError("Key findings must be a list")
-    if "recommendations" not in analysis:
-        raise ValueError("Missing required field: recommendations")
-    if not isinstance(analysis["recommendations"], list):
-        raise ValueError("Recommendations must be a list")
-    
-    print("Analysis validation successful")
-    return analysis
+        analysis_text = response.choices[0].message.content.strip()
+        print(f"Received response: {len(analysis_text)} characters")
+        
+        # Clean the response to ensure it's valid JSON
+        if analysis_text.startswith('```json'):
+            analysis_text = analysis_text[7:]
+        if analysis_text.endswith('```'):
+            analysis_text = analysis_text[:-3]
+        analysis_text = analysis_text.strip()
+        
+        try:
+            analysis = json.loads(analysis_text)
+            print(f"\tParsed JSON: {json.dumps(analysis, indent=2)}")
+            # Validate required fields
+            if not isinstance(analysis, dict):
+                print("Analysis is not a dictionary")
+                raise ValueError("Analysis must be a dictionary")
+            if "executive_summary" not in analysis:
+                print("Missing executive_summary in response")
+                raise ValueError("Missing required field: executive_summary")
+            if "recommendations" not in analysis:
+                print("Missing recommendations in response")
+                raise ValueError("Missing required field: recommendations")
+            if not isinstance(analysis["recommendations"], list):
+                print("Recommendations is not a list")
+                raise ValueError("Recommendations must be a list")
+            
+            print("Analysis validation successful")
+            
+            # 🎯 NEW: Process recommendations through the aggregator
+            print("🎯 Processing recommendations through priority aggregator...")
+            aggregator = RecommendationAggregator()
+            aggregator.set_business_context(business_context)
+            aggregator.add_technical_seo_recommendations(analysis)
+            
+            # Get prioritized recommendations
+            prioritized_recs = aggregator.get_prioritized_recommendations()
+            quick_wins = aggregator.get_quick_wins()
+            action_plan_summary = aggregator.generate_action_plan_summary()
+            
+            # Enhance the original analysis with prioritized data
+            analysis['prioritized_recommendations'] = prioritized_recs
+            analysis['quick_wins'] = quick_wins
+            analysis['action_plan_summary'] = action_plan_summary
+            analysis['recommendation_aggregator_data'] = aggregator.export_recommendations_json()
+            
+            print(f"\t\t✓ Enhanced analysis with {len(prioritized_recs)} prioritized recommendations")
+            print(f"\t\t✓ Identified {len(quick_wins)} quick wins")
+            
+            return analysis
+            
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON response: {str(e)}")
+            print(f"Raw response: {analysis_text}")
+            return {}
+        except ValueError as e:
+            print(f"Error validating response format: {str(e)}")
+            return {}
+    except Exception as api_error:
+        print(f"OpenAI API Error: {str(api_error)}")
+        print(f"Error type: {type(api_error)}")
+        print(f"Error details: {api_error.__dict__}")
+        return {}

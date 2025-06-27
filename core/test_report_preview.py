@@ -1,5 +1,5 @@
 import os
-from modules.report_generator import ReportGenerator
+from core.modules.report_generator import ReportGenerator
 
 def generate_test_report():
     # Create sample website data

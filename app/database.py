@@ -19,8 +19,10 @@ class GoogleSheetsDB:
         self.demo_mode = False
         self.demo_users = []
         self.demo_metrics = []
+        self.demo_reports = []  # Initialize demo reports storage
         self._cache = {}  # Simple in-memory cache
         self._cache_ttl = 60  # Cache for 60 seconds
+        
         
         # Try to initialize Google Sheets connection
         try:
@@ -54,10 +56,30 @@ class GoogleSheetsDB:
                     'avg_position', 'ctr', 'seo_score', 'created_at'
                 ])
             
+            # SEO reports sheet for storing generated reports
+            try:
+                self.seo_reports_sheet = self.client.open_by_key(settings.USERS_SHEET_ID).worksheet('seo-reports')
+            except gspread.WorksheetNotFound:
+                # Create the sheet if it doesn't exist
+                self.seo_reports_sheet = self.client.open_by_key(settings.USERS_SHEET_ID).add_worksheet(
+                    title='seo-reports', 
+                    rows=10000, 
+                    cols=10
+                )
+                # Add headers
+                self.seo_reports_sheet.append_row([
+                    'report_id', 'email', 'website_url', 'business_model', 'report_data', 
+                    'total_recommendations', 'quick_wins_count', 'avg_priority_score', 
+                    'generated_at', 'expires_at'
+                ])
+            
             print("Connected to Google Sheets successfully")
             
         except Exception as e:
             print(f"Failed to connect to Google Sheets: {e}")
+            print(f"[ERROR] Credentials file: {settings.GOOGLE_SHEETS_CREDENTIALS_FILE}")
+            print(f"[ERROR] Users Sheet ID: {settings.USERS_SHEET_ID}")
+            print(f"[ERROR] Sessions Sheet ID: {settings.SESSIONS_SHEET_ID}")
             print("Running in DEMO MODE with in-memory storage")
             self.demo_mode = True
             
@@ -103,7 +125,7 @@ class GoogleSheetsDB:
         demo_users = [
             {
                 'email': 'solviapteltd@gmail.com',
-                'password_hash': '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK2O',  # "Password1"
+                'password_hash': '$2b$12$kCnUogTNLWFUEgIgEu.5QOjqG3r96qKkBTXKFuAJT9TQc7lJ4JR4C',  # "Password1"
                 'created_at': '2024-01-01T00:00:00',
                 'last_login': '',
                 'is_verified': 'TRUE',
@@ -482,17 +504,41 @@ class GoogleSheetsDB:
     def get_user_website(self, email: str) -> Optional[Dict[str, Any]]:
         """Gets the selected website for a user."""
         if self.demo_mode:
+            # Return demo website for the demo user
+            if email == 'solviapteltd@gmail.com':
+                # Check if user has selected a specific GSC property format
+                cache_key = f"gsc_property_{email}"
+                cached_property = self._get_cached_data(cache_key)
+                if cached_property:
+                    return {"website_url": cached_property}
+                # Default to the domain property format used in GSC
+                return {"website_url": "sc-domain:thenadraagency.com"}
             return {"website_url": ""}
 
         try:
+            # Check cache first
+            cache_key = f"website_{email}"
+            cached_website = self._get_cached_data(cache_key)
+            if cached_website:
+                return cached_website
+            
             all_users = self.users_sheet.get_all_records()
             for user_record in all_users:
                 if user_record.get('email') == email:
-                    if user_record.get('website_url'):
-                        return {"website_url": user_record.get('website_url')}
+                    website_url = user_record.get('website_url', '').strip()
+                    if website_url:
+                        result = {"website_url": website_url}
+                        # Cache the result
+                        self._set_cached_data(cache_key, result)
+                        return result
                     else:
+                        # User exists but no website URL set
                         return None
+            
+            # User not found
+            print(f"[WARNING] User not found in sheets: {email}")
             return None
+            
         except Exception as e:
             print(f"Error getting user website: {e}")
             # If it's a rate limit error, return empty data
@@ -505,19 +551,279 @@ class GoogleSheetsDB:
         """
         Returns the selected GSC property URL for the given user.
         """
+        print(f"[DEBUG] get_selected_gsc_property called for: {email}")
+        
         # Check cache first
         cache_key = f"gsc_property_{email}"
         cached_property = self._get_cached_data(cache_key)
         if cached_property:
-            print(f"[DEBUG] Returning cached GSC property for: {email}")
+            print(f"[DEBUG] Returning cached GSC property for {email}: {cached_property}")
             return cached_property
         
         website = self.get_user_website(email)
+        print(f"[DEBUG] get_user_website returned for {email}: {website}")
+        
         if website and website.get("website_url"):
+            website_url = website["website_url"]
+            print(f"[DEBUG] Caching GSC property for {email}: {website_url}")
             # Cache the result
-            self._set_cached_data(cache_key, website["website_url"])
-            return website["website_url"]
+            self._set_cached_data(cache_key, website_url)
+            return website_url
+        
+        print(f"[DEBUG] No GSC property found for {email}")
         return None
+
+    def store_seo_report(self, email: str, website_url: str, report_data: Dict[str, Any]) -> str:
+        """
+        Store a generated SEO report for a user.
+        Returns the report_id for future retrieval.
+        """
+        import json
+        
+        # Generate unique report ID
+        report_id = f"{email}_{website_url}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        report_id = re.sub(r'[^a-zA-Z0-9_.-]', '_', report_id)  # Clean special chars
+        
+        # Extract summary data from report
+        analysis = report_data.get('analysis', {})
+        total_recommendations = len(analysis.get('prioritized_recommendations', []))
+        quick_wins_count = len(analysis.get('quick_wins', []))
+        
+        # Calculate average priority score
+        avg_priority_score = 0
+        if analysis.get('prioritized_recommendations'):
+            scores = [rec.get('priority_score', 0) for rec in analysis['prioritized_recommendations']]
+            avg_priority_score = round(sum(scores) / len(scores), 2) if scores else 0
+        
+        # Set expiration (30 days from now)
+        expires_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
+        
+        if self.demo_mode:
+            # Store in demo data
+            demo_report = {
+                'report_id': report_id,
+                'email': email,
+                'website_url': website_url,
+                'business_model': report_data.get('business_model', ''),
+                'report_data': json.dumps(report_data),
+                'total_recommendations': total_recommendations,
+                'quick_wins_count': quick_wins_count,
+                'avg_priority_score': avg_priority_score,
+                'generated_at': datetime.utcnow().isoformat(),
+                'expires_at': expires_at
+            }
+            self.demo_reports.append(demo_report)
+            print(f"[DEBUG] Stored report in demo mode: {report_id}")
+            return report_id
+        
+        try:
+            # Store in Google Sheets
+            report_row = [
+                report_id,
+                email,
+                website_url,
+                report_data.get('business_model', ''),
+                json.dumps(report_data),  # Store entire report as JSON string
+                total_recommendations,
+                quick_wins_count,
+                avg_priority_score,
+                datetime.utcnow().isoformat(),
+                expires_at
+            ]
+            
+            self.seo_reports_sheet.append_row(report_row)
+            print(f"[SUCCESS] Stored SEO report: {report_id} for user: {email}")
+            
+            # Clear cache for this user's reports
+            cache_key = f"reports_{email}"
+            if cache_key in self._cache:
+                del self._cache[cache_key]
+            
+            return report_id
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to store SEO report: {e}")
+            return None
+
+    def get_user_reports(self, email: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get all SEO reports for a user, ordered by most recent first.
+        """
+        # Check cache first
+        cache_key = f"reports_{email}"
+        cached_reports = self._get_cached_data(cache_key)
+        if cached_reports:
+            return cached_reports[:limit]
+        
+        if self.demo_mode:
+            # Use demo data
+            user_reports = [report for report in self.demo_reports if report['email'] == email]
+            user_reports.sort(key=lambda x: x['generated_at'], reverse=True)
+            self._set_cached_data(cache_key, user_reports)
+            return user_reports[:limit]
+        
+        try:
+            all_reports = self.seo_reports_sheet.get_all_records()
+            user_reports = []
+            
+            for report in all_reports:
+                if report['email'] == email:
+                    # Check if report is expired
+                    try:
+                        expires_at = datetime.fromisoformat(report['expires_at'])
+                        if expires_at > datetime.utcnow():
+                            user_reports.append(report)
+                    except (ValueError, KeyError):
+                        # Skip reports with invalid expiration dates
+                        continue
+            
+            # Sort by generated_at (most recent first)
+            user_reports.sort(key=lambda x: x['generated_at'], reverse=True)
+            
+            # Cache the results
+            self._set_cached_data(cache_key, user_reports)
+            
+            return user_reports[:limit]
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to get user reports: {e}")
+            return []
+
+    def get_report_by_id(self, report_id: str, email: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a specific report by ID (with email verification for security).
+        """
+        if self.demo_mode:
+            # Search demo data
+            for report in self.demo_reports:
+                if report['report_id'] == report_id and report['email'] == email:
+                    # Check if expired
+                    try:
+                        expires_at = datetime.fromisoformat(report['expires_at'])
+                        if expires_at > datetime.utcnow():
+                            return report
+                    except (ValueError, KeyError):
+                        pass
+            return None
+        
+        try:
+            all_reports = self.seo_reports_sheet.get_all_records()
+            
+            for report in all_reports:
+                if report['report_id'] == report_id and report['email'] == email:
+                    # Check if expired
+                    try:
+                        expires_at = datetime.fromisoformat(report['expires_at'])
+                        if expires_at > datetime.utcnow():
+                            return report
+                    except (ValueError, KeyError):
+                        continue
+            
+            return None
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to get report by ID: {e}")
+            return None
+
+    def cleanup_expired_reports(self) -> int:
+        """
+        Remove expired SEO reports and return count of removed reports.
+        """
+        if self.demo_mode:
+            # Clean demo data
+            now = datetime.utcnow()
+            initial_count = len(self.demo_reports)
+            
+            self.demo_reports = [
+                report for report in self.demo_reports
+                if datetime.fromisoformat(report['expires_at']) > now
+            ]
+            
+            return initial_count - len(self.demo_reports)
+        
+        try:
+            now = datetime.utcnow()
+            all_reports = self.seo_reports_sheet.get_all_records()
+            expired_rows = []
+            
+            for i, report in enumerate(all_reports, start=2):  # Start from row 2 (skip header)
+                try:
+                    expires_at = datetime.fromisoformat(report['expires_at'])
+                    if expires_at < now:
+                        expired_rows.append(i)
+                except (ValueError, KeyError):
+                    # Invalid date format, remove the row
+                    expired_rows.append(i)
+            
+            # Delete expired rows (in reverse order to maintain indices)
+            for row in reversed(expired_rows):
+                self.seo_reports_sheet.delete_rows(row)
+            
+            print(f"[INFO] Cleaned up {len(expired_rows)} expired SEO reports")
+            return len(expired_rows)
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to cleanup expired reports: {e}")
+            return 0
+
+    def store_temp_data(self, key: str, data: Dict[str, Any]) -> bool:
+        """Store temporary data for 30-day comparisons."""
+        if self.demo_mode:
+            # Store in memory cache for demo mode
+            self._set_cached_data(f"temp_{key}", data)
+            return True
+        
+        try:
+            # Get or create temp-data worksheet
+            temp_sheet = self.get_or_create_sheet('temp-data', ['key', 'data', 'created_at'])
+            
+            # Convert data to JSON string
+            import json
+            data_json = json.dumps(data)
+            current_time = datetime.utcnow().isoformat()
+            
+            # Check if key already exists
+            try:
+                cell = temp_sheet.find(key)
+                # Update existing row
+                temp_sheet.update(f'B{cell.row}:C{cell.row}', [[data_json, current_time]])
+            except gspread.CellNotFound:
+                # Add new row
+                temp_sheet.append_row([key, data_json, current_time])
+            
+            return True
+            
+        except Exception as e:
+            print(f"[ERROR] Error storing temp data: {e}")
+            return False
+    
+    def get_temp_data(self, key: str) -> Optional[Dict[str, Any]]:
+        """Get temporary data for 30-day comparisons."""
+        if self.demo_mode:
+            # Get from memory cache for demo mode
+            return self._get_cached_data(f"temp_{key}")
+        
+        try:
+            # Get temp-data worksheet
+            temp_sheet = self.get_or_create_sheet('temp-data', ['key', 'data', 'created_at'])
+            
+            # Find the key
+            try:
+                cell = temp_sheet.find(key)
+                row_data = temp_sheet.row_values(cell.row)
+                
+                if len(row_data) >= 2:
+                    import json
+                    return json.loads(row_data[1])  # data column
+                
+            except gspread.CellNotFound:
+                return None
+            
+            return None
+            
+        except Exception as e:
+            print(f"[ERROR] Error getting temp data: {e}")
+            return None
 
 
 # Create database instance

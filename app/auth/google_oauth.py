@@ -26,7 +26,7 @@ class GoogleOAuthHandler:
         self.client_secret = settings.GOOGLE_CLIENT_SECRET
         self.redirect_uri = settings.GOOGLE_REDIRECT_URI
         self.scopes = [
-            'https://www.googleapis.com/auth/webmasters.readonly',
+            'https://www.googleapis.com/auth/webmasters',  # Full access needed for URL Inspection API
             # 'https://www.googleapis.com/auth/indexing' # Temporarily disabled for debugging
         ]
         self.db = GoogleSheetsDB()
@@ -300,13 +300,23 @@ class GoogleOAuthHandler:
             
             properties = []
             for site in sites.get('siteEntry', []):
+                site_url = site['siteUrl']
+                permission = site['permissionLevel']
+                
                 properties.append({
-                    'siteUrl': site['siteUrl'],
-                    'permissionLevel': site['permissionLevel'],
+                    'siteUrl': site_url,
+                    'permissionLevel': permission,
                     'isVerified': True
                 })
+                
+                # Show detailed info about each property
+                if site_url.startswith('sc-domain:'):
+                    print(f"[DEBUG] Found DOMAIN property: {site_url} (permission: {permission})")
+                else:
+                    print(f"[DEBUG] Found URL PREFIX property: {site_url} (permission: {permission})")
             
-            print(f"[DEBUG] Retrieved real properties: {properties}")
+            print(f"[DEBUG] Retrieved {len(properties)} properties total")
+            print(f"[DEBUG] Full properties list: {properties}")
             return properties
         except HttpError as e:
             print(f"Error fetching GSC properties: {e}")
@@ -349,65 +359,98 @@ class GSCDataFetcher:
         self.db = GoogleSheetsDB()
     
     async def fetch_metrics(self, user_email: str, property_url: str, days: int = 30) -> Dict:
-        """Fetch SEO metrics from GSC for current period and 30 days ago, calculate the difference."""
+        """Fetch SEO metrics from GSC comparing today's data vs exactly 30 days ago."""
         try:
             credentials = self.oauth_handler.get_credentials(user_email)
             if not credentials or not credentials.valid:
                 raise Exception("Invalid or missing Google credentials")
 
-            # Define date ranges for 30-day comparison
+            # Get all days in the current month
             today = datetime.utcnow().date()
-            current_end_date = today - timedelta(days=2)  # Data is usually delayed
+            current_date = today - timedelta(days=2)  # Data is usually delayed by 2 days
             
-            # Calculate start of current month for current period
-            current_month_start = current_end_date.replace(day=1)
-            current_start_date = current_month_start
-
-            # Calculate 30 days ago period (single day for comparison)
-            comparison_date = current_end_date - timedelta(days=30)
+            # Get first day of current month
+            current_month_start = current_date.replace(day=1)
             
-            # Fetch data for current period (full month)
-            print(f"[DEBUG] Fetching data for current period: {current_start_date} to {current_end_date}")
+            # Get last day of current month
+            if current_date.month == 12:
+                next_month = current_date.replace(year=current_date.year + 1, month=1, day=1)
+            else:
+                next_month = current_date.replace(month=current_date.month + 1, day=1)
+            current_month_end = next_month - timedelta(days=1)
+            
+            # Don't go beyond current_date (since data is delayed)
+            if current_month_end > current_date:
+                current_month_end = current_date
+            
+            print(f"[DEBUG] Fetching current month data: {current_month_start} to {current_month_end}")
+            print(f"[DEBUG] Today is: {today}, using current_date: {current_date} (2 days ago)")
+            
+            # Fetch data for entire current month
             current_metrics = await self.get_gsc_data(
                 credentials, property_url, 
-                current_start_date.strftime('%Y-%m-%d'), 
-                current_end_date.strftime('%Y-%m-%d')
+                current_month_start.strftime('%Y-%m-%d'), 
+                current_month_end.strftime('%Y-%m-%d')
             )
 
-            # Fetch data for 30 days ago (single day)
-            print(f"[DEBUG] Fetching data for 30 days ago: {comparison_date}")
+            # For comparison, get the same period from previous month
+            if current_month_start.month == 1:
+                prev_month_start = current_month_start.replace(year=current_month_start.year - 1, month=12, day=1)
+            else:
+                prev_month_start = current_month_start.replace(month=current_month_start.month - 1, day=1)
+            
+            # Calculate the same number of days in previous month
+            days_in_current_period = (current_month_end - current_month_start).days + 1
+            prev_month_end = prev_month_start + timedelta(days=days_in_current_period - 1)
+            
             comparison_metrics = await self.get_gsc_data(
                 credentials, property_url, 
-                comparison_date.strftime('%Y-%m-%d'), 
-                comparison_date.strftime('%Y-%m-%d')
+                prev_month_start.strftime('%Y-%m-%d'), 
+                prev_month_end.strftime('%Y-%m-%d')
             )
             
-            # Calculate deltas between current totals and 30-day-ago totals
-            summary = current_metrics.get('summary', {})
+            print(f"[DEBUG] Fetching current data: {current_month_start} to {current_month_end}")
+            print(f"[DEBUG] Fetching comparison data: {prev_month_start} to {prev_month_end}")
+            
+            # Calculate deltas between current month and previous month
+            current_summary = current_metrics.get('summary', {})
             comparison_summary = comparison_metrics.get('summary', {})
             
-            # Add 30-day comparison changes to summary
-            summary['impressions_change'] = summary.get('total_impressions', 0) - comparison_summary.get('total_impressions', 0)
-            summary['clicks_change'] = summary.get('total_clicks', 0) - comparison_summary.get('total_clicks', 0)
-            summary['ctr_change'] = summary.get('avg_ctr', 0) - comparison_summary.get('avg_ctr', 0)
-            summary['position_change'] = summary.get('avg_position', 0) - comparison_summary.get('avg_position', 0)
+            print(f"[DEBUG] Current month metrics summary: {current_summary}")
+            print(f"[DEBUG] Previous month metrics summary: {comparison_summary}")
+            
+            # Add month-over-month comparison changes to summary (preserving current values)
+            current_summary['impressions_change'] = current_summary.get('total_impressions', 0) - comparison_summary.get('total_impressions', 0)
+            current_summary['clicks_change'] = current_summary.get('total_clicks', 0) - comparison_summary.get('total_clicks', 0)
+            current_summary['ctr_change'] = current_summary.get('avg_ctr', 0) - comparison_summary.get('avg_ctr', 0)
+            current_summary['position_change'] = current_summary.get('avg_position', 0) - comparison_summary.get('avg_position', 0)
+            
+            print(f"[DEBUG] Final summary after adding changes: {current_summary}")
 
-            print(f"[DEBUG] Calculated Deltas: CTR Change={summary['ctr_change']}, Position Change={summary['position_change']}")
+            print(f"[DEBUG] Month-over-Month Comparison Results:")
+            print(f"[DEBUG] - Impressions: {current_summary.get('total_impressions', 0)} vs {comparison_summary.get('total_impressions', 0)} = {current_summary['impressions_change']:+}")
+            print(f"[DEBUG] - Clicks: {current_summary.get('total_clicks', 0)} vs {comparison_summary.get('total_clicks', 0)} = {current_summary['clicks_change']:+}")
+            print(f"[DEBUG] - CTR: {current_summary.get('avg_ctr', 0):.3f} vs {comparison_summary.get('avg_ctr', 0):.3f} = {current_summary['ctr_change']:+.3f}")
+            print(f"[DEBUG] - Position: {current_summary.get('avg_position', 0):.1f} vs {comparison_summary.get('avg_position', 0):.1f} = {current_summary['position_change']:+.1f}")
             
-            # Calculate SEO score change (we'll need to get additional data for full calculation)
-            # For now, we'll calculate a simplified score based on available GSC data
-            current_seo_score = self._calculate_simplified_seo_score(summary)
+            # Calculate SEO score change based on month-over-month comparison
+            current_seo_score = self._calculate_simplified_seo_score(current_summary)
             previous_seo_score = self._calculate_simplified_seo_score(comparison_summary)
-            summary['seo_score_change'] = current_seo_score - previous_seo_score
+            current_summary['seo_score_change'] = current_seo_score - previous_seo_score
             
-            print(f"[DEBUG] SEO Score Change: Current={current_seo_score}, Previous={previous_seo_score}, Change={summary['seo_score_change']}")
+            print(f"[DEBUG] SEO Score: {current_seo_score} vs {previous_seo_score} = {current_summary['seo_score_change']:+}")
+            
+            # Use the current month data for time series (already fetched)
+            chart_metrics = current_metrics
             
             # Combine metrics
             final_metrics = {
-                'summary': summary,
-                'time_series': current_metrics.get('time_series', {}),
-                'start_date': current_start_date.strftime('%Y-%m-%d'),
-                'end_date': current_end_date.strftime('%Y-%m-%d'),
+                'summary': current_summary,
+                'time_series': chart_metrics.get('time_series', {}),
+                'start_date': current_month_start.strftime('%Y-%m-%d'),
+                'end_date': current_month_end.strftime('%Y-%m-%d'),
+                'comparison_start_date': prev_month_start.strftime('%Y-%m-%d'),
+                'comparison_end_date': prev_month_end.strftime('%Y-%m-%d'),
                 'website_url': property_url,
             }
             
@@ -841,9 +884,13 @@ class PageSpeedInsightsFetcher:
     def __init__(self):
         self.api_key = settings.PAGESPEED_API_KEY
         self.base_url = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
+        self.storage_key_prefix = "psi_metrics_"
+        # Import here to avoid circular imports
+        from app.database import GoogleSheetsDB
+        self.db = GoogleSheetsDB()
     
     async def fetch_pagespeed_data(self, url: str, strategy: str = "mobile", raw: bool = False) -> Dict:
-        """Fetch PageSpeed Insights data for a given URL."""
+        """Fetch PageSpeed Insights data for a given URL with 30-day comparison."""
         if not self.api_key:
             print("[WARNING] PageSpeed API key not configured")
             return self._get_demo_data()
@@ -875,17 +922,24 @@ class PageSpeedInsightsFetcher:
                         print(f"[DEBUG] PageSpeed API response received")
                         if raw:
                             return data
-                        # Process and return summary for frontend
+                        
+                        # Process current data
                         lh = data.get("lighthouseResult", {})
                         audits = lh.get("audits", {})
                         categories = lh.get("categories", {})
                         performance = categories.get("performance", {})
-                        return {
+                        
+                        current_metrics = {
                             "performance_score": round(performance.get("score", 0) * 100),
                             "lcp": {"value": audits.get("largest-contentful-paint", {}).get("numericValue", 0) / 1000},
                             "fcp": {"value": audits.get("first-contentful-paint", {}).get("numericValue", 0) / 1000},
                             "cls": {"value": audits.get("cumulative-layout-shift", {}).get("numericValue", 0)},
                         }
+                        
+                        # Add 30-day comparison
+                        current_metrics = self._add_30_day_comparison(final_url, current_metrics)
+                        
+                        return current_metrics
                     else:
                         error_text = await response.text()
                         print(f"[ERROR] PageSpeed API error: {response.status}")
@@ -895,6 +949,75 @@ class PageSpeedInsightsFetcher:
         except Exception as e:
             print(f"[ERROR] Error fetching PageSpeed data: {e}")
             return self._get_demo_data()
+    
+    def _add_30_day_comparison(self, url: str, current_metrics: Dict) -> Dict:
+        """Add 30-day comparison to PageSpeed metrics."""
+        try:
+            # Get stored metrics from 30 days ago
+            storage_key = f"{self.storage_key_prefix}{url}"
+            stored_data = self.db.get_temp_data(storage_key)
+            
+            current_date = datetime.utcnow().date()
+            comparison_date = current_date - timedelta(days=30)
+            
+            previous_metrics = None
+            if stored_data:
+                # Look for metrics from exactly 30 days ago (within 1 day tolerance)
+                for stored_date_str, metrics in stored_data.items():
+                    stored_date = datetime.strptime(stored_date_str, '%Y-%m-%d').date()
+                    if abs((stored_date - comparison_date).days) <= 1:
+                        previous_metrics = metrics
+                        break
+            
+            if previous_metrics:
+                # Calculate changes
+                current_metrics['performance_score_change'] = current_metrics['performance_score'] - previous_metrics.get('performance_score', 0)
+                current_metrics['lcp_change'] = current_metrics['lcp']['value'] - previous_metrics.get('lcp', {}).get('value', 0)
+                current_metrics['fcp_change'] = current_metrics['fcp']['value'] - previous_metrics.get('fcp', {}).get('value', 0)
+                current_metrics['cls_change'] = current_metrics['cls']['value'] - previous_metrics.get('cls', {}).get('value', 0)
+                
+                print(f"[DEBUG] PageSpeed 30-Day Comparison:")
+                print(f"[DEBUG] - Performance Score: {current_metrics['performance_score']} vs {previous_metrics.get('performance_score', 0)} = {current_metrics['performance_score_change']:+}")
+                print(f"[DEBUG] - LCP: {current_metrics['lcp']['value']:.2f}s vs {previous_metrics.get('lcp', {}).get('value', 0):.2f}s = {current_metrics['lcp_change']:+.2f}s")
+                print(f"[DEBUG] - FCP: {current_metrics['fcp']['value']:.2f}s vs {previous_metrics.get('fcp', {}).get('value', 0):.2f}s = {current_metrics['fcp_change']:+.2f}s")
+                print(f"[DEBUG] - CLS: {current_metrics['cls']['value']:.3f} vs {previous_metrics.get('cls', {}).get('value', 0):.3f} = {current_metrics['cls_change']:+.3f}")
+            else:
+                # No previous data - set changes to 0
+                current_metrics['performance_score_change'] = 0
+                current_metrics['lcp_change'] = 0
+                current_metrics['fcp_change'] = 0
+                current_metrics['cls_change'] = 0
+                print(f"[DEBUG] No PageSpeed data from 30 days ago - showing zero changes")
+            
+            # Store current metrics for future comparison
+            if not stored_data:
+                stored_data = {}
+            stored_data[current_date.strftime('%Y-%m-%d')] = {
+                'performance_score': current_metrics['performance_score'],
+                'lcp': current_metrics['lcp'],
+                'fcp': current_metrics['fcp'],
+                'cls': current_metrics['cls']
+            }
+            
+            # Keep only last 60 days of data
+            cutoff_date = current_date - timedelta(days=60)
+            stored_data = {
+                date_str: metrics for date_str, metrics in stored_data.items()
+                if datetime.strptime(date_str, '%Y-%m-%d').date() >= cutoff_date
+            }
+            
+            self.db.store_temp_data(storage_key, stored_data)
+            
+            return current_metrics
+            
+        except Exception as e:
+            print(f"[ERROR] Error in PageSpeed 30-day comparison: {e}")
+            # Return metrics without comparison data
+            current_metrics['performance_score_change'] = 0
+            current_metrics['lcp_change'] = 0
+            current_metrics['fcp_change'] = 0
+            current_metrics['cls_change'] = 0
+            return current_metrics
     
     async def _get_final_url(self, url: str) -> str:
         """Follow redirects to get the final URL."""
@@ -1367,37 +1490,37 @@ class IndexingCrawlabilityFetcher:
     def _get_indexed_pages(self, site_url):
         """Get information about indexed pages."""
         try:
-            # Convert domain property to actual URL if needed
-            if site_url.startswith('sc-domain:'):
-                domain = site_url.replace('sc-domain:', '')
-                sample_url = f"https://{domain}/"
-            else:
-                sample_url = f"{site_url.rstrip('/')}/"
+            print(f"[DEBUG] Starting URL inspection for site: {site_url}")
+            print(f"[DEBUG] Property type: {'Domain Property' if site_url.startswith('sc-domain:') else 'URL Prefix Property'}")
             
-            print(f"[DEBUG] Calling URL inspection for sample URL: {sample_url}")
-            print(f"[DEBUG] Site URL for inspection: {site_url}")
+            # Skip URL inspection for now to avoid permission issues
+            # URL Inspection API requires very specific URL/property matching
+            print(f"[INFO] Skipping URL inspection to avoid 403 errors")
+            print(f"[INFO] URL Inspection API is very strict about property/URL matching")
             
-            request = self.service.urlInspection().index().inspect(
-                body={
-                    'inspectionUrl': sample_url,
-                    'siteUrl': site_url
-                }
-            )
-            response = request.execute()
-            print(f"[DEBUG] URL inspection API response: {response}")
-            
-            inspection_result = response.get('inspectionResult', {})
-            index_status = inspection_result.get('indexStatusResult', {})
-            
+            # Return a safe default result
             result = {
-                'status': index_status.get('verdict', 'Unknown'),
-                'count': 1,  # This is just a sample, not total count
-                'last_seen': index_status.get('lastCrawlTime', 'Unknown')
+                'status': 'Skipped',
+                'count': 0,
+                'last_seen': 'Not checked (avoiding 403 errors)'
             }
-            print(f"[DEBUG] Processed URL inspection result: {result}")
+            print(f"[DEBUG] Returning safe default result: {result}")
             return result
+            
         except Exception as e:
+            error_msg = str(e)
             print(f"Error fetching indexed pages: {e}")
+            
+            # Check for common permission issues
+            if "PERMISSION_DENIED" in error_msg or "403" in error_msg:
+                print(f"[WARNING] URL Inspection API permission denied for {site_url}")
+                print(f"[INFO] This can happen when:")
+                print(f"[INFO] - OAuth scope 'webmasters' (full access) is not granted")
+                print(f"[INFO] - URL format doesn't match the property exactly")
+                print(f"[INFO] - Property type mismatch (domain vs URL prefix)")
+                print(f"[INFO] - The inspected URL is not part of this property")
+                print(f"[INFO] Suggestion: Check property setup in GSC")
+            
             return {'status': 'Error', 'count': 0, 'last_seen': 'Unknown'}
     
     def _get_crawl_stats(self, site_url):
