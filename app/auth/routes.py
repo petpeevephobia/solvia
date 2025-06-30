@@ -669,6 +669,84 @@ async def refresh_gsc_metrics(current_user: str = Depends(get_current_user)):
         )
 
 
+@router.post("/dashboard/cache")
+async def cache_dashboard_data(
+    dashboard_data: dict,
+    current_user: str = Depends(get_current_user)
+):
+    """Cache complete dashboard data for same-day retrieval."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+        
+        # Store dashboard cache
+        success = db.store_dashboard_cache(current_user, website_url, dashboard_data)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to cache dashboard data"
+            )
+        
+        return {
+            "success": True,
+            "message": "Dashboard data cached successfully!",
+            "cached_at": datetime.utcnow().isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error caching dashboard data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to cache dashboard data"
+        )
+
+
+@router.get("/dashboard/cache")
+async def get_cached_dashboard_data(current_user: str = Depends(get_current_user)):
+    """Get cached dashboard data for today if available."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+        
+        # Get cached dashboard data
+        cached_data = db.get_dashboard_cache(current_user, website_url)
+        
+        if cached_data:
+            return {
+                "success": True,
+                "has_cache": True,
+                "data": cached_data,
+                "message": "Cached dashboard data retrieved successfully!"
+            }
+        else:
+            return {
+                "success": True,
+                "has_cache": False,
+                "data": None,
+                "message": "No cached dashboard data available for today"
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting cached dashboard data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get cached dashboard data"
+        )
+
+
 @router.post("/gsc/clear-credentials")
 async def clear_gsc_credentials(current_user: str = Depends(get_current_user)):
     """Clear corrupted GSC credentials and force re-authentication."""

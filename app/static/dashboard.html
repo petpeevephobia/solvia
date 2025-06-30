@@ -2150,8 +2150,20 @@
             console.log('[DEBUG] Dashboard init - hasGSC:', hasGSC);
             
             if (hasGSC) {
-                // Fetch real metrics from GSC
-                await loadRealMetrics();
+                // First, try to load cached data for today
+                console.log('[DEBUG] Checking for cached dashboard data...');
+                const hasCachedData = await loadCachedDashboardData();
+                
+                if (hasCachedData) {
+                    console.log('[DEBUG] Successfully loaded cached data, skipping fresh API calls');
+                } else {
+                    console.log('[DEBUG] No cached data found, fetching fresh metrics from GSC...');
+                    // Fetch real metrics from GSC
+                    await loadRealMetrics();
+                    
+                    // Cache the newly loaded data
+                    await cacheDashboardData();
+                }
             } else {
                 // Show empty state
                 updateDashboardMetrics(false);
@@ -2340,6 +2352,9 @@
                     
                     // Reload the dashboard with fresh data
                     await loadRealMetrics();
+                    
+                    // Cache the dashboard data after successful refresh
+                    await cacheDashboardData();
                 } else {
                     const error = await response.json();
                     throw new Error(error.detail || 'Failed to refresh data');
@@ -2364,6 +2379,184 @@
                     refreshBtn.classList.remove('loading');
                 }, 500);
             }
+        }
+
+        async function cacheDashboardData() {
+            // Cache the current dashboard data for same-day retrieval
+            try {
+                console.log('[CACHE] Caching dashboard data...');
+                
+                // Collect all current dashboard data including original API response data
+                const dashboardData = {
+                    metrics: window.metricsData || {},
+                    // Store original API response data if available
+                    originalApiData: window.originalApiResponse || null,
+                    timestamp: new Date().toISOString(),
+                    cached_from: 'dashboard_refresh'
+                };
+                
+                console.log('[CACHE] Dashboard data to cache:', {
+                    metricsKeys: Object.keys(dashboardData.metrics),
+                    hasOriginalData: !!dashboardData.originalApiData,
+                    hasTimeSeries: !!dashboardData.originalApiData?.time_series
+                });
+                
+                const response = await apiCall('/auth/dashboard/cache', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dashboardData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('[CACHE] Dashboard data cached successfully:', result);
+                    // Cache success message removed per user request
+                } else {
+                    console.warn('[CACHE] Failed to cache dashboard data:', response.status);
+                }
+            } catch (error) {
+                console.error('[CACHE] Error caching dashboard data:', error);
+            }
+        }
+
+        async function loadCachedDashboardData() {
+            // Load cached dashboard data if available for today
+            try {
+                console.log('[CACHE] Checking for cached dashboard data...');
+                
+                const response = await apiCall('/auth/dashboard/cache');
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.has_cache && result.data) {
+                        console.log('[CACHE] Found cached dashboard data:', result.data);
+                        
+                        // Load the cached data into the dashboard
+                        if (result.data.metrics) {
+                            window.metricsData = result.data.metrics;
+                            
+                            // Use original API data if available, otherwise reconstruct from cached metrics
+                            let metricsObject;
+                            if (result.data.originalApiData) {
+                                console.log('[CACHE] Using original API data for charts');
+                                metricsObject = result.data.originalApiData;
+                                window.originalApiResponse = result.data.originalApiData;
+                            } else {
+                                console.log('[CACHE] Reconstructing metrics object from cached data');
+                                metricsObject = { 
+                                    summary: result.data.metrics.summary || {},
+                                    time_series: result.data.metrics.time_series || {},
+                                    website_url: result.data.metrics.website_url,
+                                    start_date: result.data.metrics.start_date,
+                                    end_date: result.data.metrics.end_date
+                                };
+                            }
+                            
+                            console.log('[CACHE] Final metrics object:', metricsObject);
+                            console.log('[CACHE] Time series data available:', !!metricsObject.time_series?.dates);
+                            
+                            // Update main dashboard metrics
+                            if (result.data.metrics.summary) {
+                                updateDashboardMetricsWithRealData(metricsObject);
+                            }
+                            
+                            // Create charts with cached data
+                            createMergedTrendsChart(metricsObject);
+                            
+                            // Show website info if available
+                            if (result.data.metrics.summary) {
+                                showWebsiteInfo(metricsObject);
+                                showDateRange(metricsObject);
+                            }
+                            
+                            // Update other metric sections if available
+                            if (result.data.metrics.keywords) {
+                                console.log('[CACHE] Loading keywords from cache:', result.data.metrics.keywords);
+                                updateKeywordMetrics(result.data.metrics.keywords);
+                            }
+                            if (result.data.metrics.ux) {
+                                console.log('[CACHE] Loading UX metrics from cache:', result.data.metrics.ux);
+                                // Transform cached UX data back to API format
+                                const cachedUx = result.data.metrics.ux;
+                                const uxApiFormat = {
+                                    performance_score: cachedUx.performance_score,
+                                    lcp: { value: cachedUx.lcp },
+                                    fcp: { value: cachedUx.fcp },
+                                    cls: { value: cachedUx.cls },
+                                    insights: cachedUx.insights || [],
+                                    recommendations: cachedUx.recommendations || []
+                                };
+                                console.log('[CACHE] Transformed UX data to API format:', uxApiFormat);
+                                updateUXMetrics(uxApiFormat);
+                                generateUXInsightsFromData(uxApiFormat);
+                            }
+                            if (result.data.metrics.mobile) {
+                                console.log('[CACHE] Loading mobile metrics from cache:', result.data.metrics.mobile);
+                                // Mobile data structure is already compatible, use as-is
+                                updateMobileMetrics(result.data.metrics.mobile);
+                                generateMobileInsightsFromData(result.data.metrics.mobile);
+                            }
+                            if (result.data.metrics.indexing) {
+                                console.log('[CACHE] Loading indexing metrics from cache:', result.data.metrics.indexing);
+                                updateIndexingMetrics(result.data.metrics.indexing);
+                                generateIndexingInsightsFromData(result.data.metrics.indexing);
+                            }
+                            if (result.data.metrics.business) {
+                                console.log('[CACHE] Loading business metrics from cache:', result.data.metrics.business);
+                                updateBusinessMetrics(result.data.metrics.business);
+                                generateBusinessInsightsFromData(result.data.metrics.business);
+                            }
+                            
+                            // Recalculate overall SEO score
+                            recalculateOverallSEOScore();
+                            
+                            showCacheStatus('Loaded cached data from today', 'info');
+                            return true; // Successfully loaded cached data
+                        }
+                    } else {
+                        console.log('[CACHE] No cached dashboard data available for today');
+                        return false;
+                    }
+                } else {
+                    console.warn('[CACHE] Failed to check for cached data:', response.status);
+                    return false;
+                }
+            } catch (error) {
+                console.error('[CACHE] Error loading cached dashboard data:', error);
+                return false;
+            }
+        }
+
+        function showCacheStatus(message, type = 'info') {
+            // Show cache status message to user
+            // Create or update cache status element
+            let cacheStatus = document.getElementById('cacheStatus');
+            if (!cacheStatus) {
+                cacheStatus = document.createElement('div');
+                cacheStatus.id = 'cacheStatus';
+                cacheStatus.className = 'cache-status';
+                
+                // Insert after the dashboard header
+                const dashboardHeader = document.querySelector('.dashboard-header');
+                if (dashboardHeader) {
+                    dashboardHeader.insertAdjacentElement('afterend', cacheStatus);
+                }
+            }
+            
+            // Set message and type
+            cacheStatus.textContent = message;
+            cacheStatus.className = `cache-status cache-${type}`;
+            cacheStatus.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (cacheStatus) {
+                    cacheStatus.style.display = 'none';
+                }
+            }, 5000);
         }
 
         function recalculateOverallSEOScore() {
@@ -2633,6 +2826,10 @@
                     const metrics = await response.json();
                     console.log('[DEBUG] GSC metrics received:', metrics);
                     
+                    // Store original API response for caching
+                    window.originalApiResponse = metrics;
+                    console.log('[DEBUG] Stored original API response for caching');
+                    
                     // Validate metrics data structure
                     if (!metrics || !metrics.summary) {
                         console.error('[ERROR] Invalid metrics data structure:', metrics);
@@ -2722,6 +2919,8 @@
         window.testBusinessData = testBusinessData;
         window.testDataLoading = testDataLoading;
         window.runFullDiagnostic = runFullDiagnostic;
+        window.testCacheSystem = testCacheSystem;
+        window.forceCacheRefresh = forceCacheRefresh;
 
         async function loadKeywordData() {
             setMetricLoadingState('keywords', 'loading');
@@ -2990,6 +3189,98 @@
         // Duplicate fetchMobileData function removed - using the comprehensive version above
         // Duplicate fetchBusinessData function removed - using the enhanced version above with debugging
         // Duplicate loadRealMetrics function removed - using the enhanced version above
+
+        // TEST FUNCTION - Test the dashboard caching system
+        async function testCacheSystem() {
+            console.log('=== TESTING DASHBOARD CACHE SYSTEM ===');
+            
+            try {
+                // Test 1: Check for existing cache
+                console.log('1. Checking for existing cached data...');
+                const cacheResponse = await apiCall('/auth/dashboard/cache');
+                
+                if (cacheResponse.ok) {
+                    const cacheResult = await cacheResponse.json();
+                    console.log('Cache check result:', cacheResult);
+                    
+                    if (cacheResult.has_cache) {
+                        console.log('✅ Found cached data from:', cacheResult.data?.timestamp);
+                    } else {
+                        console.log('ℹ️  No cached data available for today');
+                    }
+                } else {
+                    console.error('❌ Failed to check cache:', cacheResponse.status);
+                }
+                
+                // Test 2: Cache current dashboard data
+                console.log('2. Testing cache storage...');
+                const testData = {
+                    metrics: window.metricsData || {},
+                    timestamp: new Date().toISOString(),
+                    cached_from: 'test_function'
+                };
+                
+                const storeResponse = await apiCall('/auth/dashboard/cache', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                if (storeResponse.ok) {
+                    const storeResult = await storeResponse.json();
+                    console.log('✅ Cache storage successful:', storeResult);
+                } else {
+                    console.error('❌ Failed to store cache:', storeResponse.status);
+                }
+                
+                // Test 3: Verify cached data
+                console.log('3. Verifying cached data...');
+                const verifyResponse = await apiCall('/auth/dashboard/cache');
+                
+                if (verifyResponse.ok) {
+                    const verifyResult = await verifyResponse.json();
+                    if (verifyResult.has_cache) {
+                        console.log('✅ Cache verification successful');
+                        console.log('Cached metrics keys:', Object.keys(verifyResult.data?.metrics || {}));
+                    } else {
+                        console.log('❌ Cache verification failed - no data found');
+                    }
+                } else {
+                    console.error('❌ Failed to verify cache:', verifyResponse.status);
+                }
+                
+            } catch (error) {
+                console.error('❌ Exception during cache testing:', error);
+            }
+            
+            console.log('=== CACHE SYSTEM TEST COMPLETED ===');
+        }
+
+        // TEST FUNCTION - Force refresh and cache new data
+        async function forceCacheRefresh() {
+            console.log('=== FORCING CACHE REFRESH ===');
+            
+            try {
+                // Step 1: Load fresh data
+                console.log('1. Loading fresh metrics data...');
+                await loadRealMetrics();
+                
+                // Step 2: Cache the fresh data
+                console.log('2. Caching fresh data...');
+                await cacheDashboardData();
+                
+                console.log('✅ Cache refresh completed successfully');
+                showCacheStatus('Fresh data loaded and cached!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error during cache refresh:', error);
+                showCacheStatus('Failed to refresh cache', 'warning');
+            }
+            
+            console.log('=== CACHE REFRESH COMPLETED ===');
+        }
 
         // TEST FUNCTION - Call this from console to debug
         async function testDataLoading() {

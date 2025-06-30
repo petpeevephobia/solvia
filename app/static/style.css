@@ -1891,6 +1891,49 @@ body {
     }
 }
 
+/* Cache status styling */
+.cache-status {
+    padding: 10px 16px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: 500;
+    display: none;
+    animation: slideInDown 0.3s ease-out;
+}
+
+.cache-status.cache-success {
+    background: linear-gradient(135deg, #51cf66, #40c057);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(64, 192, 87, 0.2);
+}
+
+.cache-status.cache-info {
+    background: linear-gradient(135deg, #339af0, #228be6);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(34, 139, 230, 0.2);
+}
+
+.cache-status.cache-warning {
+    background: linear-gradient(135deg, #ffd43b, #fab005);
+    color: #333;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(250, 176, 5, 0.2);
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* === Business Context Visual Hierarchy === */
 .primary-metric {
     /* Enhanced styling for primary business metrics */

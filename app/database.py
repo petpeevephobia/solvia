@@ -104,6 +104,9 @@ class GoogleSheetsDB:
             print(f"[DEBUG] Demo mode initialized with {len(self.demo_users)} users")
             for user in self.demo_users:
                 print(f"[DEBUG] Demo user: {user['email']}")
+        
+        # Perform periodic cleanup tasks
+        self._perform_cleanup_tasks()
     
     def _get_cached_data(self, key: str):
         """Get data from cache if it's still valid."""
@@ -118,6 +121,32 @@ class GoogleSheetsDB:
     def _set_cached_data(self, key: str, data):
         """Store data in cache with timestamp."""
         self._cache[key] = (data, datetime.utcnow())
+    
+    def _perform_cleanup_tasks(self):
+        """Perform periodic cleanup tasks."""
+        try:
+            # Cleanup expired sessions
+            sessions_cleaned = self.cleanup_expired_sessions()
+            if sessions_cleaned > 0:
+                print(f"[CLEANUP] Cleaned {sessions_cleaned} expired sessions")
+        except Exception as e:
+            print(f"[CLEANUP] Warning: Could not cleanup expired sessions: {e}")
+            
+        try:
+            # Cleanup expired dashboard cache (older than 7 days)
+            cache_cleaned = self.cleanup_dashboard_cache(days_old=7)
+            if cache_cleaned > 0:
+                print(f"[CLEANUP] Cleaned {cache_cleaned} expired dashboard cache entries")
+        except Exception as e:
+            print(f"[CLEANUP] Warning: Could not cleanup expired dashboard cache: {e}")
+            
+        try:
+            # Cleanup expired reports (older than 30 days)
+            reports_cleaned = self.cleanup_expired_reports()
+            if reports_cleaned > 0:
+                print(f"[CLEANUP] Cleaned {reports_cleaned} expired reports")
+        except Exception as e:
+            print(f"[CLEANUP] Warning: Could not cleanup expired reports: {e}")
     
     def get_or_create_sheet(self, sheet_name: str, headers: List[str] = None) -> gspread.Worksheet:
         """Get a worksheet by name, or create it if it doesn't exist."""
@@ -815,6 +844,7 @@ class GoogleSheetsDB:
             
             return True
             
+            
         except Exception as e:
             print(f"[ERROR] Error storing temp data: {e}")
             return False
@@ -842,6 +872,178 @@ class GoogleSheetsDB:
         except Exception as e:
             print(f"[ERROR] Error getting temp data: {e}")
             return None
+
+    def store_dashboard_cache(self, email: str, website_url: str, dashboard_data: Dict[str, Any]) -> bool:
+        """Store complete dashboard data cache for same-day retrieval."""
+        import json
+        
+        # Create cache key with today's date
+        today = datetime.utcnow().strftime('%Y-%m-%d')
+        cache_key = f"dashboard_{email}_{website_url}_{today}"
+        cache_key = re.sub(r'[^a-zA-Z0-9_.-]', '_', cache_key)  # Clean special chars
+        
+        # Add metadata to dashboard data
+        cached_data = {
+            'dashboard_data': dashboard_data,
+            'cached_at': datetime.utcnow().isoformat(),
+            'cache_date': today,
+            'email': email,
+            'website_url': website_url
+        }
+        
+        if self.demo_mode:
+            # Store in memory cache for demo mode
+            self._set_cached_data(f"dashboard_cache_{cache_key}", cached_data)
+            print(f"[DEBUG] Stored dashboard cache in demo mode: {cache_key}")
+            return True
+        
+        try:
+            # Get or create dashboard-cache worksheet
+            cache_sheet = self.get_or_create_sheet('dashboard-cache', [
+                'cache_key', 'email', 'website_url', 'cache_date', 'dashboard_data', 'cached_at'
+            ])
+            
+            if not cache_sheet:  # Demo mode fallback
+                self._set_cached_data(f"dashboard_cache_{cache_key}", cached_data)
+                return True
+            
+            # Convert data to JSON string
+            data_json = json.dumps(cached_data)
+            current_time = datetime.utcnow().isoformat()
+            
+            # Check if cache key already exists (update existing)
+            try:
+                cell = cache_sheet.find(cache_key)
+                if cell:
+                    # Update existing row
+                    cache_sheet.update(f'E{cell.row}:F{cell.row}', [[data_json, current_time]])
+                    print(f"[DEBUG] Updated existing dashboard cache: {cache_key}")
+                else:
+                    # Add new row
+                    cache_sheet.append_row([
+                        cache_key, email, website_url, today, data_json, current_time
+                    ])
+                    print(f"[DEBUG] Created new dashboard cache: {cache_key}")
+            except:
+                # If find fails, just append new row
+                cache_sheet.append_row([
+                    cache_key, email, website_url, today, data_json, current_time
+                ])
+                print(f"[DEBUG] Created new dashboard cache: {cache_key}")
+            
+            return True
+            
+        except Exception as e:
+            print(f"[ERROR] Error storing dashboard cache: {e}")
+            return False
+
+    def get_dashboard_cache(self, email: str, website_url: str) -> Optional[Dict[str, Any]]:
+        """Get cached dashboard data for today if available."""
+        import json
+        
+        # Create cache key with today's date
+        today = datetime.utcnow().strftime('%Y-%m-%d')
+        cache_key = f"dashboard_{email}_{website_url}_{today}"
+        cache_key = re.sub(r'[^a-zA-Z0-9_.-]', '_', cache_key)  # Clean special chars
+        
+        if self.demo_mode:
+            # Get from memory cache for demo mode
+            cached_data = self._get_cached_data(f"dashboard_cache_{cache_key}")
+            if cached_data:
+                print(f"[DEBUG] Retrieved dashboard cache from demo mode: {cache_key}")
+                return cached_data.get('dashboard_data')
+            return None
+        
+        try:
+            # Get dashboard-cache worksheet
+            cache_sheet = self.get_or_create_sheet('dashboard-cache', [
+                'cache_key', 'email', 'website_url', 'cache_date', 'dashboard_data', 'cached_at'
+            ])
+            
+            if not cache_sheet:  # Demo mode fallback
+                cached_data = self._get_cached_data(f"dashboard_cache_{cache_key}")
+                if cached_data:
+                    return cached_data.get('dashboard_data')
+                return None
+            
+            # Find the cache key
+            try:
+                cell = cache_sheet.find(cache_key)
+                if cell:
+                    row_data = cache_sheet.row_values(cell.row)
+                    if len(row_data) >= 5:
+                        cached_data = json.loads(row_data[4])  # dashboard_data column
+                        
+                        # Verify cache is for today
+                        cache_date = cached_data.get('cache_date')
+                        if cache_date == today:
+                            print(f"[DEBUG] Retrieved valid dashboard cache: {cache_key}")
+                            return cached_data.get('dashboard_data')
+                        else:
+                            print(f"[DEBUG] Dashboard cache expired (date mismatch): {cache_date} vs {today}")
+                            return None
+            except:
+                # If find fails, no cache available
+                pass
+            
+            print(f"[DEBUG] No dashboard cache found for: {cache_key}")
+            return None
+            
+        except Exception as e:
+            print(f"[ERROR] Error getting dashboard cache: {e}")
+            return None
+
+    def cleanup_dashboard_cache(self, days_old: int = 7) -> int:
+        """Clean up dashboard cache entries older than specified days."""
+        if self.demo_mode:
+            # Clean demo cache
+            cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+            keys_to_remove = []
+            
+            for key in list(self._cache.keys()):
+                if key.startswith('dashboard_cache_'):
+                    cached_data, cached_time = self._cache[key]
+                    if cached_time < cutoff_date:
+                        keys_to_remove.append(key)
+            
+            for key in keys_to_remove:
+                del self._cache[key]
+            
+            print(f"[DEBUG] Cleaned {len(keys_to_remove)} expired dashboard cache entries from demo mode")
+            return len(keys_to_remove)
+        
+        try:
+            cache_sheet = self.get_or_create_sheet('dashboard-cache', [
+                'cache_key', 'email', 'website_url', 'cache_date', 'dashboard_data', 'cached_at'
+            ])
+            
+            if not cache_sheet:
+                return 0
+            
+            # Get all records
+            all_records = cache_sheet.get_all_records()
+            rows_to_delete = []
+            cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+            
+            for i, record in enumerate(all_records, start=2):  # Start at row 2 (after header)
+                try:
+                    cached_at = datetime.fromisoformat(record.get('cached_at', ''))
+                    if cached_at < cutoff_date:
+                        rows_to_delete.append(i)
+                except (ValueError, TypeError):
+                    # Invalid date format, consider it old
+                    rows_to_delete.append(i)
+            
+            # Delete rows in reverse order to maintain row numbers
+            for row_num in reversed(rows_to_delete):
+                cache_sheet.delete_rows(row_num)
+            
+            print(f"[DEBUG] Cleaned {len(rows_to_delete)} expired dashboard cache entries")
+            return len(rows_to_delete)
+            
+        except Exception as e:
+            print(f"[ERROR] Error cleaning dashboard cache: {e}")
+            return 0
 
 
 # Create database instance
