@@ -142,6 +142,11 @@ class GoogleOAuthHandler:
     
     def _store_credentials(self, user_email: str, credentials: Credentials):
         """Store OAuth credentials in Google Sheets."""
+        # Check if database is in demo mode
+        if self.db.demo_mode:
+            print(f"[DEBUG] Database in demo mode, cannot store credentials for {user_email}")
+            return
+            
         try:
             print(f"[DEBUG] _store_credentials called for user: {user_email}")
             # Create gsc_connections sheet if it doesn't exist
@@ -185,6 +190,11 @@ class GoogleOAuthHandler:
     
     def get_credentials(self, user_email: str) -> Optional[Credentials]:
         """Get stored OAuth credentials for user."""
+        # Check if database is in demo mode
+        if self.db.demo_mode:
+            print(f"[DEBUG] Database in demo mode, no credentials available for {user_email}")
+            return None
+            
         # Check cache first
         cache_key = f"creds_{user_email}"
         if cache_key in self._credentials_cache:
@@ -290,8 +300,13 @@ class GoogleOAuthHandler:
         credentials = self.get_credentials(user_email)
         if not credentials:
             print(f"[DEBUG] No credentials found for user: {user_email}")
-            # Clear any corrupted credentials
-            self._clear_credentials(user_email)
+            # If we're in demo mode or rate limited, don't clear credentials
+            if not self.db.demo_mode:
+                # Only clear credentials if we can actually access the database
+                try:
+                    self._clear_credentials(user_email)
+                except Exception as clear_error:
+                    print(f"[WARNING] Could not clear credentials due to: {clear_error}")
             return []
         
         try:
@@ -333,6 +348,11 @@ class GoogleOAuthHandler:
 
     def _clear_credentials(self, user_email: str):
         """Clear corrupted credentials for a user."""
+        # Check if database is in demo mode
+        if self.db.demo_mode:
+            print(f"[DEBUG] Database in demo mode, cannot clear credentials for {user_email}")
+            return
+            
         try:
             print(f"[DEBUG] Clearing credentials for user: {user_email}")
             gsc_connections_sheet = self.db.client.open_by_key(self.db.users_sheet.spreadsheet.id).worksheet('gsc-connections')
@@ -623,6 +643,10 @@ class GSCDataFetcher:
                 'gsc-metrics', 
                 headers=['user_email', 'property_url', 'metrics_json', 'last_updated']
             )
+            if not metrics_sheet:  # Demo mode
+                print(f"[DEBUG] Demo mode - cannot store metrics for {user_email}")
+                return
+                
             metrics_json = json.dumps(metrics)
             
             try:
@@ -647,6 +671,10 @@ class GSCDataFetcher:
                 'gsc-metrics',
                 headers=['user_email', 'property_url', 'metrics_json', 'last_updated']
             )
+            if not metrics_sheet:  # Demo mode
+                print(f"[DEBUG] Demo mode - cannot get stored metrics for {user_email}")
+                return None
+                
             cell = metrics_sheet.find(user_email)
             
             if cell:

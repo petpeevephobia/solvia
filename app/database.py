@@ -2,6 +2,7 @@
 Google Sheets database operations for Solvia authentication system.
 """
 import gspread
+from gspread.exceptions import WorksheetNotFound
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
@@ -15,6 +16,7 @@ class GoogleSheetsDB:
     """Google Sheets database interface."""
     
     def __init__(self):
+        
         """Initialize Google Sheets connection or demo mode."""
         self.demo_mode = False
         self.demo_users = []
@@ -36,14 +38,28 @@ class GoogleSheetsDB:
             )
             self.client = gspread.authorize(self.credentials)
             
-            # Open sheets - use sheet1 for both since they're in the same spreadsheet
+            # Open sheets - users in Sheet1, sessions in separate worksheet
             self.users_sheet = self.client.open_by_key(settings.USERS_SHEET_ID).sheet1
-            self.sessions_sheet = self.client.open_by_key(settings.SESSIONS_SHEET_ID).sheet1
+            
+            # Sessions sheet - create if doesn't exist
+            try:
+                self.sessions_sheet = self.client.open_by_key(settings.SESSIONS_SHEET_ID).worksheet('sessions')
+            except WorksheetNotFound:
+                # Create the sessions sheet if it doesn't exist
+                self.sessions_sheet = self.client.open_by_key(settings.SESSIONS_SHEET_ID).add_worksheet(
+                    title='sessions', 
+                    rows=10000, 
+                    cols=4
+                )
+                # Add headers
+                self.sessions_sheet.append_row([
+                    'user_email', 'session_token', 'created_at', 'expires_at'
+                ])
             
             # SEO metrics sheet
             try:
                 self.seo_metrics_sheet = self.client.open_by_key(settings.USERS_SHEET_ID).worksheet('seo-metrics')
-            except gspread.WorksheetNotFound:
+            except WorksheetNotFound:
                 # Create the sheet if it doesn't exist
                 self.seo_metrics_sheet = self.client.open_by_key(settings.USERS_SHEET_ID).add_worksheet(
                     title='seo-metrics', 
@@ -59,7 +75,7 @@ class GoogleSheetsDB:
             # SEO reports sheet for storing generated reports
             try:
                 self.seo_reports_sheet = self.client.open_by_key(settings.USERS_SHEET_ID).worksheet('seo-reports')
-            except gspread.WorksheetNotFound:
+            except WorksheetNotFound:
                 # Create the sheet if it doesn't exist
                 self.seo_reports_sheet = self.client.open_by_key(settings.USERS_SHEET_ID).add_worksheet(
                     title='seo-reports', 
@@ -105,10 +121,14 @@ class GoogleSheetsDB:
     
     def get_or_create_sheet(self, sheet_name: str, headers: List[str] = None) -> gspread.Worksheet:
         """Get a worksheet by name, or create it if it doesn't exist."""
+        if self.demo_mode:
+            print(f"[DEBUG] Database in demo mode, cannot access sheet: {sheet_name}")
+            return None
+            
         try:
             sheet = self.client.open_by_key(settings.USERS_SHEET_ID).worksheet(sheet_name)
             return sheet
-        except gspread.WorksheetNotFound:
+        except WorksheetNotFound:
             print(f"Worksheet '{sheet_name}' not found, creating it.")
             sheet = self.client.open_by_key(settings.USERS_SHEET_ID).add_worksheet(
                 title=sheet_name, 
@@ -156,8 +176,10 @@ class GoogleSheetsDB:
         """Find the row number for a user by email."""
         try:
             cell = self.users_sheet.find(email)
-            return cell.row
-        except gspread.CellNotFound:
+            if cell:
+                return cell.row
+            return None
+        except Exception:
             return None
     
     def create_user(self, user: UserCreate, password_hash: str, verification_token: str) -> bool:
@@ -347,9 +369,9 @@ class GoogleSheetsDB:
         """Delete a session by token."""
         try:
             cell = self.sessions_sheet.find(session_token)
-            self.sessions_sheet.delete_rows(cell.row)
-            return True
-        except gspread.CellNotFound:
+            if cell:
+                self.sessions_sheet.delete_rows(cell.row)
+                return True
             return False
         except Exception as e:
             print(f"Error deleting session: {e}")
@@ -783,11 +805,11 @@ class GoogleSheetsDB:
             current_time = datetime.utcnow().isoformat()
             
             # Check if key already exists
-            try:
-                cell = temp_sheet.find(key)
+            cell = temp_sheet.find(key)
+            if cell:
                 # Update existing row
                 temp_sheet.update(f'B{cell.row}:C{cell.row}', [[data_json, current_time]])
-            except gspread.CellNotFound:
+            else:
                 # Add new row
                 temp_sheet.append_row([key, data_json, current_time])
             
@@ -808,16 +830,12 @@ class GoogleSheetsDB:
             temp_sheet = self.get_or_create_sheet('temp-data', ['key', 'data', 'created_at'])
             
             # Find the key
-            try:
-                cell = temp_sheet.find(key)
+            cell = temp_sheet.find(key)
+            if cell:
                 row_data = temp_sheet.row_values(cell.row)
-                
                 if len(row_data) >= 2:
                     import json
                     return json.loads(row_data[1])  # data column
-                
-            except gspread.CellNotFound:
-                return None
             
             return None
             

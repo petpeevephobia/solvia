@@ -620,9 +620,22 @@
                         document.getElementById('emptyState').classList.add('hidden');
                         document.getElementById('resultsContent').classList.remove('hidden');
                         
-                        // Hide the generate button completely
+                        // Hide the generate button completely - no replacement button
                         const generateBtn = document.getElementById('generateBtn');
-                        generateBtn.style.display = 'none';
+                        if (generateBtn) {
+                            generateBtn.style.display = 'none';
+                            console.log('[DEBUG] Generate button hidden - existing report loaded');
+                        }
+                        
+                        // Also hide the parent container if it exists
+                        const generateContainer = generateBtn.closest('.generate-section');
+                        if (generateContainer) {
+                            generateContainer.style.display = 'none';
+                            console.log('[DEBUG] Generate container hidden');
+                        }
+                        
+                        // Update page title to show report is loaded
+                        document.title = 'SEO Report - Solvia';
                         
                         return true;
                     } else {
@@ -630,7 +643,7 @@
                         return false;
                     }
                 } else {
-                    console.log('[DEBUG] Failed to check for existing reports');
+                    console.log('[DEBUG] Failed to check for existing reports, status:', response.status);
                     return false;
                 }
             } catch (error) {

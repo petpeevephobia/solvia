@@ -1496,18 +1496,33 @@
                     const psiData = await response.json();
                     console.log('[DEBUG] PageSpeed data received:', psiData);
                     updateUXMetrics(psiData);
-                    generateUXInsightsFromData(psiData);
                     setMetricLoadingState('ux', 'done');
                 } else {
                     setMetricLoadingState('ux', 'done');
                     const errorText = await response.text();
                     console.log('[DEBUG] Failed to load PageSpeed data:', errorText);
-                    document.getElementById('uxInsights').innerHTML = '<p>Performance insights will be available when PageSpeed data is connected.</p>';
+                    // Provide fallback data for UX metrics
+                    const fallbackData = {
+                        performance_score: 0,
+                        lcp: { value: 0 },
+                        fcp: { value: 0 },
+                        cls: { value: 0 },
+                        insights: ['PageSpeed data will be available once configured.']
+                    };
+                    updateUXMetrics(fallbackData);
                 }
             } catch (error) {
                 setMetricLoadingState('ux', 'done');
                 console.error('Error loading PageSpeed data:', error);
-                document.getElementById('uxInsights').innerHTML = '<p>Performance insights will be available when PageSpeed data is connected.</p>';
+                // Provide fallback data for UX metrics
+                const fallbackData = {
+                    performance_score: 0,
+                    lcp: { value: 0 },
+                    fcp: { value: 0 },
+                    cls: { value: 0 },
+                    insights: ['PageSpeed data is currently unavailable. Please check your connection and try refreshing.']
+                };
+                updateUXMetrics(fallbackData);
             }
         }
 
@@ -1519,7 +1534,9 @@
                 performance_score: psiData.performance_score,
                 lcp: psiData.lcp?.value,
                 fcp: psiData.fcp?.value,
-                cls: psiData.cls?.value
+                cls: psiData.cls?.value,
+                insights: psiData.insights || [],
+                recommendations: psiData.recommendations || []
             };
             
             console.log(`[GROWTH DEBUG] === ENGAGEMENT & UX METRICS ===`);
@@ -1628,12 +1645,28 @@
                     setMetricLoadingState('mobile', 'done');
                     const errorText = await response.text();
                     console.log('[DEBUG] Failed to load mobile data:', errorText);
-                    document.getElementById('mobileInsights').innerHTML = '<p>Mobile test results will appear here</p>';
+                    // Provide fallback data for mobile metrics
+                    const fallbackData = {
+                        mobile_friendly: 'Unknown',
+                        issues_count: 0,
+                        performance_score: 0,
+                        insights: 'Mobile data will be available once GSC is connected and configured.'
+                    };
+                    updateMobileMetrics(fallbackData);
+                    generateMobileInsightsFromData(fallbackData);
                 }
             } catch (error) {
                 setMetricLoadingState('mobile', 'done');
                 console.error('Error loading mobile data:', error);
-                document.getElementById('mobileInsights').innerHTML = '<p>Mobile test results will appear here</p>';
+                // Provide fallback data for mobile metrics
+                const fallbackData = {
+                    mobile_friendly: 'Not Available',
+                    issues_count: 0,
+                    performance_score: 0,
+                    insights: 'Mobile data is currently unavailable. Please check your connection and try refreshing.'
+                };
+                updateMobileMetrics(fallbackData);
+                generateMobileInsightsFromData(fallbackData);
             }
         }
 
@@ -1734,12 +1767,36 @@
                     setMetricLoadingState('indexing', 'done');
                     const errorText = await response.text();
                     console.log('[DEBUG] Failed to load indexing data:', errorText);
-                    document.getElementById('indexingInsights').innerHTML = '<p>Indexing health will be analyzed when connected to Google Search Console.</p>';
+                    // Provide fallback data for indexing metrics
+                    const fallbackData = {
+                        sitemap_status: 'Unknown',
+                        sitemap_count: 0,
+                        indexed_pages: 0,
+                        index_status: 'Not Available',
+                        crawl_errors: 0,
+                        crawl_success_rate: 0,
+                        last_crawl: null,
+                        insights: 'Indexing data will be available when GSC is connected.'
+                    };
+                    updateIndexingMetrics(fallbackData);
+                    generateIndexingInsightsFromData(fallbackData);
                 }
             } catch (error) {
                 setMetricLoadingState('indexing', 'done');
                 console.error('[ERROR] Exception in fetchIndexingData:', error);
-                document.getElementById('indexingInsights').innerHTML = '<p>Indexing health will be analyzed when connected to Google Search Console.</p>';
+                // Provide fallback data for indexing metrics
+                const fallbackData = {
+                    sitemap_status: 'Not Available',
+                    sitemap_count: 0,
+                    indexed_pages: 0,
+                    index_status: 'Not Available',
+                    crawl_errors: 0,
+                    crawl_success_rate: 0,
+                    last_crawl: null,
+                    insights: 'Indexing data is currently unavailable. Please check your connection and try refreshing.'
+                };
+                updateIndexingMetrics(fallbackData);
+                generateIndexingInsightsFromData(fallbackData);
             }
         }
 
@@ -1848,32 +1905,44 @@
         async function fetchBusinessData() {
             setMetricLoadingState('business', 'loading');
             try {
-                console.log('[DEBUG] Fetching business context data...');
+                console.log('[BUSINESS DEBUG] ========== FETCHING BUSINESS DATA ==========');
+                console.log('[BUSINESS DEBUG] Starting business data fetch...');
                 const response = await apiCall('/auth/business/metrics');
-                console.log('[DEBUG] Business context response status:', response.status);
+                console.log('[BUSINESS DEBUG] Business context response status:', response.status);
+                console.log('[BUSINESS DEBUG] Business context response headers:', response.headers);
                 
                 if (response.ok) {
                     const businessData = await response.json();
-                    console.log('[DEBUG] Business context data received:', businessData);
+                    console.log('[BUSINESS DEBUG] ✅ Business context data received successfully!');
+                    console.log('[BUSINESS DEBUG] Raw business data:', JSON.stringify(businessData, null, 2));
+                    console.log('[BUSINESS DEBUG] Business data keys:', Object.keys(businessData));
+                    console.log('[BUSINESS DEBUG] Business type:', businessData.business_type);
+                    console.log('[BUSINESS DEBUG] Target market:', businessData.target_market);
+                    console.log('[BUSINESS DEBUG] Industry sector:', businessData.industry_sector);
+                    
+                    console.log('[BUSINESS DEBUG] Calling updateBusinessMetrics...');
                     updateBusinessMetrics(businessData);
+                    console.log('[BUSINESS DEBUG] Calling generateBusinessInsightsFromData...');
                     generateBusinessInsightsFromData(businessData);
                     setMetricLoadingState('business', 'done');
+                    console.log('[BUSINESS DEBUG] ✅ Business data processing completed successfully!');
                 } else {
                     setMetricLoadingState('business', 'done');
                     const errorText = await response.text();
-                    console.log('[DEBUG] Failed to load business context data:', errorText);
+                    console.error('[BUSINESS DEBUG] ❌ Failed to load business context data:', response.status, errorText);
                     document.getElementById('businessInsights').innerHTML = '<p>Business context analysis will be available when connected to Google Search Console.</p>';
                 }
             } catch (error) {
                 setMetricLoadingState('business', 'done');
-                console.error('Error loading business context data:', error);
+                console.error('[BUSINESS DEBUG] ❌ Exception in fetchBusinessData:', error);
+                console.error('[BUSINESS DEBUG] Error stack:', error.stack);
                 document.getElementById('businessInsights').innerHTML = '<p>Business context analysis will be available when connected to Google Search Console.</p>';
             }
         }
 
         function updateBusinessMetrics(businessData) {
-            console.log('[DEBUG] ========== UPDATING BUSINESS METRICS ==========');
-            console.log('[DEBUG] Received business data:', JSON.stringify(businessData, null, 2));
+            console.log('[BUSINESS DEBUG] ========== UPDATING BUSINESS METRICS ==========');
+            console.log('[BUSINESS DEBUG] Input business data:', JSON.stringify(businessData, null, 2));
             
             // Store comprehensive business data globally
             window.metricsData.business = {
@@ -1891,6 +1960,8 @@
                 competitive_position: businessData.competitive_position
             };
             
+            console.log('[BUSINESS DEBUG] Stored global business data:', window.metricsData.business);
+            
             // Update all business context fields
             const businessFields = {
                 'businessType': businessData.business_type,
@@ -1907,22 +1978,44 @@
                 'competitivePosition': businessData.competitive_position
             };
             
-            console.log('[DEBUG] Updating business fields:', businessFields);
+            console.log('[BUSINESS DEBUG] Field mapping:', businessFields);
             
             // Update DOM elements for all business fields
+            let successCount = 0;
+            let failureCount = 0;
+            
             Object.entries(businessFields).forEach(([elementId, value]) => {
                 const element = document.getElementById(elementId);
                 if (element) {
                     const displayValue = value || 'N/A';
+                    const oldValue = element.textContent;
                     element.textContent = displayValue;
-                    console.log(`[DEBUG] Set ${elementId} to: ${displayValue}`);
+                    console.log(`[BUSINESS DEBUG] ✅ Updated ${elementId}: "${oldValue}" → "${displayValue}"`);
+                    successCount++;
                 } else {
-                    console.warn(`[DEBUG] Business element not found: ${elementId}`);
+                    console.error(`[BUSINESS DEBUG] ❌ Element not found: ${elementId}`);
+                    failureCount++;
                 }
             });
             
+            console.log(`[BUSINESS DEBUG] DOM Updates: ${successCount} successful, ${failureCount} failed`);
+            
+            // List all business-related elements in the DOM
+            const businessElements = [
+                'businessType', 'targetMarket', 'industrySector', 'companySize', 
+                'primaryAgeGroup', 'incomeLevel', 'audienceSophistication', 
+                'geographicFocus', 'businessMaturity', 'technologyPlatform', 
+                'contentStrategy', 'competitivePosition', 'businessStatus', 'businessInsights'
+            ];
+            
+            console.log('[BUSINESS DEBUG] DOM Element Check:');
+            businessElements.forEach(id => {
+                const element = document.getElementById(id);
+                console.log(`[BUSINESS DEBUG] ${id}: ${element ? '✅ exists' : '❌ missing'} ${element ? `(content: "${element.textContent}")` : ''}`);
+            });
+            
             // Update change indicators for key fields
-            console.log(`[GROWTH DEBUG] === BUSINESS CONTEXT METRICS ===`);
+            console.log(`[BUSINESS DEBUG] === UPDATING CHANGE INDICATORS ===`);
             const businessTypeChange = calculateChange('business_type', businessData.business_type);
             const targetMarketChange = calculateChange('target_market', businessData.target_market);
             updateChangeIndicator('businessTypeChange', businessTypeChange, '', true);
@@ -1933,21 +2026,31 @@
             const sophistication = businessData.audience_sophistication?.toLowerCase();
             const maturity = businessData.business_maturity?.toLowerCase();
             
-            if (sophistication === 'expert' && maturity !== 'startup') {
-                statusIndicator.textContent = 'Advanced';
-                statusIndicator.className = 'status-indicator good';
-            } else if (sophistication === 'intermediate' || maturity === 'growth') {
-                statusIndicator.textContent = 'Good';
-                statusIndicator.className = 'status-indicator good';
-            } else if (sophistication === 'beginner' || maturity === 'startup') {
-                statusIndicator.textContent = 'Developing';
-                statusIndicator.className = 'status-indicator warning';
+            console.log('[BUSINESS DEBUG] Status calculation - sophistication:', sophistication, 'maturity:', maturity);
+            
+            if (statusIndicator) {
+                let statusText = 'Basic';
+                let statusClass = 'status-indicator warning';
+                
+                if (sophistication === 'expert' && maturity !== 'startup') {
+                    statusText = 'Advanced';
+                    statusClass = 'status-indicator good';
+                } else if (sophistication === 'intermediate' || maturity === 'growth') {
+                    statusText = 'Good';
+                    statusClass = 'status-indicator good';
+                } else if (sophistication === 'beginner' || maturity === 'startup') {
+                    statusText = 'Developing';
+                    statusClass = 'status-indicator warning';
+                }
+                
+                statusIndicator.textContent = statusText;
+                statusIndicator.className = statusClass;
+                console.log(`[BUSINESS DEBUG] ✅ Status updated to: ${statusText} (${statusClass})`);
             } else {
-                statusIndicator.textContent = 'Basic';
-                statusIndicator.className = 'status-indicator warning';
+                console.error('[BUSINESS DEBUG] ❌ Status indicator element not found');
             }
             
-            console.log('[DEBUG] ========== BUSINESS METRICS UPDATE COMPLETED ==========');
+            console.log('[BUSINESS DEBUG] ========== BUSINESS METRICS UPDATE COMPLETED ==========');
         }
 
         function generateBusinessInsightsFromData(businessData) {
@@ -2615,6 +2718,11 @@
             hideErrorMessage();
         });
 
+        // Expose test functions to global scope for console access
+        window.testBusinessData = testBusinessData;
+        window.testDataLoading = testDataLoading;
+        window.runFullDiagnostic = runFullDiagnostic;
+
         async function loadKeywordData() {
             setMetricLoadingState('keywords', 'loading');
             try {
@@ -2880,142 +2988,8 @@
         }
 
         // Duplicate fetchMobileData function removed - using the comprehensive version above
-
-
-
-        async function fetchBusinessData() {
-            setMetricLoadingState('business', 'loading');
-            try {
-                const response = await apiCall('/auth/business/metrics');
-                if (response.ok) {
-                    const businessData = await response.json();
-                    updateBusinessMetrics(businessData);
-                    setMetricLoadingState('business', 'done');
-                } else {
-                    setMetricLoadingState('business', 'done');
-                }
-            } catch (error) {
-                setMetricLoadingState('business', 'done');
-            }
-        }
-
-        function updateBusinessMetrics(businessData) {
-            // Store business data globally
-            window.metricsData = window.metricsData || {};
-            window.metricsData.business = {
-                business_complexity_score: businessData.business_complexity_score,
-                service_count: businessData.service_count
-            };
-            
-            // Update business metrics
-            const businessType = businessData.business_type || 'Unknown';
-            const targetMarket = businessData.target_market || 'Unknown';
-            
-            const elements = {
-                'businessType': businessType,
-                'targetMarket': targetMarket
-            };
-            
-            Object.entries(elements).forEach(([id, value]) => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.textContent = value;
-                }
-            });
-        }
-
-        async function loadRealMetrics() {
-            console.log('[DEBUG] Starting loadRealMetrics...');
-            showMetricsLoadingPopup();
-            resetMetricsLoadingState();
-            
-            try {
-                console.log('[DEBUG] Fetching GSC metrics...');
-                setMetricLoadingState('visibility', 'loading');
-                const response = await apiCall('/auth/gsc/metrics');
-                console.log('[DEBUG] GSC metrics response status:', response.status);
-                
-                if (response.ok) {
-                    const metrics = await response.json();
-                    console.log('[DEBUG] GSC metrics received:', metrics);
-                    
-                    // Validate metrics data structure
-                    if (!metrics || !metrics.summary) {
-                        console.error('[ERROR] Invalid metrics data structure:', metrics);
-                        throw new Error('Invalid metrics data structure received from API');
-                    }
-                    
-                    console.log('[DEBUG] Updating dashboard with metrics...');
-                    updateDashboardMetricsWithRealData(metrics);
-                    
-                    console.log('[DEBUG] Creating charts...');
-                    createMergedTrendsChart(metrics);
-                    
-                    console.log('[DEBUG] Showing website info...');
-                    showWebsiteInfo(metrics);
-                    showDateRange(metrics);
-                    
-                    // Mark core metrics as loaded
-                    setMetricLoadingState('visibility', 'done');
-                    setMetricLoadingState('organic', 'done');
-                    setMetricLoadingState('impressions', 'done');
-                    
-                    console.log('[DEBUG] Fetching additional metrics in parallel...');
-                    // Fetch all other data types in parallel
-                    const additionalMetricsPromises = [
-                        loadKeywordData().catch(e => console.error('[ERROR] Keyword data failed:', e)),
-                        fetchPageSpeedData().catch(e => console.error('[ERROR] PageSpeed data failed:', e)),
-                        fetchMobileData().catch(e => console.error('[ERROR] Mobile data failed:', e)),
-                        fetchIndexingData().catch(e => console.error('[ERROR] Indexing data failed:', e)),
-                        fetchBusinessData().catch(e => console.error('[ERROR] Business data failed:', e))
-                    ];
-                    
-                    await Promise.allSettled(additionalMetricsPromises);
-                    console.log('[DEBUG] All metrics loading completed');
-                    
-                } else {
-                    const errorText = await response.text();
-                    console.error('[ERROR] Failed to load GSC metrics:', response.status, errorText);
-                    
-                    // Set all states to done since we can't fetch data
-                    setMetricLoadingState('visibility', 'done');
-                    setMetricLoadingState('organic', 'done');
-                    setMetricLoadingState('impressions', 'done');
-                    setMetricLoadingState('keywords', 'done');
-                    setMetricLoadingState('ux', 'done');
-                    setMetricLoadingState('mobile', 'done');
-                    setMetricLoadingState('indexing', 'done');
-                    setMetricLoadingState('business', 'done');
-                    
-                    // Show empty state
-                    updateDashboardMetrics(false);
-                    createMergedTrendsChart({});
-                    hideWebsiteInfo();
-                    hideDateRange();
-                }
-            } catch (error) {
-                console.error('[ERROR] Exception in loadRealMetrics:', error);
-                
-                // Set all states to done
-                setMetricLoadingState('visibility', 'done');
-                setMetricLoadingState('organic', 'done');
-                setMetricLoadingState('impressions', 'done');
-                setMetricLoadingState('keywords', 'done');
-                setMetricLoadingState('ux', 'done');
-                setMetricLoadingState('mobile', 'done');
-                setMetricLoadingState('indexing', 'done');
-                setMetricLoadingState('business', 'done');
-                
-                // Show empty state
-                updateDashboardMetrics(false);
-                createMergedTrendsChart({});
-                hideWebsiteInfo();
-                hideDateRange();
-            } finally {
-                // Note: Loading popup will be hidden by setMetricLoadingState when all metrics are done
-                // The 5-second countdown timer handles hiding both loading and success popups
-            }
-        }
+        // Duplicate fetchBusinessData function removed - using the enhanced version above with debugging
+        // Duplicate loadRealMetrics function removed - using the enhanced version above
 
         // TEST FUNCTION - Call this from console to debug
         async function testDataLoading() {
@@ -3052,6 +3026,75 @@
             }
         }
 
+        // TEST FUNCTION - Call this from console to debug business data specifically
+        async function testBusinessData() {
+            console.log('=== BUSINESS DATA TEST ===');
+            
+            // Step 1: Check current business data in memory
+            console.log('1. Current business data in window.metricsData:', window.metricsData?.business);
+            
+            // Step 2: Check all business DOM elements
+            console.log('2. Business DOM elements status:');
+            const businessElements = [
+                'businessType', 'targetMarket', 'industrySector', 'companySize', 
+                'primaryAgeGroup', 'incomeLevel', 'audienceSophistication', 
+                'geographicFocus', 'businessMaturity', 'technologyPlatform', 
+                'contentStrategy', 'competitivePosition', 'businessStatus', 'businessInsights'
+            ];
+            
+            businessElements.forEach(elementId => {
+                const element = document.getElementById(elementId);
+                console.log(`   ${elementId}:`, element ? 
+                    `✅ EXISTS - content: "${element.textContent}", visible: ${element.offsetParent !== null}` : 
+                    '❌ NOT FOUND'
+                );
+            });
+            
+            // Step 3: Test business API call directly
+            console.log('3. Testing business API call...');
+            if (!checkAuthStatus()) {
+                console.log('❌ Authentication failed, stopping business test');
+                return;
+            }
+            
+            try {
+                const response = await apiCall('/auth/business/metrics');
+                console.log('   Business API response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('   ✅ Business API data received:', JSON.stringify(data, null, 2));
+                    console.log('   Key fields:');
+                    console.log('   - Business type:', data.business_type);
+                    console.log('   - Target market:', data.target_market);
+                    console.log('   - Industry sector:', data.industry_sector);
+                    console.log('   - Company size:', data.company_size);
+                    console.log('   - Insights:', data.insights);
+                    
+                    // Step 4: Try manual update
+                    console.log('4. Testing manual DOM update...');
+                    const businessTypeElement = document.getElementById('businessType');
+                    if (businessTypeElement) {
+                        const oldValue = businessTypeElement.textContent;
+                        businessTypeElement.textContent = data.business_type || 'TEST_UPDATE';
+                        console.log('   Manual update test:', oldValue, '→', businessTypeElement.textContent);
+                        console.log('   ✅ Manual DOM update successful');
+                    } else {
+                        console.log('   ❌ businessType element not found for manual update');
+                    }
+                    
+                    // Step 5: Test full business data processing
+                    console.log('5. Testing updateBusinessMetrics function...');
+                    updateBusinessMetrics(data);
+                } else {
+                    const errorText = await response.text();
+                    console.log('   ❌ Business API call failed:', response.status, errorText);
+                }
+            } catch (error) {
+                console.error('   ❌ Exception during business API call:', error);
+            }
+        }
+
         // COMPREHENSIVE TEST FUNCTION
         async function runFullDiagnostic() {
             console.log('🔍 === FULL DIAGNOSTIC TEST ===');
@@ -3072,6 +3115,10 @@
             // 3. Metrics fetch test
             console.log('\n3️⃣ METRICS FETCH TEST:');
             await testDataLoading();
+            
+            // 4. Business data test
+            console.log('\n4️⃣ BUSINESS DATA TEST:');
+            await testBusinessData();
             
             console.log('\n✅ Full diagnostic completed');
         }
