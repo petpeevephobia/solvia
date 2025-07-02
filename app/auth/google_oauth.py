@@ -167,12 +167,14 @@ class GoogleOAuthHandler:
             # Check if user already has credentials
             try:
                 cell = gsc_connections_sheet.find(user_email)
-                # Update existing credentials
+                # Update existing credentials using batch update
                 print(f"[DEBUG] Found existing credentials for {user_email} at row {cell.row}. Updating token.")
-                gsc_connections_sheet.update_cell(cell.row, 2, credentials.token)
-                gsc_connections_sheet.update_cell(cell.row, 3, credentials.refresh_token or '')
-                gsc_connections_sheet.update_cell(cell.row, 4, credentials.expiry.isoformat() if credentials.expiry else '')
-                gsc_connections_sheet.update_cell(cell.row, 6, datetime.utcnow().isoformat())
+                gsc_connections_sheet.batch_update([
+                    {'range': f'B{cell.row}', 'values': [[credentials.token]]},
+                    {'range': f'C{cell.row}', 'values': [[credentials.refresh_token or '']]},
+                    {'range': f'D{cell.row}', 'values': [[credentials.expiry.isoformat() if credentials.expiry else '']]},
+                    {'range': f'F{cell.row}', 'values': [[datetime.utcnow().isoformat()]]}
+                ])
             except:
                 # Add new credentials
                 print(f"[DEBUG] No existing credentials for {user_email}. Adding new row.")
@@ -323,7 +325,7 @@ class GoogleOAuthHandler:
                     'permissionLevel': permission,
                     'isVerified': True
                 })
-                
+            
                 # Show detailed info about each property
                 if site_url.startswith('sc-domain:'):
                     print(f"[DEBUG] Found DOMAIN property: {site_url} (permission: {permission})")
@@ -444,7 +446,7 @@ class GSCDataFetcher:
             current_summary['clicks_change'] = current_summary.get('total_clicks', 0) - comparison_summary.get('total_clicks', 0)
             current_summary['ctr_change'] = current_summary.get('avg_ctr', 0) - comparison_summary.get('avg_ctr', 0)
             current_summary['position_change'] = current_summary.get('avg_position', 0) - comparison_summary.get('avg_position', 0)
-            
+
             print(f"[DEBUG] Final summary after adding changes: {current_summary}")
 
             print(f"[DEBUG] Month-over-Month Comparison Results:")
@@ -651,9 +653,12 @@ class GSCDataFetcher:
             
             try:
                 cell = metrics_sheet.find(user_email)
-                metrics_sheet.update_cell(cell.row, 2, property_url)
-                metrics_sheet.update_cell(cell.row, 3, metrics_json)
-                metrics_sheet.update_cell(cell.row, 4, datetime.utcnow().isoformat())
+                # Use batch update for multiple cells
+                metrics_sheet.batch_update([
+                    {'range': f'B{cell.row}', 'values': [[property_url]]},
+                    {'range': f'C{cell.row}', 'values': [[metrics_json]]},
+                    {'range': f'D{cell.row}', 'values': [[datetime.utcnow().isoformat()]]}
+                ])
             except gspread.exceptions.CellNotFound:
                 metrics_sheet.append_row([
                     user_email,

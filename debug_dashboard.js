@@ -63,18 +63,7 @@ async function testAPIs() {
             console.log('  Error:', error);
         }
 
-        // Test keyword metrics
-        console.log('- Testing /auth/keyword/metrics...');
-        const keywordResponse = await fetch('/auth/keyword/metrics', { headers });
-        console.log('  Status:', keywordResponse.status);
-        if (keywordResponse.ok) {
-            const keywordData = await keywordResponse.json();
-            console.log('  Data:', keywordData);
-            console.log('  Total keywords:', keywordData.total_keywords);
-        } else {
-            const error = await keywordResponse.text();
-            console.log('  Error:', error);
-        }
+        
 
         // Test PageSpeed metrics
         console.log('- Testing /auth/pagespeed/metrics...');

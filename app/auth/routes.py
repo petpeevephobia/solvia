@@ -17,7 +17,7 @@ from app.auth.utils import (
 )
 from app.database import db
 from app.config import settings
-from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, pagespeed_fetcher, mobile_fetcher, IndexingCrawlabilityFetcher, business_fetcher
+from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, pagespeed_fetcher
 import uuid
 
 # New models for website management
@@ -46,22 +46,7 @@ class GSCMetricsResponse(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
-class KeywordData(BaseModel):
-    keyword: str
-    position: float
-    impressions: int
-    clicks: int
-    ctr: float
 
-class KeywordMetricsResponse(BaseModel):
-    total_keywords: int
-    avg_position: float
-    opportunities: int
-    branded_keywords: int
-    top_keywords: str
-    keyword_insights: str
-    keywords_list: list[KeywordData]
-    last_updated: str
 
 class DashboardDataResponse(BaseModel):
     user: Optional[UserResponse]
@@ -800,9 +785,9 @@ async def get_pagespeed_metrics(current_user: str = Depends(get_current_user)):
         )
 
 
-@router.get("/mobile/metrics")
-async def get_mobile_metrics(current_user: str = Depends(get_current_user)):
-    """Fetch mobile usability data for the user's website."""
+@router.get("/metadata/analysis")
+async def get_metadata_analysis(current_user: str = Depends(get_current_user)):
+    """Fetch metadata and image alt text analysis for the user's website."""
     try:
         # Get the selected property for the user
         website_url = db.get_selected_gsc_property(current_user)
@@ -812,174 +797,45 @@ async def get_mobile_metrics(current_user: str = Depends(get_current_user)):
                 detail="No GSC property selected. Please select a property first."
             )
 
-        print(f"[DEBUG] Fetching mobile data for user '{current_user}' and property '{website_url}'")
+        print(f"[DEBUG] Fetching metadata analysis")
         
-        # Fetch mobile data
-        mobile_data = await mobile_fetcher.fetch_mobile_data(website_url)
+        # For now, return demo data - this would be replaced with actual metadata analysis
+        metadata_data = {
+            # Optimized counts and totals found
+            "meta_titles_optimized": 87,
+            "meta_titles_total": 100,
+            "meta_descriptions_optimized": 92,
+            "meta_descriptions_total": 100,
+            "image_alt_text_optimized": 156,
+            "image_alt_text_total": 200,  # Total images found
+            "h1_tags_optimized": 95,
+            "h1_tags_total": 100,
+            
+            # Keep percentages for SEO score calculation
+            "meta_titles": 87,
+            "meta_descriptions": 92,
+            "image_alt_text": 78,  # 156/200 = 78%
+            "h1_tags": 95,
+            
+            "insights": [
+                "Meta titles are well optimized on most pages",
+                "Image alt text coverage could be improved",
+                "H1 tags are properly structured across the site"
+            ]
+        }
         
-        if not mobile_data:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch mobile data."
-            )
-
-        return mobile_data
+        return metadata_data
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching mobile metrics: {e}")
+        print(f"Error fetching metadata analysis: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"
         )
 
 
-@router.get("/indexing/metrics")
-async def get_indexing_metrics(current_user: str = Depends(get_current_user)):
-    """Fetch indexing and crawlability data for the user's website."""
-    try:
-        # Get the selected property for the user
-        website_url = db.get_selected_gsc_property(current_user)
-        if not website_url:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No GSC property selected. Please select a property first."
-            )
-
-        print(f"[DEBUG] Fetching indexing data for user '{current_user}' and property '{website_url}'")
-        
-        # Get user's GSC credentials
-        credentials = google_oauth.get_credentials(current_user)
-        if not credentials:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="GSC credentials not found. Please authenticate with Google Search Console first."
-            )
-        
-        # Create indexing fetcher and fetch data
-        indexing_fetcher = IndexingCrawlabilityFetcher(credentials)
-        indexing_data = indexing_fetcher.fetch_indexing_data(website_url)
-        
-        if not indexing_data:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch indexing data."
-            )
-
-        return indexing_data
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error fetching indexing metrics: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}"
-        )
 
 
-@router.get("/business/metrics")
-async def get_business_metrics(current_user: str = Depends(get_current_user)):
-    """Fetch business context and intelligence data for the user's website."""
-    try:
-        # Get the selected property for the user
-        website_url = db.get_selected_gsc_property(current_user)
-        if not website_url:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No GSC property selected. Please select a property first."
-            )
 
-        print(f"[DEBUG] Fetching business context data for user '{current_user}' and property '{website_url}'")
-        
-        # Fetch business context data
-        business_data = await business_fetcher.fetch_business_data(website_url)
-        
-        if not business_data:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch business context data."
-            )
-
-        return business_data
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error fetching business metrics: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}"
-        )
-
-
-@router.get("/keyword/metrics", response_model=KeywordMetricsResponse)
-async def get_keyword_metrics(current_user: str = Depends(get_current_user)):
-    """Fetch keyword performance data for the user's website."""
-    try:
-        website_url = db.get_selected_gsc_property(current_user)
-        if not website_url:
-            # Return empty keyword data instead of error
-            print(f"[WARNING] No GSC property selected for user: {current_user}")
-            return KeywordMetricsResponse(
-                total_keywords=0,
-                avg_position=0.0,
-                opportunities=0,
-                branded_keywords=0,
-                top_keywords="",
-                keyword_insights="No website configured. Please add a website URL first.",
-                keywords_list=[],
-                last_updated=datetime.utcnow().isoformat()
-            )
-        
-        keyword_data = await gsc_fetcher.fetch_keyword_data(current_user, website_url)
-        if not keyword_data:
-            # Return empty keyword data instead of error
-            print(f"[WARNING] Failed to fetch keyword data for user: {current_user}")
-            return KeywordMetricsResponse(
-                total_keywords=0,
-                avg_position=0.0,
-                opportunities=0,
-                branded_keywords=0,
-                top_keywords="",
-                keyword_insights="No keyword data available. This is normal for new websites or when GSC is not connected.",
-                keywords_list=[],
-                last_updated=datetime.utcnow().isoformat()
-            )
-        
-        print(f"[INFO] Keyword Trends: Total={keyword_data.get('total_keywords')}, Avg Position={keyword_data.get('avg_position')}, Opportunities={keyword_data.get('opportunities')}, Branded={keyword_data.get('branded_keywords')}")
-        
-        # Convert keyword details to KeywordData objects
-        keywords_list = []
-        for kw in keyword_data.get('keywords_list', []):
-            keywords_list.append(KeywordData(
-                keyword=kw['keyword'],
-                position=kw['position'],
-                impressions=kw['impressions'],
-                clicks=kw['clicks'],
-                ctr=kw['ctr']
-            ))
-        
-        return KeywordMetricsResponse(
-            total_keywords=keyword_data.get('total_keywords', 0),
-            avg_position=keyword_data.get('avg_position', 0.0),
-            opportunities=keyword_data.get('opportunities', 0),
-            branded_keywords=keyword_data.get('branded_keywords', 0),
-            top_keywords=keyword_data.get('top_keywords', ""),
-            keyword_insights=keyword_data.get('keyword_insights', ""),
-            keywords_list=keywords_list,
-            last_updated=datetime.utcnow().isoformat()
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Unexpected error in keyword metrics: {e}")
-        # Return empty keyword data instead of 500 error
-        return KeywordMetricsResponse(
-            total_keywords=0,
-            avg_position=0.0,
-            opportunities=0,
-            branded_keywords=0,
-            top_keywords="",
-            keyword_insights=f"Error loading keyword data: {str(e)}",
-            keywords_list=[],
-            last_updated=datetime.utcnow().isoformat()
-        ) 
+ 

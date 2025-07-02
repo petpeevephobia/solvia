@@ -123,30 +123,56 @@ class GoogleSheetsDB:
         self._cache[key] = (data, datetime.utcnow())
     
     def _perform_cleanup_tasks(self):
-        """Perform periodic cleanup tasks."""
+        """Perform periodic cleanup tasks - only once per day."""
+        # Check if cleanup has already been performed today using a file-based lock
+        import os
+        import tempfile
+        
+        today = datetime.utcnow().date().isoformat()
+        lock_file = os.path.join(tempfile.gettempdir(), f"solvia_cleanup_{today}.lock")
+        
+        # Check if cleanup already performed today
+        if os.path.exists(lock_file):
+            try:
+                # Check if lock file is from today
+                lock_mtime = datetime.fromtimestamp(os.path.getmtime(lock_file)).date()
+                if lock_mtime == datetime.utcnow().date():
+                    print(f"[DEBUG] Cleanup already performed today ({today}), skipping")
+                    return
+            except (OSError, ValueError):
+                # If we can't read the lock file, proceed with cleanup
+                pass
+        
+        print(f"[DEBUG] Performing daily cleanup tasks for {today}")
+        
         try:
             # Cleanup expired sessions
             sessions_cleaned = self.cleanup_expired_sessions()
-            if sessions_cleaned > 0:
-                print(f"[CLEANUP] Cleaned {sessions_cleaned} expired sessions")
+            print(f"[DEBUG] Cleaned {sessions_cleaned} expired sessions")
         except Exception as e:
-            print(f"[CLEANUP] Warning: Could not cleanup expired sessions: {e}")
+            print(f"Error cleaning up sessions: {e}")
             
         try:
-            # Cleanup expired dashboard cache (older than 7 days)
+            # Cleanup expired dashboard cache (older than 7 days)  
             cache_cleaned = self.cleanup_dashboard_cache(days_old=7)
-            if cache_cleaned > 0:
-                print(f"[CLEANUP] Cleaned {cache_cleaned} expired dashboard cache entries")
+            print(f"[DEBUG] Cleaned {cache_cleaned} expired dashboard cache entries")
         except Exception as e:
-            print(f"[CLEANUP] Warning: Could not cleanup expired dashboard cache: {e}")
+            print(f"[DEBUG] Warning: Could not cleanup expired dashboard cache: {e}")
             
         try:
             # Cleanup expired reports (older than 30 days)
             reports_cleaned = self.cleanup_expired_reports()
-            if reports_cleaned > 0:
-                print(f"[CLEANUP] Cleaned {reports_cleaned} expired reports")
+            print(f"[INFO] Cleaned up {reports_cleaned} expired SEO reports")
         except Exception as e:
-            print(f"[CLEANUP] Warning: Could not cleanup expired reports: {e}")
+            print(f"[DEBUG] Warning: Could not cleanup expired reports: {e}")
+            
+        # Create lock file to mark cleanup as completed for today
+        try:
+            with open(lock_file, 'w') as f:
+                f.write(f"Cleanup completed at {datetime.utcnow().isoformat()}")
+            print(f"[DEBUG] Daily cleanup completed for {today}")
+        except Exception as e:
+            print(f"[DEBUG] Warning: Could not create cleanup lock file: {e}")
     
     def get_or_create_sheet(self, sheet_name: str, headers: List[str] = None) -> gspread.Worksheet:
         """Get a worksheet by name, or create it if it doesn't exist."""
@@ -320,11 +346,9 @@ class GoogleSheetsDB:
             if row is None:
                 return False
             
-            # Update is_verified column (5th column, index 4)
-            self.users_sheet.update_cell(row, 5, "TRUE" if is_verified else "FALSE")
-            
-            # Clear verification token
-            self.users_sheet.update_cell(row, 6, "")
+            # Use batch update for both columns instead of individual updates
+            values = [["TRUE" if is_verified else "FALSE", ""]]  # is_verified, verification_token
+            self.users_sheet.update(f'E{row}:F{row}', values)
             return True
         except Exception as e:
             print(f"Error updating user verification: {e}")
@@ -372,8 +396,11 @@ class GoogleSheetsDB:
             if row is None:
                 return False
             
-            self.users_sheet.update_cell(row, 2, new_password_hash)  # password_hash column
-            self.users_sheet.update_cell(row, 7, "")  # clear reset_token
+            # Use batch update - update password hash and clear reset token
+            self.users_sheet.batch_update([
+                {'range': f'B{row}', 'values': [[new_password_hash]]},  # password_hash column
+                {'range': f'G{row}', 'values': [[""]]}  # reset_token column
+            ])
             return True
         except Exception as e:
             print(f"Error updating password: {e}")
@@ -408,6 +435,10 @@ class GoogleSheetsDB:
     
     def cleanup_expired_sessions(self) -> int:
         """Remove expired sessions and return count of removed sessions."""
+        # Check if we're in demo mode or don't have sessions sheet
+        if self.demo_mode or not hasattr(self, 'sessions_sheet'):
+            return 0
+            
         try:
             now = datetime.utcnow()
             all_sessions = self.sessions_sheet.get_all_records()
@@ -422,9 +453,27 @@ class GoogleSheetsDB:
                     # Invalid date format, remove the row
                     expired_rows.append(i)
             
-            # Delete expired rows (in reverse order to maintain indices)
-            for row in reversed(expired_rows):
-                self.sessions_sheet.delete_rows(row)
+            # Use batch delete operation instead of individual deletes
+            if expired_rows:
+                # Group consecutive rows for batch deletion
+                row_ranges = []
+                start = expired_rows[0]
+                end = expired_rows[0]
+                
+                for row in expired_rows[1:]:
+                    if row == end + 1:
+                        end = row
+                    else:
+                        row_ranges.append((start, end))
+                        start = end = row
+                row_ranges.append((start, end))
+                
+                # Delete in reverse order to maintain row indices
+                for start, end in reversed(row_ranges):
+                    if start == end:
+                        self.sessions_sheet.delete_rows(start)
+                    else:
+                        self.sessions_sheet.delete_rows(start, end)
             
             return len(expired_rows)
         except Exception as e:
@@ -792,6 +841,10 @@ class GoogleSheetsDB:
             
             return initial_count - len(self.demo_reports)
         
+        # Check if we have the reports sheet
+        if not hasattr(self, 'seo_reports_sheet'):
+            return 0
+            
         try:
             now = datetime.utcnow()
             all_reports = self.seo_reports_sheet.get_all_records()
@@ -806,11 +859,28 @@ class GoogleSheetsDB:
                     # Invalid date format, remove the row
                     expired_rows.append(i)
             
-            # Delete expired rows (in reverse order to maintain indices)
-            for row in reversed(expired_rows):
-                self.seo_reports_sheet.delete_rows(row)
+            # Use batch delete operation instead of individual deletes
+            if expired_rows:
+                # Group consecutive rows for batch deletion
+                row_ranges = []
+                start = expired_rows[0]
+                end = expired_rows[0]
+                
+                for row in expired_rows[1:]:
+                    if row == end + 1:
+                        end = row
+                    else:
+                        row_ranges.append((start, end))
+                        start = end = row
+                row_ranges.append((start, end))
+                
+                # Delete in reverse order to maintain row indices
+                for start, end in reversed(row_ranges):
+                    if start == end:
+                        self.seo_reports_sheet.delete_rows(start)
+                    else:
+                        self.seo_reports_sheet.delete_rows(start, end)
             
-            print(f"[INFO] Cleaned up {len(expired_rows)} expired SEO reports")
             return len(expired_rows)
             
         except Exception as e:
@@ -1009,7 +1079,6 @@ class GoogleSheetsDB:
             for key in keys_to_remove:
                 del self._cache[key]
             
-            print(f"[DEBUG] Cleaned {len(keys_to_remove)} expired dashboard cache entries from demo mode")
             return len(keys_to_remove)
         
         try:
@@ -1034,11 +1103,28 @@ class GoogleSheetsDB:
                     # Invalid date format, consider it old
                     rows_to_delete.append(i)
             
-            # Delete rows in reverse order to maintain row numbers
-            for row_num in reversed(rows_to_delete):
-                cache_sheet.delete_rows(row_num)
+            # Use batch delete operation instead of individual deletes
+            if rows_to_delete:
+                # Group consecutive rows for batch deletion
+                row_ranges = []
+                start = rows_to_delete[0]
+                end = rows_to_delete[0]
+                
+                for row in rows_to_delete[1:]:
+                    if row == end + 1:
+                        end = row
+                    else:
+                        row_ranges.append((start, end))
+                        start = end = row
+                row_ranges.append((start, end))
+                
+                # Delete in reverse order to maintain row indices
+                for start, end in reversed(row_ranges):
+                    if start == end:
+                        cache_sheet.delete_rows(start)
+                    else:
+                        cache_sheet.delete_rows(start, end)
             
-            print(f"[DEBUG] Cleaned {len(rows_to_delete)} expired dashboard cache entries")
             return len(rows_to_delete)
             
         except Exception as e:

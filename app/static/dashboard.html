@@ -237,233 +237,58 @@
                 </div>
             </div>
 
-            <!-- Mobile Usability Section -->
+            <!-- Metadata & Image Alt Text Section -->
             <div class="analysis-card">
                 <div class="card-header">
                     <div class="header-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10,9 9,9 8,9"></polyline>
                         </svg>
                     </div>
-                    <h2>Mobile Usability</h2>
-                    <div class="status-indicator" id="mobileStatus">Good</div>
+                    <h2>Metadata & Image Alt Text</h2>
+                    <div class="status-indicator" id="metadataStatus">Good</div>
                 </div>
                 <div class="card-body">
                     <div class="metrics-row">
                         <div class="metric">
-                            <span class="metric-label">Mobile Friendly</span>
-                            <span class="metric-value" id="mobileFriendly">N/A</span>
+                            <span class="metric-label">Meta Titles</span>
+                            <span class="metric-value" id="metaTitles">N/A</span>
+                            <span class="metric-change" id="metaTitlesChange">+0</span>
                         </div>
                         <div class="metric">
-                            <span class="metric-label">Issues</span>
-                            <span class="metric-value" id="mobileIssues">0</span>
-                            <span class="metric-change" id="mobileIssuesChange">+0</span>
+                            <span class="metric-label">Meta Descriptions</span>
+                            <span class="metric-value" id="metaDescriptions">N/A</span>
+                            <span class="metric-change" id="metaDescriptionsChange">+0</span>
                         </div>
                     </div>
-                    <div class="insights" id="mobileInsights">
-                        <p>Mobile test results will appear here</p>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">Images with Alt Text</span>
+                            <span class="metric-value" id="imageAltText">N/A</span>
+                            <span class="metric-change" id="imageAltTextChange">+0</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">H1 Tags</span>
+                            <span class="metric-value" id="h1Tags">N/A</span>
+                            <span class="metric-change" id="h1TagsChange">+0</span>
+                        </div>
+                    </div>
+                    <div class="insights" id="metadataInsights">
+                        <p>Metadata analysis will appear here</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Indexing & Crawlability Section -->
-            <div class="analysis-card">
-                <div class="card-header">
-                    <div class="header-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="M21 21l-4.35-4.35"></path>
-                        </svg>
-                    </div>
-                    <h2>Indexing & Crawlability</h2>
-                    <div class="status-indicator" id="indexingStatus">Good</div>
-                </div>
-                <div class="card-body">
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Sitemap Status</span>
-                            <span class="metric-value" id="sitemapStatus">N/A</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Sitemap Count</span>
-                            <span class="metric-value" id="sitemapCount">N/A</span>
-                        </div>
-                    </div>
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Indexed Pages</span>
-                            <span class="metric-value" id="indexedPages">N/A</span>
-                            <span class="metric-change" id="indexedPagesChange">+0</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Index Status</span>
-                            <span class="metric-value" id="indexStatus">N/A</span>
-                        </div>
-                    </div>
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Crawl Errors</span>
-                            <span class="metric-value" id="crawlErrors">N/A</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Crawl Success Rate</span>
-                            <span class="metric-value" id="crawlSuccessRate">N/A</span>
-                        </div>
-                    </div>
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Last Crawl</span>
-                            <span class="metric-value" id="lastCrawl">N/A</span>
-                        </div>
-                    </div>
-                    <div class="insights" id="indexingInsights">
-                        <p>Indexing health will be analyzed</p>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Business Context Section -->
-            <div class="analysis-card">
-                <div class="card-header">
-                    <div class="header-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 21h18"></path>
-                            <path d="M5 21V7l8-4v18"></path>
-                            <path d="M19 21V11l-6-4"></path>
-                            <path d="M9 9v.01"></path>
-                            <path d="M9 12v.01"></path>
-                            <path d="M9 15v.01"></path>
-                            
-                            <path d="M9 18v.01"></path>
-                        </svg>
-                    </div>
-                    <h2>Business Context</h2>
-                    <div class="status-indicator" id="businessStatus">Good</div>
-                </div>
-                <div class="card-body">
-                    <!-- Primary Business Metrics (High Priority) -->
-                    <div class="metrics-row">
-                        <div class="metric primary-metric">
-                            <span class="metric-label">Business Type</span>
-                            <span class="metric-value" id="businessType">N/A</span>
-                            <span class="metric-change" id="businessTypeChange">No Change</span>
-                        </div>
-                        <div class="metric primary-metric">
-                            <span class="metric-label">Target Market</span>
-                            <span class="metric-value" id="targetMarket">N/A</span>
-                            <span class="metric-change" id="targetMarketChange">No Change</span>
-                        </div>
-                    </div>
-                    <div class="metrics-row">
-                        <div class="metric primary-metric">
-                            <span class="metric-label">Industry Sector</span>
-                            <span class="metric-value" id="industrySector">N/A</span>
-                        </div>
-                        <div class="metric primary-metric">
-                            <span class="metric-label">Company Size</span>
-                            <span class="metric-value" id="companySize">N/A</span>
-                        </div>
-                    </div>
-                    <div class="metrics-row">
-                        <div class="metric primary-metric" style="width: 50%;">
-                            <span class="metric-label">Primary Age Group</span>
-                            <span class="metric-value" id="primaryAgeGroup">N/A</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Secondary Business Metrics (Lower Priority) -->
-                    <div class="secondary-metrics" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #E5E7EB;">
-                        <div class="metrics-row">
-                            <div class="metric secondary-metric">
-                                <span class="metric-label">Income Level</span>
-                                <span class="metric-value" id="incomeLevel">N/A</span>
-                            </div>
-                            <div class="metric secondary-metric">
-                                <span class="metric-label">Audience Sophistication</span>
-                                <span class="metric-value" id="audienceSophistication">N/A</span>
-                            </div>
-                        </div>
-                        <div class="metrics-row">
-                            <div class="metric secondary-metric">
-                                <span class="metric-label">Geographic Focus</span>
-                                <span class="metric-value" id="geographicFocus">N/A</span>
-                            </div>
-                            <div class="metric secondary-metric">
-                                <span class="metric-label">Business Maturity</span>
-                                <span class="metric-value" id="businessMaturity">N/A</span>
-                            </div>
-                        </div>
-                        <div class="metrics-row">
-                            <div class="metric secondary-metric">
-                                <span class="metric-label">Technology Platform</span>
-                                <span class="metric-value" id="technologyPlatform">N/A</span>
-                            </div>
-                            <div class="metric secondary-metric">
-                                <span class="metric-label">Content Strategy</span>
-                                <span class="metric-value" id="contentStrategy">N/A</span>
-                            </div>
-                        </div>
-                        <div class="metrics-row">
-                            <div class="metric secondary-metric" style="width: 50%;">
-                                <span class="metric-label">Competitive Position</span>
-                                <span class="metric-value" id="competitivePosition">N/A</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="insights" id="businessInsights">
-                        <p>Business analysis will provide context</p>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Keyword Trends Section -->
-            <div class="analysis-card">
-                <div class="card-header">
-                    <div class="header-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="22,7 13.5,15.5 8.5,10.5 2,17"></polyline>
-                            <polyline points="16,7 22,7 22,13"></polyline>
-                        </svg>
-                    </div>
-                    <h2>Keyword Trends</h2>
-                    <div class="status-indicator" id="keywordStatus">Good</div>
-                </div>
-                <div class="card-body">
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Total Keywords</span>
-                            <span class="metric-value" id="totalKeywords">0</span>
-                            <span class="metric-change" id="totalKeywordsChange">+0</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Avg Position</span>
-                            <span class="metric-value" id="keywordAvgPosition">N/A</span>
-                            <span class="metric-change" id="keywordAvgPositionChange">+0.0</span>
-                        </div>
-                    </div>
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Opportunities</span>
-                            <span class="metric-value" id="keywordOpportunities">0</span>
-                            <span class="metric-change" id="keywordOpportunitiesChange">+0</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Branded</span>
-                            <span class="metric-value" id="brandedKeywords">0</span>
-                            <span class="metric-change" id="brandedKeywordsChange">+0</span>
-                        </div>
-                    </div>
-                    <div class="insights" id="keywordInsights">
-                        <p>Loading keyword performance insights...</p>
-                    </div>
-                                    <div class="keywords-list" id="keywordsList">
-                    <h4>Keywords Found:</h4>
-                    <div id="keywordsContainer" class="keywords-container">
-                        <p class="keywords-loading">Loading keywords...</p>
-                </div>
-            </div>
+
+
+
+
         </div>
                 </div>
             </div>
@@ -487,10 +312,7 @@
         window.metricsData = {
             summary: {},
             ux: {},
-            mobile: {},
-            indexing: {},
-            keywords: {},
-            business: {}
+            metadata: {}
         };
         let refreshAttempts = 0; // Track refresh attempts to prevent infinite loops
         const MAX_REFRESH_ATTEMPTS = 3; // Maximum number of refresh attempts
@@ -503,10 +325,7 @@
           { key: 'impressions', label: 'Impressions Trends' },
           { key: 'visibility', label: 'Visibility Performance' },
           { key: 'ux', label: 'Engagement & UX' },
-          { key: 'mobile', label: 'Mobile Usability' },
-          { key: 'indexing', label: 'Indexing & Crawlability' },
-          { key: 'business', label: 'Business Context' },
-          { key: 'keywords', label: 'Keyword Trends' },
+          { key: 'metadata', label: 'Metadata & Image Alt Text' }
         ];
         let metricsLoadingState = {};
         
@@ -1053,59 +872,29 @@
                 document.getElementById('seoScoreChange').className = 'score-change positive';
 
                 // Update visibility performance
-                document.getElementById('impressionsValue').textContent = '21,450';
-                document.getElementById('clicksValue').textContent = '1,234';
-                document.getElementById('ctrValue').textContent = '5.8%';
-                document.getElementById('ctrChange').textContent = '+0.8%';
+                document.getElementById('impressionsValue').textContent = '0';
+                document.getElementById('clicksValue').textContent = '0';
+                document.getElementById('ctrValue').textContent = '0.0%';
+                document.getElementById('ctrChange').textContent = '+0.0%';
                 document.getElementById('ctrChange').className = 'metric-change positive';
-                document.getElementById('avgPositionValue').textContent = '2.2';
-                document.getElementById('avgPositionChange').textContent = '+0.5';
+                document.getElementById('avgPositionValue').textContent = '0.0';
+                document.getElementById('avgPositionChange').textContent = '+0.0';
                 document.getElementById('avgPositionChange').className = 'metric-change positive';
-                document.getElementById('visibilityInsights').innerHTML = '<p>Good visibility with room for CTR improvement. High-opportunity keywords need optimization.</p>';
+                document.getElementById('visibilityInsights').innerHTML = '<p>Visiblity metrics will appear when connected</p>';
 
                 // Update engagement & UX
-                document.getElementById('performanceScore').textContent = '78';
-                document.getElementById('lcpValue').textContent = '2.1s';
-                document.getElementById('fcpValue').textContent = '1.2s';
-                document.getElementById('clsValue').textContent = '0.08';
-                document.getElementById('uxInsights').innerHTML = '<p>Performance is good but LCP could be improved. Consider optimizing images and reducing server response time.</p>';
+                document.getElementById('performanceScore').textContent = 'N/A';
+                document.getElementById('lcpValue').textContent = '0.0s';
+                document.getElementById('fcpValue').textContent = '0.0s';
+                document.getElementById('clsValue').textContent = '0.00';
+                document.getElementById('uxInsights').innerHTML = '<p>Performance data will appear when connected</p>';
 
-                // Update mobile usability
-                document.getElementById('mobileFriendly').textContent = 'Pass';
-                document.getElementById('mobileIssues').textContent = '0';
-                document.getElementById('mobileInsights').innerHTML = '<p>Mobile-friendly with no issues detected. Good user experience across devices.</p>';
-
-                // Update indexing & crawlability
-                document.getElementById('sitemapStatus').textContent = 'Active';
-                document.getElementById('sitemapCount').textContent = '2';
-                document.getElementById('indexedPages').textContent = '127';
-                document.getElementById('indexStatus').textContent = 'Good';
-                document.getElementById('crawlErrors').textContent = '0';
-                document.getElementById('crawlSuccessRate').textContent = '95%';
-                document.getElementById('lastCrawl').textContent = '2024-01-15';
-                document.getElementById('indexingInsights').innerHTML = '<p>Sitemap is properly configured and indexed. No crawl issues detected.</p>';
-
-                // Update business context
-                document.getElementById('businessType').textContent = 'SaaS';
-                document.getElementById('targetMarket').textContent = 'B2B';
-                document.getElementById('industrySector').textContent = 'Technology';
-                document.getElementById('companySize').textContent = 'Startup';
-                document.getElementById('primaryAgeGroup').textContent = '25-44';
-                document.getElementById('incomeLevel').textContent = 'Premium';
-                document.getElementById('audienceSophistication').textContent = 'Expert';
-                document.getElementById('geographicFocus').textContent = 'Global';
-                document.getElementById('businessMaturity').textContent = 'Growth';
-                document.getElementById('technologyPlatform').textContent = 'Advanced';
-                document.getElementById('contentStrategy').textContent = 'Comprehensive';
-                document.getElementById('competitivePosition').textContent = 'Leader';
-                document.getElementById('businessInsights').innerHTML = '<p>B2B SaaS business with technical audience. Focus on educational content and case studies.</p>';
-
-                // Update keyword trends
-                document.getElementById('totalKeywords').textContent = '1,247';
-                document.getElementById('keywordAvgPosition').textContent = '3.2';
-                document.getElementById('keywordOpportunities').textContent = '23';
-                document.getElementById('brandedKeywords').textContent = '156';
-                document.getElementById('keywordInsights').innerHTML = '<p>Strong keyword portfolio with 23 high-opportunity terms. Branded keywords performing well.</p>';
+                // Update metadata & image alt text
+                document.getElementById('metaTitles').textContent = '0 out of 100';
+                document.getElementById('metaDescriptions').textContent = '0 out of 100';
+                document.getElementById('imageAltText').textContent = '0 out of 100';
+                document.getElementById('h1Tags').textContent = '0 out of 100';
+                document.getElementById('metadataInsights').innerHTML = '<p>Metadata analysis will appear when connected</p>';
 
             } else {
                 // Reset all metrics to empty state
@@ -1128,42 +917,13 @@
                 document.getElementById('clsValue').textContent = 'N/A';
                 document.getElementById('uxInsights').innerHTML = '<p>Performance data will appear when connected</p>';
 
-                // Reset mobile usability
-                document.getElementById('mobileFriendly').textContent = 'N/A';
-                document.getElementById('mobileIssues').textContent = '0';
-                document.getElementById('mobileInsights').innerHTML = '<p>Mobile test results will appear here</p>';
+                // Reset metadata & image alt text
+                document.getElementById('metaTitles').textContent = 'N/A';
+                document.getElementById('metaDescriptions').textContent = 'N/A';
+                document.getElementById('imageAltText').textContent = 'N/A';
+                document.getElementById('h1Tags').textContent = 'N/A';
+                document.getElementById('metadataInsights').innerHTML = '<p>Metadata analysis will appear here</p>';
 
-                // Reset indexing & crawlability
-                document.getElementById('sitemapStatus').textContent = 'N/A';
-                document.getElementById('sitemapCount').textContent = 'N/A';
-                document.getElementById('indexedPages').textContent = 'N/A';
-                document.getElementById('indexStatus').textContent = 'N/A';
-                document.getElementById('crawlErrors').textContent = 'N/A';
-                document.getElementById('crawlSuccessRate').textContent = 'N/A';
-                document.getElementById('lastCrawl').textContent = 'N/A';
-                document.getElementById('indexingInsights').innerHTML = '<p>Indexing health will be analyzed</p>';
-
-                // Reset business context
-                document.getElementById('businessType').textContent = 'N/A';
-                document.getElementById('targetMarket').textContent = 'N/A';
-                document.getElementById('industrySector').textContent = 'N/A';
-                document.getElementById('companySize').textContent = 'N/A';
-                document.getElementById('primaryAgeGroup').textContent = 'N/A';
-                document.getElementById('incomeLevel').textContent = 'N/A';
-                document.getElementById('audienceSophistication').textContent = 'N/A';
-                document.getElementById('geographicFocus').textContent = 'N/A';
-                document.getElementById('businessMaturity').textContent = 'N/A';
-                document.getElementById('technologyPlatform').textContent = 'N/A';
-                document.getElementById('contentStrategy').textContent = 'N/A';
-                document.getElementById('competitivePosition').textContent = 'N/A';
-                document.getElementById('businessInsights').innerHTML = '<p>Business analysis will provide context</p>';
-
-                // Reset keyword trends
-                document.getElementById('totalKeywords').textContent = '0';
-                document.getElementById('keywordAvgPosition').textContent = 'N/A';
-                document.getElementById('keywordOpportunities').textContent = '0';
-                document.getElementById('brandedKeywords').textContent = '0';
-                document.getElementById('keywordInsights').innerHTML = '<p>Loading keyword performance insights...</p>';
             }
         }
 
@@ -1336,10 +1096,6 @@
                 console.log('[DEBUG] Generating insights...');
             generateVisibilityInsights(summary);
             generateUXInsights(metrics);
-            generateMobileInsights(metrics);
-            generateIndexingInsights(metrics);
-            generateBusinessInsights(metrics);
-            generateKeywordInsights(metrics);
             } catch (error) {
                 console.error('[ERROR] Failed to generate insights:', error);
             }
@@ -1472,7 +1228,7 @@
                 } else if (summary.avg_position > 10) {
                     insight = 'Average position needs improvement. Focus on content optimization and backlink building.';
                 } else {
-                    insight = 'Good visibility performance. Continue optimizing for high-opportunity keywords.';
+                    insight = 'Good visibility performance. Continue optimizing for better search rankings.';
                 }
             } else {
                 insight = 'No search visibility data yet. This is normal for new websites.';
@@ -1623,481 +1379,17 @@
             document.getElementById('uxInsights').innerHTML = `<p>${insight}</p>`;
         }
 
-        function generateMobileInsights(metrics) {
-            // Mobile insights are now generated when fetchMobileData() is called from loadRealMetrics()
-            document.getElementById('mobileInsights').innerHTML = '<p>Loading mobile usability insights...</p>';
-        }
 
-        async function fetchMobileData() {
-            setMetricLoadingState('mobile', 'loading');
-            try {
-                console.log('[DEBUG] Fetching mobile data...');
-                const response = await apiCall('/auth/mobile/metrics');
-                console.log('[DEBUG] Mobile response status:', response.status);
-                
-                if (response.ok) {
-                    const mobileData = await response.json();
-                    console.log('[DEBUG] Mobile data received:', mobileData);
-                    updateMobileMetrics(mobileData);
-                    generateMobileInsightsFromData(mobileData);
-                    setMetricLoadingState('mobile', 'done');
-                } else {
-                    setMetricLoadingState('mobile', 'done');
-                    const errorText = await response.text();
-                    console.log('[DEBUG] Failed to load mobile data:', errorText);
-                    // Provide fallback data for mobile metrics
-                    const fallbackData = {
-                        mobile_friendly: 'Unknown',
-                        issues_count: 0,
-                        performance_score: 0,
-                        insights: 'Mobile data will be available once GSC is connected and configured.'
-                    };
-                    updateMobileMetrics(fallbackData);
-                    generateMobileInsightsFromData(fallbackData);
-                }
-            } catch (error) {
-                setMetricLoadingState('mobile', 'done');
-                console.error('Error loading mobile data:', error);
-                // Provide fallback data for mobile metrics
-                const fallbackData = {
-                    mobile_friendly: 'Not Available',
-                    issues_count: 0,
-                    performance_score: 0,
-                    insights: 'Mobile data is currently unavailable. Please check your connection and try refreshing.'
-                };
-                updateMobileMetrics(fallbackData);
-                generateMobileInsightsFromData(fallbackData);
-            }
-        }
 
-        function updateMobileMetrics(mobileData) {
-            console.log('[DEBUG] Updating mobile metrics with data:', mobileData);
-            
-            // Store mobile data globally
-            window.metricsData.mobile = {
-                mobile_friendly: mobileData.mobile_friendly,
-                issues_count: mobileData.issues_count || 0,
-                performance_score: mobileData.performance_score,
-                critical_issues: mobileData.critical_issues || 0,
-                warning_issues: mobileData.warning_issues || 0
-            };
-            
-            // Update mobile friendly status
-            const mobileFriendly = mobileData.mobile_friendly;
-            document.getElementById('mobileFriendly').textContent = mobileFriendly || 'N/A';
-            
-            // Update status indicator color
-            const statusIndicator = document.getElementById('mobileStatus');
-            if (mobileFriendly === 'Pass' || mobileFriendly === 'Yes') {
-                statusIndicator.textContent = 'Good';
-                statusIndicator.className = 'status-indicator good';
-            } else if (mobileFriendly === 'Fail' || mobileFriendly === 'No') {
-                statusIndicator.textContent = 'Needs Work';
-                statusIndicator.className = 'status-indicator warning';
-            } else {
-                statusIndicator.textContent = 'Unknown';
-                statusIndicator.className = 'status-indicator';
-            }
-            
-            // Update issues count
-            const issuesCount = mobileData.issues_count || 0;
-            document.getElementById('mobileIssues').textContent = issuesCount;
-            console.log(`[GROWTH DEBUG] === MOBILE USABILITY METRICS ===`);
-            console.log(`[GROWTH DEBUG] Mobile Issues: Current=${issuesCount}, Critical=${mobileData.critical_issues}, Warning=${mobileData.warning_issues}`);
-            const mobileIssuesChange = calculateChange('mobile_issues_count', issuesCount);
-            updateChangeIndicator('mobileIssuesChange', mobileIssuesChange, '', false);
-            
-            // Recalculate overall SEO score
-            recalculateOverallSEOScore();
-        }
 
-        function generateMobileInsightsFromData(mobileData) {
-            const issues = mobileData.issues || [];
-            let html = '';
 
-            if (issues.length > 0) {
-                // Display each issue in its own div container
-                issues.forEach(issue => {
-                    // Handle both old string format and new detailed object format
-                    if (typeof issue === 'string') {
-                        html += `<div class="mobile-issue-box"><p>${issue}</p></div>`;
-                    } else if (typeof issue === 'object' && issue.title) {
-                        // New detailed format - merge description and impact, hide solution
-                        html += `
-                            <div class="mobile-issue-box">
-                                <h4>${issue.title}</h4>
-                                <p>${issue.description} ${issue.impact}</p>
-                            </div>
-                        `;
-                    }
-                });
-            } else {
-                // Show the positive insight if no issues
-                html += `<p>${mobileData.insights || 'No mobile usability issues detected.'}</p>`;
-            }
 
-            document.getElementById('mobileInsights').innerHTML = html;
-        }
 
-        function generateIndexingInsights(metrics) {
-            // Indexing insights are now generated when fetchIndexingData() is called from loadRealMetrics()
-            document.getElementById('indexingInsights').innerHTML = '<p>Loading indexing insights...</p>';
-        }
 
-        async function fetchIndexingData() {
-            console.log('[DEBUG] ========== FETCHING INDEXING DATA ==========');
-            setMetricLoadingState('indexing', 'loading');
-            try {
-                console.log('[DEBUG] Making API call to /auth/indexing/metrics...');
-                const response = await apiCall('/auth/indexing/metrics');
-                console.log('[DEBUG] Indexing response status:', response.status);
-                console.log('[DEBUG] Indexing response object:', response);
-                
-                if (response.ok) {
-                    const indexingData = await response.json();
-                    console.log('[DEBUG] ========== INDEXING DATA RECEIVED ==========');
-                    console.log('[DEBUG] Raw indexing data:', JSON.stringify(indexingData, null, 2));
-                    console.log('[DEBUG] Calling updateIndexingMetrics...');
-                    updateIndexingMetrics(indexingData);
-                    console.log('[DEBUG] Calling generateIndexingInsightsFromData...');
-                    generateIndexingInsightsFromData(indexingData);
-                    setMetricLoadingState('indexing', 'done');
-                    console.log('[DEBUG] ========== INDEXING DATA PROCESSING COMPLETED ==========');
-                } else {
-                    setMetricLoadingState('indexing', 'done');
-                    const errorText = await response.text();
-                    console.log('[DEBUG] Failed to load indexing data:', errorText);
-                    // Provide fallback data for indexing metrics
-                    const fallbackData = {
-                        sitemap_status: 'Unknown',
-                        sitemap_count: 0,
-                        indexed_pages: 0,
-                        index_status: 'Not Available',
-                        crawl_errors: 0,
-                        crawl_success_rate: 0,
-                        last_crawl: null,
-                        insights: 'Indexing data will be available when GSC is connected.'
-                    };
-                    updateIndexingMetrics(fallbackData);
-                    generateIndexingInsightsFromData(fallbackData);
-                }
-            } catch (error) {
-                setMetricLoadingState('indexing', 'done');
-                console.error('[ERROR] Exception in fetchIndexingData:', error);
-                // Provide fallback data for indexing metrics
-                const fallbackData = {
-                    sitemap_status: 'Not Available',
-                    sitemap_count: 0,
-                    indexed_pages: 0,
-                    index_status: 'Not Available',
-                    crawl_errors: 0,
-                    crawl_success_rate: 0,
-                    last_crawl: null,
-                    insights: 'Indexing data is currently unavailable. Please check your connection and try refreshing.'
-                };
-                updateIndexingMetrics(fallbackData);
-                generateIndexingInsightsFromData(fallbackData);
-            }
-        }
 
-        function updateIndexingMetrics(indexingData) {
-            console.log('[DEBUG] ========== UPDATING INDEXING METRICS ==========');
-            console.log('[DEBUG] Received indexing data:', JSON.stringify(indexingData, null, 2));
-            
-            // Store indexing data globally
-            window.metricsData.indexing = {
-                sitemap_status: indexingData.sitemap_status,
-                sitemap_count: indexingData.sitemap_count || 0,
-                indexed_pages: indexingData.indexed_pages || 0,
-                index_status: indexingData.index_status,
-                crawl_errors: indexingData.crawl_errors || 0,
-                crawl_success_rate: indexingData.crawl_success_rate || 0,
-                last_crawl: indexingData.last_crawl
-            };
-            
-            console.log(`[GROWTH DEBUG] === INDEXING & CRAWLABILITY METRICS ===`);
-            
-            // Update sitemap status and count
-            const sitemapStatus = indexingData.sitemap_status;
-            const sitemapCount = indexingData.sitemap_count || 0;
-            console.log('[DEBUG] Setting sitemapStatus to:', sitemapStatus);
-            console.log('[DEBUG] Setting sitemapCount to:', sitemapCount);
-            document.getElementById('sitemapStatus').textContent = sitemapStatus || 'N/A';
-            document.getElementById('sitemapCount').textContent = sitemapCount.toString();
-            
-            // Update indexed pages with change indicator
-            const indexedPages = indexingData.indexed_pages || 0;
-            document.getElementById('indexedPages').textContent = indexedPages.toLocaleString();
-            const indexedPagesChange = indexingData.indexed_pages_change !== undefined ? indexingData.indexed_pages_change : calculateChange('indexed_pages', indexedPages);
-            console.log(`[GROWTH DEBUG] Indexed Pages: Current=${indexedPages}, 30-day change=${indexedPagesChange}`);
-            updateChangeIndicator('indexedPagesChange', indexedPagesChange, '', true);
-            
-            // Update index status
-            const indexStatus = indexingData.index_status;
-            document.getElementById('indexStatus').textContent = indexStatus || 'N/A';
-            
-            // Update crawl metrics
-            const crawlErrors = indexingData.crawl_errors || 0;
-            const crawlSuccessRate = indexingData.crawl_success_rate || 0;
-            const lastCrawl = indexingData.last_crawl;
-            
-            console.log('[DEBUG] Setting crawlErrors to:', crawlErrors);
-            console.log('[DEBUG] Setting crawlSuccessRate to:', crawlSuccessRate);
-            console.log('[DEBUG] Setting lastCrawl to:', lastCrawl);
-            
-            // Format the last crawl date
-            let formattedLastCrawl = 'N/A';
-            if (lastCrawl) {
-                try {
-                    const date = new Date(lastCrawl);
-                    const day = date.getDate();
-                    const month = date.toLocaleString('en', { month: 'short' });
-                    const year = date.getFullYear();
-                    formattedLastCrawl = `${day} ${month} ${year}`;
-                } catch (error) {
-                    console.warn('[DEBUG] Failed to format last crawl date:', lastCrawl, error);
-                    formattedLastCrawl = lastCrawl; // Fallback to original format
-                }
-            }
-            
-            document.getElementById('crawlErrors').textContent = crawlErrors.toString();
-            document.getElementById('crawlSuccessRate').textContent = crawlSuccessRate ? `${crawlSuccessRate}%` : 'N/A';
-            document.getElementById('lastCrawl').textContent = formattedLastCrawl;
-            
-            // Update status indicator color
-            const statusIndicator = document.getElementById('indexingStatus');
-            if (sitemapStatus === 'Active' && crawlErrors === 0 && crawlSuccessRate >= 80) {
-                statusIndicator.textContent = 'Excellent';
-                statusIndicator.className = 'status-indicator good';
-            } else if (sitemapStatus === 'Active' && crawlErrors <= 5 && crawlSuccessRate >= 60) {
-                statusIndicator.textContent = 'Good';
-                statusIndicator.className = 'status-indicator good';
-            } else if (sitemapStatus === 'Pending' || crawlErrors > 5 || crawlSuccessRate < 60) {
-                statusIndicator.textContent = 'Needs Work';
-                statusIndicator.className = 'status-indicator warning';
-            } else if (sitemapStatus === 'Error' || crawlErrors > 20 || crawlSuccessRate < 30) {
-                statusIndicator.textContent = 'Poor';
-                statusIndicator.className = 'status-indicator error';
-            } else {
-                statusIndicator.textContent = 'Unknown';
-                statusIndicator.className = 'status-indicator';
-            }
-            
-            // Recalculate overall SEO score
-            recalculateOverallSEOScore();
-        }
 
-        function generateIndexingInsightsFromData(indexingData) {
-            const insights = indexingData.insights || [];
-            if (insights.length > 0) {
-                const insightsHtml = insights.map(insight => `<p>${insight}</p>`).join('');
-                document.getElementById('indexingInsights').innerHTML = insightsHtml;
-            } else {
-                document.getElementById('indexingInsights').innerHTML = '<p>Indexing health analysis completed. No major issues detected.</p>';
-            }
-        }
 
-        function generateBusinessInsights(metrics) {
-            // Business insights are now generated when fetchBusinessData() is called from loadRealMetrics()
-            document.getElementById('businessInsights').innerHTML = '<p>Loading business context insights...</p>';
-        }
 
-        async function fetchBusinessData() {
-            setMetricLoadingState('business', 'loading');
-            try {
-                console.log('[BUSINESS DEBUG] ========== FETCHING BUSINESS DATA ==========');
-                console.log('[BUSINESS DEBUG] Starting business data fetch...');
-                const response = await apiCall('/auth/business/metrics');
-                console.log('[BUSINESS DEBUG] Business context response status:', response.status);
-                console.log('[BUSINESS DEBUG] Business context response headers:', response.headers);
-                
-                if (response.ok) {
-                    const businessData = await response.json();
-                    console.log('[BUSINESS DEBUG] ✅ Business context data received successfully!');
-                    console.log('[BUSINESS DEBUG] Raw business data:', JSON.stringify(businessData, null, 2));
-                    console.log('[BUSINESS DEBUG] Business data keys:', Object.keys(businessData));
-                    console.log('[BUSINESS DEBUG] Business type:', businessData.business_type);
-                    console.log('[BUSINESS DEBUG] Target market:', businessData.target_market);
-                    console.log('[BUSINESS DEBUG] Industry sector:', businessData.industry_sector);
-                    
-                    console.log('[BUSINESS DEBUG] Calling updateBusinessMetrics...');
-                    updateBusinessMetrics(businessData);
-                    console.log('[BUSINESS DEBUG] Calling generateBusinessInsightsFromData...');
-                    generateBusinessInsightsFromData(businessData);
-                    setMetricLoadingState('business', 'done');
-                    console.log('[BUSINESS DEBUG] ✅ Business data processing completed successfully!');
-                } else {
-                    setMetricLoadingState('business', 'done');
-                    const errorText = await response.text();
-                    console.error('[BUSINESS DEBUG] ❌ Failed to load business context data:', response.status, errorText);
-                    document.getElementById('businessInsights').innerHTML = '<p>Business context analysis will be available when connected to Google Search Console.</p>';
-                }
-            } catch (error) {
-                setMetricLoadingState('business', 'done');
-                console.error('[BUSINESS DEBUG] ❌ Exception in fetchBusinessData:', error);
-                console.error('[BUSINESS DEBUG] Error stack:', error.stack);
-                document.getElementById('businessInsights').innerHTML = '<p>Business context analysis will be available when connected to Google Search Console.</p>';
-            }
-        }
-
-        function updateBusinessMetrics(businessData) {
-            console.log('[BUSINESS DEBUG] ========== UPDATING BUSINESS METRICS ==========');
-            console.log('[BUSINESS DEBUG] Input business data:', JSON.stringify(businessData, null, 2));
-            
-            // Store comprehensive business data globally
-            window.metricsData.business = {
-                business_type: businessData.business_type,
-                target_market: businessData.target_market,
-                industry_sector: businessData.industry_sector,
-                company_size: businessData.company_size,
-                primary_age_group: businessData.primary_age_group,
-                income_level: businessData.income_level,
-                audience_sophistication: businessData.audience_sophistication,
-                geographic_focus: businessData.geographic_focus,
-                business_maturity: businessData.business_maturity,
-                technology_platform: businessData.technology_platform,
-                content_strategy: businessData.content_strategy,
-                competitive_position: businessData.competitive_position
-            };
-            
-            console.log('[BUSINESS DEBUG] Stored global business data:', window.metricsData.business);
-            
-            // Update all business context fields
-            const businessFields = {
-                'businessType': businessData.business_type,
-                'targetMarket': businessData.target_market,
-                'industrySector': businessData.industry_sector,
-                'companySize': businessData.company_size,
-                'primaryAgeGroup': businessData.primary_age_group,
-                'incomeLevel': businessData.income_level,
-                'audienceSophistication': businessData.audience_sophistication,
-                'geographicFocus': businessData.geographic_focus,
-                'businessMaturity': businessData.business_maturity,
-                'technologyPlatform': businessData.technology_platform,
-                'contentStrategy': businessData.content_strategy,
-                'competitivePosition': businessData.competitive_position
-            };
-            
-            console.log('[BUSINESS DEBUG] Field mapping:', businessFields);
-            
-            // Update DOM elements for all business fields
-            let successCount = 0;
-            let failureCount = 0;
-            
-            Object.entries(businessFields).forEach(([elementId, value]) => {
-                const element = document.getElementById(elementId);
-                if (element) {
-                    const displayValue = value || 'N/A';
-                    const oldValue = element.textContent;
-                    element.textContent = displayValue;
-                    console.log(`[BUSINESS DEBUG] ✅ Updated ${elementId}: "${oldValue}" → "${displayValue}"`);
-                    successCount++;
-                } else {
-                    console.error(`[BUSINESS DEBUG] ❌ Element not found: ${elementId}`);
-                    failureCount++;
-                }
-            });
-            
-            console.log(`[BUSINESS DEBUG] DOM Updates: ${successCount} successful, ${failureCount} failed`);
-            
-            // List all business-related elements in the DOM
-            const businessElements = [
-                'businessType', 'targetMarket', 'industrySector', 'companySize', 
-                'primaryAgeGroup', 'incomeLevel', 'audienceSophistication', 
-                'geographicFocus', 'businessMaturity', 'technologyPlatform', 
-                'contentStrategy', 'competitivePosition', 'businessStatus', 'businessInsights'
-            ];
-            
-            console.log('[BUSINESS DEBUG] DOM Element Check:');
-            businessElements.forEach(id => {
-                const element = document.getElementById(id);
-                console.log(`[BUSINESS DEBUG] ${id}: ${element ? '✅ exists' : '❌ missing'} ${element ? `(content: "${element.textContent}")` : ''}`);
-            });
-            
-            // Update change indicators for key fields
-            console.log(`[BUSINESS DEBUG] === UPDATING CHANGE INDICATORS ===`);
-            const businessTypeChange = calculateChange('business_type', businessData.business_type);
-            const targetMarketChange = calculateChange('target_market', businessData.target_market);
-            updateChangeIndicator('businessTypeChange', businessTypeChange, '', true);
-            updateChangeIndicator('targetMarketChange', targetMarketChange, '', true);
-            
-            // Update status indicator based on business sophistication
-            const statusIndicator = document.getElementById('businessStatus');
-            const sophistication = businessData.audience_sophistication?.toLowerCase();
-            const maturity = businessData.business_maturity?.toLowerCase();
-            
-            console.log('[BUSINESS DEBUG] Status calculation - sophistication:', sophistication, 'maturity:', maturity);
-            
-            if (statusIndicator) {
-                let statusText = 'Basic';
-                let statusClass = 'status-indicator warning';
-                
-                if (sophistication === 'expert' && maturity !== 'startup') {
-                    statusText = 'Advanced';
-                    statusClass = 'status-indicator good';
-                } else if (sophistication === 'intermediate' || maturity === 'growth') {
-                    statusText = 'Good';
-                    statusClass = 'status-indicator good';
-                } else if (sophistication === 'beginner' || maturity === 'startup') {
-                    statusText = 'Developing';
-                    statusClass = 'status-indicator warning';
-                }
-                
-                statusIndicator.textContent = statusText;
-                statusIndicator.className = statusClass;
-                console.log(`[BUSINESS DEBUG] ✅ Status updated to: ${statusText} (${statusClass})`);
-            } else {
-                console.error('[BUSINESS DEBUG] ❌ Status indicator element not found');
-            }
-            
-            console.log('[BUSINESS DEBUG] ========== BUSINESS METRICS UPDATE COMPLETED ==========');
-        }
-
-        function generateBusinessInsightsFromData(businessData) {
-            // Handle both string and array formats for insights and recommendations
-            let insights = businessData.insights || [];
-            let recommendations = businessData.seo_recommendations || [];
-            
-            // Convert strings to arrays if needed
-            if (typeof insights === 'string') {
-                insights = insights ? [insights] : [];
-            }
-            if (typeof recommendations === 'string') {
-                recommendations = recommendations ? [recommendations] : [];
-            }
-            
-            // Ensure they are arrays
-            if (!Array.isArray(insights)) insights = [];
-            if (!Array.isArray(recommendations)) recommendations = [];
-            
-            let insightsHtml = '';
-            
-            // Add business insights without heading
-            if (insights.length > 0) {
-                insights.forEach(insight => {
-                    insightsHtml += `<p>${insight}</p>`;
-                });
-            }
-            
-            // Hide SEO recommendations - save for later use
-            // if (recommendations.length > 0) {
-            //     recommendations.forEach(rec => {
-            //         insightsHtml += `<p>• ${rec}</p>`;
-            //     });
-            // }
-            
-            if (insightsHtml) {
-                document.getElementById('businessInsights').innerHTML = insightsHtml;
-            } else {
-                document.getElementById('businessInsights').innerHTML = '<p>Business context analysis completed. No specific insights available.</p>';
-            }
-        }
-
-        function generateKeywordInsights(metrics) {
-            // This function is now handled by updateKeywordMetrics when real data is loaded
-            // The insights are generated on the backend and displayed via loadKeywordData()
-            document.getElementById('keywordInsights').innerHTML = '<p>Loading keyword performance insights...</p>';
-        }
 
         // Mobile Menu Functions
         function toggleMobileMenu() {
@@ -2158,8 +1450,8 @@
                     console.log('[DEBUG] Successfully loaded cached data, skipping fresh API calls');
                 } else {
                     console.log('[DEBUG] No cached data found, fetching fresh metrics from GSC...');
-                    // Fetch real metrics from GSC
-                    await loadRealMetrics();
+                // Fetch real metrics from GSC
+                await loadRealMetrics();
                     
                     // Cache the newly loaded data
                     await cacheDashboardData();
@@ -2444,7 +1736,7 @@
                                 console.log('[CACHE] Using original API data for charts');
                                 metricsObject = result.data.originalApiData;
                                 window.originalApiResponse = result.data.originalApiData;
-                            } else {
+                } else {
                                 console.log('[CACHE] Reconstructing metrics object from cached data');
                                 metricsObject = { 
                                     summary: result.data.metrics.summary || {},
@@ -2472,11 +1764,7 @@
                                 showDateRange(metricsObject);
                             }
                             
-                            // Update other metric sections if available
-                            if (result.data.metrics.keywords) {
-                                console.log('[CACHE] Loading keywords from cache:', result.data.metrics.keywords);
-                                updateKeywordMetrics(result.data.metrics.keywords);
-                            }
+                            // Update other core metric sections if available
                             if (result.data.metrics.ux) {
                                 console.log('[CACHE] Loading UX metrics from cache:', result.data.metrics.ux);
                                 // Transform cached UX data back to API format
@@ -2493,21 +1781,10 @@
                                 updateUXMetrics(uxApiFormat);
                                 generateUXInsightsFromData(uxApiFormat);
                             }
-                            if (result.data.metrics.mobile) {
-                                console.log('[CACHE] Loading mobile metrics from cache:', result.data.metrics.mobile);
-                                // Mobile data structure is already compatible, use as-is
-                                updateMobileMetrics(result.data.metrics.mobile);
-                                generateMobileInsightsFromData(result.data.metrics.mobile);
-                            }
-                            if (result.data.metrics.indexing) {
-                                console.log('[CACHE] Loading indexing metrics from cache:', result.data.metrics.indexing);
-                                updateIndexingMetrics(result.data.metrics.indexing);
-                                generateIndexingInsightsFromData(result.data.metrics.indexing);
-                            }
-                            if (result.data.metrics.business) {
-                                console.log('[CACHE] Loading business metrics from cache:', result.data.metrics.business);
-                                updateBusinessMetrics(result.data.metrics.business);
-                                generateBusinessInsightsFromData(result.data.metrics.business);
+                            if (result.data.metrics.metadata) {
+                                console.log('[CACHE] Loading metadata metrics from cache:', result.data.metrics.metadata);
+                                updateMetadataMetrics(result.data.metrics.metadata);
+                                generateMetadataInsights(result.data.metrics.metadata);
                             }
                             
                             // Recalculate overall SEO score
@@ -2516,11 +1793,11 @@
                             showCacheStatus('Loaded cached data from today', 'info');
                             return true; // Successfully loaded cached data
                         }
-                    } else {
+                } else {
                         console.log('[CACHE] No cached dashboard data available for today');
                         return false;
-                    }
-                } else {
+                }
+            } else {
                     console.warn('[CACHE] Failed to check for cached data:', response.status);
                     return false;
                 }
@@ -2563,10 +1840,7 @@
             const seoScore = calculateSEOScore(
                 window.metricsData.summary,
                 window.metricsData.ux,
-                window.metricsData.mobile,
-                window.metricsData.indexing,
-                window.metricsData.keywords,
-                window.metricsData.business
+                window.metricsData.metadata
             );
             
             // Calculate and update SEO score change (use backend data if available, otherwise fallback to session-based)
@@ -2579,32 +1853,24 @@
             console.log('[DEBUG] Recalculated SEO score:', seoScore, 'change:', seoScoreChange, 'using data:', window.metricsData);
         }
 
-        function calculateSEOScore(summary, ux = {}, mobile = {}, indexing = {}, keywords = {}, business = {}) {
-            // Define all metrics, their weights, and normalization functions
+        function calculateSEOScore(summary, ux = {}, metadata = {}) {
+            // Define core metrics, their weights, and normalization functions
             const metrics = [
-                // Visibility
-                { key: 'avg_ctr', value: summary.avg_ctr, weight: 10, norm: v => Math.min(v / 0.10, 1) },
-                { key: 'avg_position', value: summary.avg_position, weight: 10, norm: v => Math.max((10 - v) / 10, 0) },
+                // Visibility Performance (40% weight)
+                { key: 'avg_ctr', value: summary.avg_ctr, weight: 15, norm: v => Math.min(v / 0.10, 1) },
+                { key: 'avg_position', value: summary.avg_position, weight: 15, norm: v => Math.max((10 - v) / 10, 0) },
                 { key: 'total_impressions', value: summary.total_impressions, weight: 5, norm: v => Math.min(Math.log10(v + 1) / 6, 1) },
                 { key: 'total_clicks', value: summary.total_clicks, weight: 5, norm: v => Math.min(Math.log10(v + 1) / 5, 1) },
-                // UX
-                { key: 'performance_score', value: ux.performance_score, weight: 10, norm: v => (v / 100) },
-                { key: 'lcp', value: ux.lcp, weight: 5, norm: v => 1 - Math.min(v, 4) / 4 },
-                { key: 'fcp', value: ux.fcp, weight: 5, norm: v => 1 - Math.min(v, 3) / 3 },
-                { key: 'cls', value: ux.cls, weight: 5, norm: v => 1 - Math.min(v, 0.25) / 0.25 },
-                // Mobile
-                { key: 'mobile_friendly', value: mobile.mobile_friendly, weight: 10, norm: v => (v === 'Yes' || v === 'Pass') ? 1 : 0 },
-                { key: 'issues_count', value: mobile.issues_count, weight: 5, norm: v => 1 - Math.min(v, 5) / 5 },
-                // Indexing
-                { key: 'sitemap_status', value: indexing.sitemap_status, weight: 5, norm: v => v === 'Active' ? 1 : 0 },
-                { key: 'index_status', value: indexing.index_status, weight: 5, norm: v => ['PASS', 'NEUTRAL'].includes(v) ? 1 : 0 },
-                // Keywords
-                { key: 'total_keywords', value: keywords.total_keywords, weight: 5, norm: v => Math.min(Math.log10(v + 1) / 4, 1) },
-                { key: 'opportunities', value: keywords.opportunities, weight: 5, norm: v => Math.min(v / 10, 1) },
-                { key: 'branded_keywords', value: (keywords.branded_keywords !== undefined && keywords.total_keywords) ? 1 - Math.min(keywords.branded_keywords / (keywords.total_keywords || 1), 1) : undefined, weight: 5, norm: v => v },
-                // Business Context
-                { key: 'business_complexity_score', value: business.business_complexity_score, weight: 3, norm: v => Math.min(v / 10, 1) },
-                { key: 'service_count', value: business.service_count, weight: 2, norm: v => Math.min(Math.log10(v + 1) / 2, 1) },
+                // Engagement & UX (35% weight)
+                { key: 'performance_score', value: ux.performance_score, weight: 15, norm: v => (v / 100) },
+                { key: 'lcp', value: ux.lcp, weight: 7, norm: v => 1 - Math.min(v, 4) / 4 },
+                { key: 'fcp', value: ux.fcp, weight: 6, norm: v => 1 - Math.min(v, 3) / 3 },
+                { key: 'cls', value: ux.cls, weight: 7, norm: v => 1 - Math.min(v, 0.25) / 0.25 },
+                // Metadata & Image Alt Text (25% weight)
+                { key: 'meta_titles', value: metadata.meta_titles, weight: 7, norm: v => Math.min(v / 100, 1) },
+                { key: 'meta_descriptions', value: metadata.meta_descriptions, weight: 7, norm: v => Math.min(v / 100, 1) },
+                { key: 'image_alt_text', value: metadata.image_alt_text, weight: 6, norm: v => Math.min(v / 100, 1) },
+                { key: 'h1_tags', value: metadata.h1_tags, weight: 5, norm: v => Math.min(v / 100, 1) }
             ];
 
             // Filter out missing metrics
@@ -2616,7 +1882,7 @@
             let score = 0;
             present.forEach(m => {
                 const scaledWeight = m.weight * (100 / totalWeight);
-                let normValue = m.key === 'branded_keywords' ? m.value : m.norm(m.value);
+                let normValue = m.norm(m.value);
                 normValue = Math.max(0, Math.min(normValue, 1));
                 score += normValue * scaledWeight;
             });
@@ -2779,20 +2045,11 @@
                 'impressions': [
                     'impressionsChange'
                 ],
-                'keywords': [
-                    'totalKeywordsChange', 'keywordAvgPositionChange', 'keywordOpportunitiesChange', 'brandedKeywordsChange'
-                ],
                 'ux': [
                     'performanceScoreChange', 'lcpChange', 'fcpChange', 'clsChange'
                 ],
-                'mobile': [
-                    'mobileIssuesChange'
-                ],
-                'indexing': [
-                    'indexedPagesChange'
-                ],
-                'business': [
-                    'businessTypeChange', 'targetMarketChange', 'businessComplexityChange', 'serviceCountChange'
+                'metadata': [
+                    'metaTitlesChange', 'metaDescriptionsChange', 'imageAltTextChange', 'h1TagsChange'
                 ]
             };
 
@@ -2852,13 +2109,10 @@
                     setMetricLoadingState('impressions', 'done');
                     
                     console.log('[DEBUG] Fetching additional metrics in parallel...');
-                    // Fetch all other data types in parallel
+                    // Fetch remaining core metrics in parallel
                     const additionalMetricsPromises = [
-                        loadKeywordData().catch(e => console.error('[ERROR] Keyword data failed:', e)),
                         fetchPageSpeedData().catch(e => console.error('[ERROR] PageSpeed data failed:', e)),
-                        fetchMobileData().catch(e => console.error('[ERROR] Mobile data failed:', e)),
-                        fetchIndexingData().catch(e => console.error('[ERROR] Indexing data failed:', e)),
-                        fetchBusinessData().catch(e => console.error('[ERROR] Business data failed:', e))
+                        fetchMetadataData().catch(e => console.error('[ERROR] Metadata data failed:', e))
                     ];
                     
                     await Promise.allSettled(additionalMetricsPromises);
@@ -2872,11 +2126,8 @@
                     setMetricLoadingState('visibility', 'done');
                     setMetricLoadingState('organic', 'done');
                     setMetricLoadingState('impressions', 'done');
-                    setMetricLoadingState('keywords', 'done');
                     setMetricLoadingState('ux', 'done');
-                    setMetricLoadingState('mobile', 'done');
-                    setMetricLoadingState('indexing', 'done');
-                    setMetricLoadingState('business', 'done');
+                    setMetricLoadingState('metadata', 'done');
                     
                     // Show empty state
                     updateDashboardMetrics(false);
@@ -2891,11 +2142,8 @@
                 setMetricLoadingState('visibility', 'done');
                 setMetricLoadingState('organic', 'done');
                 setMetricLoadingState('impressions', 'done');
-                setMetricLoadingState('keywords', 'done');
                 setMetricLoadingState('ux', 'done');
-                setMetricLoadingState('mobile', 'done');
-                setMetricLoadingState('indexing', 'done');
-                setMetricLoadingState('business', 'done');
+                setMetricLoadingState('metadata', 'done');
                 
                 // Show empty state
                 updateDashboardMetrics(false);
@@ -2908,6 +2156,136 @@
             }
         }
         
+        async function fetchMetadataData() {
+            console.log('[DEBUG] Fetching metadata analysis...');
+            setMetricLoadingState('metadata', 'loading');
+            
+            try {
+                const response = await apiCall('/auth/metadata/analysis');
+                console.log('[DEBUG] Metadata analysis response status:', response.status);
+                
+                if (response.ok) {
+                    const metadataData = await response.json();
+                    console.log('[DEBUG] Metadata analysis data received:', metadataData);
+                    
+                    // Update metadata metrics
+                    updateMetadataMetrics(metadataData);
+                    generateMetadataInsights(metadataData);
+                    setMetricLoadingState('metadata', 'done');
+                } else {
+                    const errorText = await response.text();
+                    console.error('[ERROR] Failed to load metadata analysis:', response.status, errorText);
+                    
+                    // Use fallback data
+                    const fallbackData = {
+                        meta_titles: 0,
+                        meta_descriptions: 0,
+                        image_alt_text: 0,
+                        h1_tags: 0,
+                        insights: 'Metadata analysis will be available when connected to Google Search Console.'
+                    };
+                    updateMetadataMetrics(fallbackData);
+                    setMetricLoadingState('metadata', 'done');
+                }
+            } catch (error) {
+                console.error('[ERROR] Exception in fetchMetadataData:', error);
+                
+                // Use fallback data
+                const fallbackData = {
+                    meta_titles: 0,
+                    meta_descriptions: 0,
+                    image_alt_text: 0,
+                    h1_tags: 0,
+                    insights: 'Metadata analysis will be available when connected to Google Search Console.'
+                };
+                updateMetadataMetrics(fallbackData);
+                setMetricLoadingState('metadata', 'done');
+            }
+        }
+
+        function updateMetadataMetrics(metadataData) {
+            console.log('[DEBUG] Updating metadata metrics with data:', metadataData);
+            
+            // Store metadata data globally
+            window.metricsData = window.metricsData || {};
+            window.metricsData.metadata = {
+                meta_titles: metadataData.meta_titles,
+                meta_descriptions: metadataData.meta_descriptions,
+                image_alt_text: metadataData.image_alt_text,
+                h1_tags: metadataData.h1_tags,
+                insights: metadataData.insights || []
+            };
+            
+            // Helper function to format metadata counts as "optimized out of total"
+            function formatMetadataCount(optimized, total) {
+                if (optimized === undefined || total === undefined) return 'N/A';
+                return `${optimized} out of ${total}`;
+            }
+            
+            // Update metadata metrics in the dashboard using "optimized out of total" format
+            const elements = {
+                'metaTitles': formatMetadataCount(metadataData.meta_titles_optimized, metadataData.meta_titles_total),
+                'metaDescriptions': formatMetadataCount(metadataData.meta_descriptions_optimized, metadataData.meta_descriptions_total),
+                'imageAltText': formatMetadataCount(metadataData.image_alt_text_optimized, metadataData.image_alt_text_total),
+                'h1Tags': formatMetadataCount(metadataData.h1_tags_optimized, metadataData.h1_tags_total)
+            };
+            
+            Object.entries(elements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = value;
+                } else {
+                    console.warn(`[DEBUG] Element not found: ${id}`);
+                }
+            });
+            
+            // Update status indicator based on overall metadata health
+            const statusIndicator = document.getElementById('metadataStatus');
+            if (statusIndicator) {
+                const avgScore = (metadataData.meta_titles + metadataData.meta_descriptions + metadataData.image_alt_text + metadataData.h1_tags) / 4;
+                if (avgScore >= 90) {
+                    statusIndicator.textContent = 'Excellent';
+                    statusIndicator.className = 'status-indicator good';
+                } else if (avgScore >= 70) {
+                    statusIndicator.textContent = 'Good';
+                    statusIndicator.className = 'status-indicator good';
+                } else if (avgScore >= 50) {
+                    statusIndicator.textContent = 'Needs Work';
+                    statusIndicator.className = 'status-indicator warning';
+                } else {
+                    statusIndicator.textContent = 'Poor';
+                    statusIndicator.className = 'status-indicator error';
+                }
+            }
+            
+            // Recalculate overall SEO score
+            recalculateOverallSEOScore();
+        }
+
+        function generateMetadataInsights(metadataData) {
+            const insights = [];
+            
+            if (metadataData.meta_titles < 80) {
+                insights.push('Meta titles need optimization for better search visibility.');
+            }
+            if (metadataData.meta_descriptions < 80) {
+                insights.push('Meta descriptions should be improved to increase click-through rates.');
+            }
+            if (metadataData.image_alt_text < 70) {
+                insights.push('Many images are missing alt text, affecting accessibility and SEO.');
+            }
+            if (metadataData.h1_tags < 90) {
+                insights.push('Some pages may be missing proper H1 tags for better structure.');
+            }
+            
+            if (insights.length === 0) {
+                insights.push('Metadata optimization is in good shape. Continue monitoring for new content.');
+            }
+            
+            const insightsHtml = insights.map(insight => `<p>${insight}</p>`).join('');
+            document.getElementById('metadataInsights').innerHTML = insightsHtml;
+        }
+
         document.addEventListener('DOMContentLoaded', initDashboard);
 
         // Hide error banner on page load
@@ -2916,124 +2294,14 @@
         });
 
         // Expose test functions to global scope for console access
-        window.testBusinessData = testBusinessData;
         window.testDataLoading = testDataLoading;
         window.runFullDiagnostic = runFullDiagnostic;
         window.testCacheSystem = testCacheSystem;
         window.forceCacheRefresh = forceCacheRefresh;
 
-        async function loadKeywordData() {
-            setMetricLoadingState('keywords', 'loading');
-            try {
-                const response = await apiCall('/auth/keyword/metrics');
-                if (response.ok) {
-                    const keywordData = await response.json();
-                    updateKeywordMetrics(keywordData);
-                    setMetricLoadingState('keywords', 'done');
-                } else {
-                    setMetricLoadingState('keywords', 'done');
-                }
-            } catch (error) {
-                setMetricLoadingState('keywords', 'done');
-            }
-        }
 
-        function updateKeywordMetrics(keywordData) {
-            console.log('[DEBUG] ========== UPDATING KEYWORD METRICS ==========');
-            console.log('[DEBUG] Received keyword data:', JSON.stringify(keywordData, null, 2));
-            
-            // Store keyword data globally
-            window.metricsData = window.metricsData || {};
-            window.metricsData.keywords = {
-                total_keywords: keywordData.total_keywords || 0,
-                avg_position: keywordData.avg_position,
-                opportunities: keywordData.opportunities || 0,
-                branded_keywords: keywordData.branded_keywords || 0,
-                keywords_list: keywordData.keywords_list || [],
-                top_keywords: keywordData.top_keywords
-            };
-            
-            // Update keyword metrics in the dashboard
-            const totalKeywords = keywordData.total_keywords || 0;
-            const avgPosition = keywordData.avg_position;
-            const opportunities = keywordData.opportunities || 0;
-            const brandedKeywords = keywordData.branded_keywords || 0;
-            
-            // Safely update DOM elements
-            const elements = {
-                'totalKeywords': totalKeywords.toLocaleString(),
-                'keywordAvgPosition': avgPosition?.toFixed(1) || 'N/A',
-                'keywordOpportunities': opportunities.toLocaleString(),
-                'brandedKeywords': brandedKeywords.toLocaleString()
-            };
-            
-            console.log('[DEBUG] Updating keyword summary elements:', elements);
-            Object.entries(elements).forEach(([id, value]) => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.textContent = value;
-                    console.log(`[DEBUG] Set ${id} to: ${value}`);
-                } else {
-                    console.warn(`[DEBUG] Element not found: ${id}`);
-                }
-            });
-            
-            // Update keyword insights
-            if (keywordData.keyword_insights) {
-                const insightsElement = document.getElementById('keywordInsights');
-                if (insightsElement) {
-                    insightsElement.innerHTML = `<p>${keywordData.keyword_insights}</p>`;
-                    console.log('[DEBUG] Updated keyword insights');
-                }
-            }
-            
-            // Update keywords list
-            const keywordsList = keywordData.keywords_list || [];
-            console.log('[DEBUG] Processing keywords list:', keywordsList);
-            
-            const keywordsListElement = document.getElementById('keywordsList');
-            if (keywordsListElement && keywordsList.length > 0) {
-                console.log('[DEBUG] Updating keywords list with', keywordsList.length, 'keywords');
-                
-                let keywordsHtml = '<h4>Keywords Found:</h4><div class="keywords-list-container">';
-                
-                keywordsList.forEach((keyword, index) => {
-                    const position = keyword.position ? Math.round(keyword.position) : 'N/A';
-                    const impressions = keyword.impressions || 0;
-                    const clicks = keyword.clicks || 0;
-                    const ctr = keyword.ctr ? (keyword.ctr * 100).toFixed(1) : '0.0';
-                    
-                    keywordsHtml += `
-                        <div class="keyword-item">
-                            <div class="keyword-name">
-                                <span>${keyword.keyword || 'Unknown'}</span>
-                            </div>
-                            <div class="keyword-metrics">
-                                <div class="keyword-position">Pos: ${position}</div>
-                                <div class="keyword-impressions">Imp: ${impressions.toLocaleString()}</div>
-                                <div class="keyword-clicks">Clicks: ${clicks.toLocaleString()}</div>
-                                <div class="keyword-ctr">CTR: ${ctr}%</div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                keywordsHtml += '</div>';
-                keywordsListElement.innerHTML = keywordsHtml;
-                console.log('[DEBUG] Keywords list updated with HTML');
-            } else if (keywordsListElement) {
-                console.log('[DEBUG] No keywords to display, showing empty state');
-                keywordsListElement.innerHTML = '<div class="keywords-empty">No keywords data available</div>';
-            }
-            
-            // Update top keywords if available
-            if (keywordData.top_keywords) {
-                console.log('[DEBUG] Top keywords:', keywordData.top_keywords);
-                // You can add logic here to display top keywords in a separate section if needed
-            }
-            
-            console.log('[DEBUG] ========== KEYWORD METRICS UPDATE COMPLETED ==========');
-        }
+
+
 
         async function fetchPageSpeedData() {
             setMetricLoadingState('ux', 'loading');
@@ -3317,74 +2585,7 @@
             }
         }
 
-        // TEST FUNCTION - Call this from console to debug business data specifically
-        async function testBusinessData() {
-            console.log('=== BUSINESS DATA TEST ===');
-            
-            // Step 1: Check current business data in memory
-            console.log('1. Current business data in window.metricsData:', window.metricsData?.business);
-            
-            // Step 2: Check all business DOM elements
-            console.log('2. Business DOM elements status:');
-            const businessElements = [
-                'businessType', 'targetMarket', 'industrySector', 'companySize', 
-                'primaryAgeGroup', 'incomeLevel', 'audienceSophistication', 
-                'geographicFocus', 'businessMaturity', 'technologyPlatform', 
-                'contentStrategy', 'competitivePosition', 'businessStatus', 'businessInsights'
-            ];
-            
-            businessElements.forEach(elementId => {
-                const element = document.getElementById(elementId);
-                console.log(`   ${elementId}:`, element ? 
-                    `✅ EXISTS - content: "${element.textContent}", visible: ${element.offsetParent !== null}` : 
-                    '❌ NOT FOUND'
-                );
-            });
-            
-            // Step 3: Test business API call directly
-            console.log('3. Testing business API call...');
-            if (!checkAuthStatus()) {
-                console.log('❌ Authentication failed, stopping business test');
-                return;
-            }
-            
-            try {
-                const response = await apiCall('/auth/business/metrics');
-                console.log('   Business API response status:', response.status);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('   ✅ Business API data received:', JSON.stringify(data, null, 2));
-                    console.log('   Key fields:');
-                    console.log('   - Business type:', data.business_type);
-                    console.log('   - Target market:', data.target_market);
-                    console.log('   - Industry sector:', data.industry_sector);
-                    console.log('   - Company size:', data.company_size);
-                    console.log('   - Insights:', data.insights);
-                    
-                    // Step 4: Try manual update
-                    console.log('4. Testing manual DOM update...');
-                    const businessTypeElement = document.getElementById('businessType');
-                    if (businessTypeElement) {
-                        const oldValue = businessTypeElement.textContent;
-                        businessTypeElement.textContent = data.business_type || 'TEST_UPDATE';
-                        console.log('   Manual update test:', oldValue, '→', businessTypeElement.textContent);
-                        console.log('   ✅ Manual DOM update successful');
-                    } else {
-                        console.log('   ❌ businessType element not found for manual update');
-                    }
-                    
-                    // Step 5: Test full business data processing
-                    console.log('5. Testing updateBusinessMetrics function...');
-                    updateBusinessMetrics(data);
-                } else {
-                    const errorText = await response.text();
-                    console.log('   ❌ Business API call failed:', response.status, errorText);
-                }
-            } catch (error) {
-                console.error('   ❌ Exception during business API call:', error);
-            }
-        }
+
 
         // COMPREHENSIVE TEST FUNCTION
         async function runFullDiagnostic() {
@@ -3407,9 +2608,7 @@
             console.log('\n3️⃣ METRICS FETCH TEST:');
             await testDataLoading();
             
-            // 4. Business data test
-            console.log('\n4️⃣ BUSINESS DATA TEST:');
-            await testBusinessData();
+
             
             console.log('\n✅ Full diagnostic completed');
         }
