@@ -12,8 +12,19 @@ http://localhost:8000/docs
 - data is not laoded in dashboard
 - google sheets is not connected
 
-20 jun 2025:
+30 jun 2025:
 - reconnect to gsc
 - save reports when generated and hide generate button
 - caching for faster loads and less api calls
 + test whether benchmark can be referenced to write narrative on data
+
+2 jul 2025:
++ clear cache once a day only
++ scale down solvia to only have some metrics
++ batch operations to minimise API calls (no rate limiting)
+
+3 jul 2025:
+- define benchmarks
+
+4 jul 2025:
+- design recommendation cards in fixes page

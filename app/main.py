@@ -23,7 +23,7 @@ from .config import settings
 from .database import db
 
 # Import the analysis components
-from core.modules.business_analysis import BusinessAnalyzer
+# from core.modules.business_analysis import BusinessAnalyzer
 from core.analysis_processor import generate_seo_analysis
 from core.recommendation_aggregator import RecommendationAggregator
 
@@ -153,11 +153,11 @@ async def generate_report(current_user: str = Depends(get_current_user)):
         print(f"[DEBUG] Analyzing website: {website_url}")
         
         # Initialize business analyzer
-        business_analyzer = BusinessAnalyzer()
+        # business_analyzer = BusinessAnalyzer()
         
         # Get business analysis
         print("[DEBUG] Conducting business analysis...")
-        business_analysis = business_analyzer.analyze_business(website_url)
+        # business_analysis = business_analyzer.analyze_business(website_url)
         
         # Fetch real metrics from existing Solvia endpoints
         print("[DEBUG] Fetching real metrics from Solvia...")

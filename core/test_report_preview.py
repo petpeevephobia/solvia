@@ -1,5 +1,4 @@
-import os
-from core.modules.report_generator import ReportGenerator
+# from core.modules.report_generator import ReportGenerator
 
 def generate_test_report():
     # Create sample website data
@@ -56,13 +55,13 @@ def generate_test_report():
     }
 
     # Initialize report generator
-    report_generator = ReportGenerator()
+    # report_generator = ReportGenerator()
 
     # Generate report
     try:
-        pdf_path = report_generator.generate_report(website_data, openai_analysis)
+        # pdf_path = report_generator.generate_report(website_data, openai_analysis)
         print(f"\n✅ Test report generated successfully!")
-        print(f"📄 Report location: {pdf_path}")
+        # print(f"📄 Report location: {pdf_path}")
         print("\nTo view the report, open the PDF file at the location above.")
     except Exception as e:
         print(f"❌ Error generating test report: {str(e)}")

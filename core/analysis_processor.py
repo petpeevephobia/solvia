@@ -2,8 +2,6 @@ import os
 import json
 from urllib.parse import urlparse
 import openai
-from core.modules.business_analysis import BusinessAnalyzer
-from core.modules.report_generator import ReportGenerator
 from core.modules.prompt_loader import load_prompt
 from .recommendation_aggregator import RecommendationAggregator
 
@@ -211,120 +209,6 @@ def detect_cannibalization_risk(keywords_data):
     except Exception as e:
         print(f"Error detecting cannibalization: {str(e)}")
         return 'Low'  # Default to Low risk if there's an error
-
-def get_business_analysis(url):
-    """
-    Performs initial business analysis of a website.
-    
-    Args:
-        url (str): The website URL to analyze
-        
-    Returns:
-        dict: Initial business analysis data
-    """
-    try:
-        analyzer = BusinessAnalyzer(url)
-        return analyzer.analyze()
-    except Exception as e:
-        print(f"Error performing business analysis: {str(e)}")
-        return {}
-
-def enhance_business_analysis_with_ai(initial_business_data, technical_metrics):
-    """
-    Enhances business analysis with AI insights.
-    
-    Args:
-        initial_business_data (dict): Initial business analysis data
-        technical_metrics (dict): Technical performance metrics
-        
-    Returns:
-        dict: Enhanced business analysis with AI insights
-    """
-    try:
-        # Prepare the prompt for AI
-        prompt = f"""
-        Analyze this business data and provide enhanced insights:
-        
-        Initial Business Data:
-        {json.dumps(initial_business_data, indent=2)}
-        
-        Technical Metrics:
-        {json.dumps(technical_metrics, indent=2)}
-        
-        Provide enhanced analysis focusing on:
-        1. Market positioning
-        2. Competitive advantages
-        3. Growth opportunities
-        4. Risk factors
-        5. Strategic recommendations
-        """
-        
-        # Get AI analysis using new API format
-        client = openai.OpenAI()
-        try:
-            print("Making API request...")
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": "You are an SEO strategist and SaaS product assistant for early-stage founders. You MUST respond with valid JSON only."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={ "type": "json_object" }
-            )
-            print("API request completed")
-            
-            # Extract and parse the analysis
-            print("Processing API response...")
-            print(f"Response object type: {type(response)}")
-            print(f"Response object: {response}")
-            print(f"Choices available: {response.choices}")
-            
-            if not response.choices:
-                print("No choices in response")
-                return {}
-                
-            analysis_text = response.choices[0].message.content
-            print(f"\tRaw OpenAI Response: {analysis_text}")
-            
-            if not analysis_text:
-                print("Empty response content")
-                return {}
-                
-            try:
-                analysis = json.loads(analysis_text)
-                print(f"\tParsed JSON: {json.dumps(analysis, indent=2)}")
-                # Validate required fields
-                if not isinstance(analysis, dict):
-                    print("Analysis is not a dictionary")
-                    raise ValueError("Analysis must be a dictionary")
-                if "executive_summary" not in analysis:
-                    print("Missing executive_summary in response")
-                    raise ValueError("Missing required field: executive_summary")
-                if "recommendations" not in analysis:
-                    print("Missing recommendations in response")
-                    raise ValueError("Missing required field: recommendations")
-                if not isinstance(analysis["recommendations"], list):
-                    print("Recommendations is not a list")
-                    raise ValueError("Recommendations must be a list")
-                print("Analysis validation successful")
-                return analysis
-            except json.JSONDecodeError as e:
-                print(f"Error parsing JSON response: {str(e)}")
-                print(f"Raw response: {analysis_text}")
-                return {}
-            except ValueError as e:
-                print(f"Error validating response format: {str(e)}")
-                return {}
-        except Exception as api_error:
-            print(f"OpenAI API Error: {str(api_error)}")
-            print(f"Error type: {type(api_error)}")
-            print(f"Error details: {api_error.__dict__}")
-            return {}
-    except Exception as e:
-        print(f"Error enhancing business analysis: {str(e)}")
-        print(f"Error type: {type(e)}")
-        print(f"Error details: {e.__dict__}")
-        return {}
 
 def generate_seo_analysis(website_data, business_context):
     """

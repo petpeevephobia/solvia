@@ -10,7 +10,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from app.database import GoogleSheetsDB
 from typing import List, Dict, Any, Optional
 from core.analysis_processor import generate_seo_analysis
-from core.modules.report_generator import ReportGenerator
 from core.modules.business_analysis import BusinessAnalyzer
 from googleapiclient.discovery import build
 import openai
@@ -20,7 +19,6 @@ class GoogleSheetsReportGenerator:
     
     def __init__(self):
         self.db = GoogleSheetsDB()
-        self.report_generator = ReportGenerator()
         self.business_analyzer = BusinessAnalyzer()
         
     def get_users_with_websites(self) -> List[Dict[str, str]]:

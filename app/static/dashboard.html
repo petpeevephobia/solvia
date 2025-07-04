@@ -289,7 +289,7 @@
 
 
 
-        </div>
+                    </div>
                 </div>
             </div>
             
@@ -749,19 +749,17 @@
             console.log('- primaryColor:', primaryColor);
             console.log('- secondaryColor:', secondaryColor);
 
-            // Generate complete month dates including future dates with zero values
+            // Generate complete 30-day date range including missing dates with zero values
             let completeDates = [];
             let completeClicksData = [];
             let completeImpressionsData = [];
 
             if (dates.length > 0) {
-                // Get the first date to determine the month and year
+                // Get the first and last dates from the data
                 const firstDate = new Date(dates[0]);
-                const year = firstDate.getFullYear();
-                const month = firstDate.getMonth();
+                const lastDate = new Date(dates[dates.length - 1]);
                 
-                // Get the number of days in this month
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                console.log('Chart data range:', dates[0], 'to', dates[dates.length - 1]);
                 
                 // Create a map of existing data for quick lookup
                 const dataMap = {};
@@ -772,29 +770,27 @@
                     };
                 });
                 
-                // Generate all dates for the month
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const currentDate = new Date(year, month, day);
+                // Generate all dates in the 30-day range
+                const currentDate = new Date(firstDate);
+                while (currentDate <= lastDate) {
                     const dateStr = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
-                    
                     completeDates.push(dateStr);
                     
                     if (dataMap[dateStr]) {
                         // Use real data if available
                         completeClicksData.push(dataMap[dateStr].clicks);
                         completeImpressionsData.push(dataMap[dateStr].impressions);
-                    } else if (currentDate > today) {
-                        // Future dates get zero values
-                        completeClicksData.push(0);
-                        completeImpressionsData.push(0);
                     } else {
-                        // Past dates without data also get zero
+                        // Missing dates get zero values
                         completeClicksData.push(0);
                         completeImpressionsData.push(0);
                     }
+                    
+                    // Move to next day
+                    currentDate.setDate(currentDate.getDate() + 1);
                 }
+                
+                console.log('Generated', completeDates.length, 'complete dates for chart');
             }
 
             // Use complete data if available, otherwise fall back to original data
@@ -975,7 +971,7 @@
             }
         }
 
-        function updateDashboardMetricsWithRealData(metrics) {
+        async function updateDashboardMetricsWithRealData(metrics) {
             console.log('[DEBUG] === STARTING updateDashboardMetricsWithRealData ===');
             console.log('[DEBUG] Full metrics object received:', JSON.stringify(metrics, null, 2));
             
@@ -1094,8 +1090,8 @@
             // Generate insights based on real data
             try {
                 console.log('[DEBUG] Generating insights...');
-            generateVisibilityInsights(summary);
-            generateUXInsights(metrics);
+                await generateVisibilityInsights(summary);
+                await generateUXInsights(metrics);
             } catch (error) {
                 console.error('[ERROR] Failed to generate insights:', error);
             }
@@ -1220,7 +1216,36 @@
             element.textContent = displayText;
         }
 
-        function generateVisibilityInsights(summary) {
+        async function generateVisibilityInsights(summary) {
+            try {
+                // Fetch AI-powered benchmark insights
+                const response = await apiCall('/auth/benchmark/insights');
+                if (response.ok) {
+                    const insights = await response.json();
+                    
+                    // Display visibility performance insights
+                    const visibilityData = insights.visibility_performance;
+                    if (visibilityData && visibilityData.metrics) {
+                        const insightsHtml = [];
+                        
+                        // Overall assessment
+                        if (visibilityData.overall_assessment) {
+                            insightsHtml.push(`<p><strong>Overall:</strong> ${visibilityData.overall_assessment}</p>`);
+                        }
+                        
+                        // Individual metric insights
+                        Object.entries(visibilityData.metrics).forEach(([metric, data]) => {
+                            if (data.analysis) {
+                                insightsHtml.push(`<p><strong>${metric.charAt(0).toUpperCase() + metric.slice(1)}:</strong> ${data.analysis}</p>`);
+                            }
+                            if (data.recommendations && data.recommendations.length > 0) {
+                                insightsHtml.push(`<p><strong>Recommendations:</strong> ${data.recommendations.join(' ')}</p>`);
+                            }
+                        });
+                        
+                        document.getElementById('visibilityInsights').innerHTML = insightsHtml.join('');
+                    } else {
+                        // Fallback to basic insights
             let insight = '';
             if (summary.total_impressions > 0) {
                 if (summary.avg_ctr < 2) {
@@ -1228,17 +1253,86 @@
                 } else if (summary.avg_position > 10) {
                     insight = 'Average position needs improvement. Focus on content optimization and backlink building.';
                 } else {
-                    insight = 'Good visibility performance. Continue optimizing for better search rankings.';
+                                insight = 'Good visibility performance. Continue optimizing for better search rankings.';
                 }
             } else {
                 insight = 'No search visibility data yet. This is normal for new websites.';
             }
             document.getElementById('visibilityInsights').innerHTML = `<p>${insight}</p>`;
+                    }
+                } else {
+                    // Fallback to basic insights
+                    let insight = '';
+                    if (summary.total_impressions > 0) {
+                        if (summary.avg_ctr < 2) {
+                            insight = 'CTR is below average. Consider optimizing meta titles and descriptions for better click-through rates.';
+                        } else if (summary.avg_position > 10) {
+                            insight = 'Average position needs improvement. Focus on content optimization and backlink building.';
+                        } else {
+                            insight = 'Good visibility performance. Continue optimizing for better search rankings.';
+                        }
+                    } else {
+                        insight = 'No search visibility data yet. This is normal for new websites.';
+                    }
+                    document.getElementById('visibilityInsights').innerHTML = `<p>${insight}</p>`;
+                }
+            } catch (error) {
+                console.error('Error fetching AI insights:', error);
+                // Fallback to basic insights
+                let insight = '';
+                if (summary.total_impressions > 0) {
+                    if (summary.avg_ctr < 2) {
+                        insight = 'CTR is below average. Consider optimizing meta titles and descriptions for better click-through rates.';
+                    } else if (summary.avg_position > 10) {
+                        insight = 'Average position needs improvement. Focus on content optimization and backlink building.';
+                    } else {
+                        insight = 'Good visibility performance. Continue optimizing for better search rankings.';
+                    }
+                } else {
+                    insight = 'No search visibility data yet. This is normal for new websites.';
+                }
+                document.getElementById('visibilityInsights').innerHTML = `<p>${insight}</p>`;
+            }
         }
 
-        function generateUXInsights(metrics) {
-            // UX insights are now generated when fetchPageSpeedData() is called from loadRealMetrics()
+        async function generateUXInsights(metrics) {
+            try {
+                // Fetch AI-powered benchmark insights
+                const response = await apiCall('/auth/benchmark/insights');
+                if (response.ok) {
+                    const insights = await response.json();
+                    
+                    // Display performance metrics insights
+                    const performanceData = insights.performance_metrics;
+                    if (performanceData && performanceData.metrics) {
+                        const insightsHtml = [];
+                        
+                        // Overall assessment
+                        if (performanceData.overall_assessment) {
+                            insightsHtml.push(`<p><strong>Overall:</strong> ${performanceData.overall_assessment}</p>`);
+                        }
+                        
+                        // Individual metric insights
+                        Object.entries(performanceData.metrics).forEach(([metric, data]) => {
+                            if (data.analysis) {
+                                insightsHtml.push(`<p><strong>${metric.charAt(0).toUpperCase() + metric.slice(1)}:</strong> ${data.analysis}</p>`);
+                            }
+                            if (data.recommendations && data.recommendations.length > 0) {
+                                insightsHtml.push(`<p><strong>Recommendations:</strong> ${data.recommendations.join(' ')}</p>`);
+                            }
+                        });
+                        
+                        document.getElementById('uxInsights').innerHTML = insightsHtml.join('');
+                    } else {
             document.getElementById('uxInsights').innerHTML = '<p>Loading performance insights...</p>';
+                    }
+                } else {
+                    document.getElementById('uxInsights').innerHTML = '<p>Loading performance insights...</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching AI insights:', error);
+                document.getElementById('uxInsights').innerHTML = '<p>Loading performance insights...</p>';
+            }
         }
 
         async function fetchPageSpeedData() {
@@ -1286,6 +1380,7 @@
             console.log('[DEBUG] Updating UX metrics with data:', psiData);
             
             // Store UX data globally
+            window.metricsData = window.metricsData || {};
             window.metricsData.ux = {
                 performance_score: psiData.performance_score,
                 lcp: psiData.lcp?.value,
@@ -1434,32 +1529,17 @@
 
         async function initDashboard() {
             checkAuth();
-            
-            // Handle OAuth callback parameters
             handleOAuthCallback();
-            
-            const hasGSC = await checkGSCConnection();
-            console.log('[DEBUG] Dashboard init - hasGSC:', hasGSC);
-            
-            if (hasGSC) {
-                // First, try to load cached data for today
-                console.log('[DEBUG] Checking for cached dashboard data...');
-                const hasCachedData = await loadCachedDashboardData();
-                
-                if (hasCachedData) {
-                    console.log('[DEBUG] Successfully loaded cached data, skipping fresh API calls');
-                } else {
-                    console.log('[DEBUG] No cached data found, fetching fresh metrics from GSC...');
-                // Fetch real metrics from GSC
-                await loadRealMetrics();
-                    
-                    // Cache the newly loaded data
-                    await cacheDashboardData();
-                }
-            } else {
-                // Show empty state
+
+            // Only try to load cached data for today
+            console.log('[DEBUG] Checking for cached dashboard data...');
+            const hasCachedData = await loadCachedDashboardData();
+
+            if (!hasCachedData) {
+                // Show empty state or message
                 updateDashboardMetrics(false);
                 createMergedTrendsChart({});
+                showCacheStatus('No cached data available for today', 'warning');
             }
         }
 
@@ -1698,7 +1778,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(dashboardData)
+                    body: JSON.stringify({ dashboard_data: dashboardData })
                 });
 
                 if (response.ok) {
@@ -1752,7 +1832,7 @@
                             
                             // Update main dashboard metrics
                             if (result.data.metrics.summary) {
-                                updateDashboardMetricsWithRealData(metricsObject);
+                                await updateDashboardMetricsWithRealData(metricsObject);
                             }
                             
                             // Create charts with cached data
@@ -1784,7 +1864,7 @@
                             if (result.data.metrics.metadata) {
                                 console.log('[CACHE] Loading metadata metrics from cache:', result.data.metrics.metadata);
                                 updateMetadataMetrics(result.data.metrics.metadata);
-                                generateMetadataInsights(result.data.metrics.metadata);
+                                await generateMetadataInsights(result.data.metrics.metadata);
                             }
                             
                             // Recalculate overall SEO score
@@ -2094,7 +2174,7 @@
                     }
                     
                     console.log('[DEBUG] Updating dashboard with metrics...');
-                    updateDashboardMetricsWithRealData(metrics);
+                    await updateDashboardMetricsWithRealData(metrics);
                     
                     console.log('[DEBUG] Creating charts...');
                     createMergedTrendsChart(metrics);
@@ -2170,7 +2250,7 @@
                     
                     // Update metadata metrics
                     updateMetadataMetrics(metadataData);
-                    generateMetadataInsights(metadataData);
+                    await generateMetadataInsights(metadataData);
                     setMetricLoadingState('metadata', 'done');
                 } else {
                     const errorText = await response.text();
@@ -2224,10 +2304,10 @@
             
             // Update metadata metrics in the dashboard using "optimized out of total" format
             const elements = {
-                'metaTitles': formatMetadataCount(metadataData.meta_titles_optimized, metadataData.meta_titles_total),
-                'metaDescriptions': formatMetadataCount(metadataData.meta_descriptions_optimized, metadataData.meta_descriptions_total),
-                'imageAltText': formatMetadataCount(metadataData.image_alt_text_optimized, metadataData.image_alt_text_total),
-                'h1Tags': formatMetadataCount(metadataData.h1_tags_optimized, metadataData.h1_tags_total)
+                'metaTitles': (metadataData.meta_titles !== undefined) ? metadataData.meta_titles + '%' : 'N/A',
+                'metaDescriptions': (metadataData.meta_descriptions !== undefined) ? metadataData.meta_descriptions + '%' : 'N/A',
+                'imageAltText': (metadataData.image_alt_text !== undefined) ? metadataData.image_alt_text + '%' : 'N/A',
+                'h1Tags': (metadataData.h1_tags !== undefined) ? metadataData.h1_tags + '%' : 'N/A'
             };
             
             Object.entries(elements).forEach(([id, value]) => {
@@ -2262,30 +2342,109 @@
             recalculateOverallSEOScore();
         }
 
-        function generateMetadataInsights(metadataData) {
-            const insights = [];
-            
-            if (metadataData.meta_titles < 80) {
-                insights.push('Meta titles need optimization for better search visibility.');
+        async function generateMetadataInsights(metadataData) {
+            try {
+                // Fetch AI-powered benchmark insights
+                const response = await apiCall('/auth/benchmark/insights');
+                if (response.ok) {
+                    const insights = await response.json();
+                    
+                    // Display metadata optimization insights
+                    const metadataOptimizationData = insights.metadata_optimization;
+                    if (metadataOptimizationData && metadataOptimizationData.metrics) {
+                        const insightsHtml = [];
+                        
+                        // Overall assessment
+                        if (metadataOptimizationData.overall_assessment) {
+                            insightsHtml.push(`<p><strong>Overall:</strong> ${metadataOptimizationData.overall_assessment}</p>`);
+                        }
+                        
+                        // Individual metric insights
+                        Object.entries(metadataOptimizationData.metrics).forEach(([metric, data]) => {
+                            if (data.analysis) {
+                                insightsHtml.push(`<p><strong>${metric.charAt(0).toUpperCase() + metric.slice(1)}:</strong> ${data.analysis}</p>`);
+                            }
+                            if (data.recommendations && data.recommendations.length > 0) {
+                                insightsHtml.push(`<p><strong>Recommendations:</strong> ${data.recommendations.join(' ')}</p>`);
+                            }
+                        });
+                        
+                        document.getElementById('metadataInsights').innerHTML = insightsHtml.join('');
+                    } else {
+                        // Fallback to basic insights
+                        const insights = [];
+                        
+                        if (metadataData.meta_titles < 80) {
+                            insights.push('Meta titles need optimization for better search visibility.');
+                        }
+                        if (metadataData.meta_descriptions < 80) {
+                            insights.push('Meta descriptions should be improved to increase click-through rates.');
+                        }
+                        if (metadataData.image_alt_text < 70) {
+                            insights.push('Many images are missing alt text, affecting accessibility and SEO.');
+                        }
+                        if (metadataData.h1_tags < 90) {
+                            insights.push('Some pages may be missing proper H1 tags for better structure.');
+                        }
+                        
+                        if (insights.length === 0) {
+                            insights.push('Metadata optimization is in good shape. Continue monitoring for new content.');
+                        }
+                        
+                        const insightsHtml = insights.map(insight => `<p>${insight}</p>`).join('');
+                        document.getElementById('metadataInsights').innerHTML = insightsHtml;
+                    }
+                } else {
+                    // Fallback to basic insights
+                    const insights = [];
+                    
+                    if (metadataData.meta_titles < 80) {
+                        insights.push('Meta titles need optimization for better search visibility.');
+                    }
+                    if (metadataData.meta_descriptions < 80) {
+                        insights.push('Meta descriptions should be improved to increase click-through rates.');
+                    }
+                    if (metadataData.image_alt_text < 70) {
+                        insights.push('Many images are missing alt text, affecting accessibility and SEO.');
+                    }
+                    if (metadataData.h1_tags < 90) {
+                        insights.push('Some pages may be missing proper H1 tags for better structure.');
+                    }
+                    
+                    if (insights.length === 0) {
+                        insights.push('Metadata optimization is in good shape. Continue monitoring for new content.');
+                    }
+                    
+                    const insightsHtml = insights.map(insight => `<p>${insight}</p>`).join('');
+                    document.getElementById('metadataInsights').innerHTML = insightsHtml;
+                }
+            } catch (error) {
+                console.error('Error fetching AI insights:', error);
+                // Fallback to basic insights
+                const insights = [];
+                
+                if (metadataData.meta_titles < 80) {
+                    insights.push('Meta titles need optimization for better search visibility.');
+                }
+                if (metadataData.meta_descriptions < 80) {
+                    insights.push('Meta descriptions should be improved to increase click-through rates.');
+                }
+                if (metadataData.image_alt_text < 70) {
+                    insights.push('Many images are missing alt text, affecting accessibility and SEO.');
+                }
+                if (metadataData.h1_tags < 90) {
+                    insights.push('Some pages may be missing proper H1 tags for better structure.');
+                }
+                
+                if (insights.length === 0) {
+                    insights.push('Metadata optimization is in good shape. Continue monitoring for new content.');
+                }
+                
+                const insightsHtml = insights.map(insight => `<p>${insight}</p>`).join('');
+                document.getElementById('metadataInsights').innerHTML = insightsHtml;
             }
-            if (metadataData.meta_descriptions < 80) {
-                insights.push('Meta descriptions should be improved to increase click-through rates.');
-            }
-            if (metadataData.image_alt_text < 70) {
-                insights.push('Many images are missing alt text, affecting accessibility and SEO.');
-            }
-            if (metadataData.h1_tags < 90) {
-                insights.push('Some pages may be missing proper H1 tags for better structure.');
-            }
-            
-            if (insights.length === 0) {
-                insights.push('Metadata optimization is in good shape. Continue monitoring for new content.');
-            }
-            
-            const insightsHtml = insights.map(insight => `<p>${insight}</p>`).join('');
-            document.getElementById('metadataInsights').innerHTML = insightsHtml;
         }
-
+        
         document.addEventListener('DOMContentLoaded', initDashboard);
 
         // Hide error banner on page load
@@ -2573,7 +2732,7 @@
                     
                     // Step 3: Test data processing
                     console.log('3. Testing updateDashboardMetricsWithRealData...');
-                    updateDashboardMetricsWithRealData(data);
+                    await updateDashboardMetricsWithRealData(data);
                     console.log('✅ Data loading test completed successfully');
                 } else {
                     console.log('❌ API call failed');

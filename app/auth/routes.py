@@ -657,9 +657,10 @@ async def refresh_gsc_metrics(current_user: str = Depends(get_current_user)):
 @router.post("/dashboard/cache")
 async def cache_dashboard_data(
     dashboard_data: dict,
+    ai_insights: dict = None,
     current_user: str = Depends(get_current_user)
 ):
-    """Cache complete dashboard data for same-day retrieval."""
+    """Cache complete dashboard data for same-day retrieval, including optional AI insights."""
     try:
         # Get the selected property for the user
         website_url = db.get_selected_gsc_property(current_user)
@@ -668,16 +669,16 @@ async def cache_dashboard_data(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No GSC property selected. Please select a property first."
             )
-        
+        # If ai_insights is provided, add it to dashboard_data
+        if ai_insights:
+            dashboard_data['ai_insights'] = ai_insights
         # Store dashboard cache
         success = db.store_dashboard_cache(current_user, website_url, dashboard_data)
-        
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to cache dashboard data"
             )
-        
         return {
             "success": True,
             "message": "Dashboard data cached successfully!",
@@ -694,42 +695,18 @@ async def cache_dashboard_data(
 
 
 @router.get("/dashboard/cache")
-async def get_cached_dashboard_data(current_user: str = Depends(get_current_user)):
-    """Get cached dashboard data for today if available."""
-    try:
-        # Get the selected property for the user
-        website_url = db.get_selected_gsc_property(current_user)
-        if not website_url:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No GSC property selected. Please select a property first."
-            )
-        
-        # Get cached dashboard data
-        cached_data = db.get_dashboard_cache(current_user, website_url)
-        
-        if cached_data:
-            return {
-                "success": True,
-                "has_cache": True,
-                "data": cached_data,
-                "message": "Cached dashboard data retrieved successfully!"
-            }
-        else:
-            return {
-                "success": True,
-                "has_cache": False,
-                "data": None,
-                "message": "No cached dashboard data available for today"
-            }
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error getting cached dashboard data: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get cached dashboard data"
-        )
+async def get_dashboard_cache_route(current_user: str = Depends(get_current_user)):
+    # Get user email
+    email = current_user
+    # Get website_url for the user using db
+    website_url = db.get_selected_gsc_property(email)
+    if not website_url:
+        return {"success": False, "has_cache": False, "data": None, "message": "No website property selected for user."}
+    cache = db.get_dashboard_cache(email, website_url)
+    if cache:
+        return {"success": True, "has_cache": True, "data": cache, "message": "Cached dashboard data retrieved successfully!"}
+    else:
+        return {"success": True, "has_cache": False, "data": None, "message": "No cached dashboard data found."}
 
 
 @router.post("/gsc/clear-credentials")
@@ -797,38 +774,108 @@ async def get_metadata_analysis(current_user: str = Depends(get_current_user)):
                 detail="No GSC property selected. Please select a property first."
             )
 
-        print(f"[DEBUG] Fetching metadata analysis")
+        print(f"[DEBUG] Fetching metadata analysis for: {website_url}")
         
-        # For now, return demo data - this would be replaced with actual metadata analysis
-        metadata_data = {
-            # Optimized counts and totals found
-            "meta_titles_optimized": 87,
-            "meta_titles_total": 100,
-            "meta_descriptions_optimized": 92,
-            "meta_descriptions_total": 100,
-            "image_alt_text_optimized": 156,
-            "image_alt_text_total": 200,  # Total images found
-            "h1_tags_optimized": 95,
-            "h1_tags_total": 100,
-            
-            # Keep percentages for SEO score calculation
-            "meta_titles": 87,
-            "meta_descriptions": 92,
-            "image_alt_text": 78,  # 156/200 = 78%
-            "h1_tags": 95,
-            
-            "insights": [
-                "Meta titles are well optimized on most pages",
-                "Image alt text coverage could be improved",
-                "H1 tags are properly structured across the site"
-            ]
-        }
+        # Create metadata analyzer instance
+        from .metadata_analyzer import MetadataAnalyzer
+        analyzer = MetadataAnalyzer()
         
-        return metadata_data
+        # Analyze the website
+        analysis_result = await analyzer.analyze_website(website_url)
+        
+        if not analysis_result:
+            # Fallback to demo data if analysis fails
+            print(f"[WARNING] Metadata analysis failed for {website_url}, using demo data")
+            return {
+                "meta_titles_optimized": 0,
+                "meta_titles_total": 0,
+                "meta_descriptions_optimized": 0,
+                "meta_descriptions_total": 0,
+                "image_alt_text_optimized": 0,
+                "image_alt_text_total": 0,
+                "h1_tags_optimized": 0,
+                "h1_tags_total": 0,
+                "meta_titles": 0,
+                "meta_descriptions": 0,
+                "image_alt_text": 0,
+                "h1_tags": 0,
+                "insights": ["Metadata analysis is currently unavailable. Please try again later."]
+            }
+        
+        return analysis_result
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error fetching metadata analysis: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {e}"
+        )
+
+
+@router.get("/benchmark/insights")
+async def get_benchmark_insights(current_user: str = Depends(get_current_user)):
+    """Generate AI-powered insights by comparing user metrics against industry benchmarks and cache them with dashboard metrics."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        # Check for cached dashboard data with ai_insights
+        cached_data = db.get_dashboard_cache(current_user, website_url)
+        if cached_data and 'ai_insights' in cached_data:
+            print("[BENCHMARK DEBUG] Returning cached AI insights.")
+            return cached_data['ai_insights']
+
+        print(f"[BENCHMARK DEBUG] Generating benchmark insights for: {website_url}")
+        from .benchmark_analyzer import benchmark_analyzer
+        dashboard_metrics = {}
+        try:
+            gsc_metrics = await gsc_fetcher.fetch_gsc_data(website_url)
+            if gsc_metrics:
+                dashboard_metrics['summary'] = gsc_metrics.get('summary', {})
+                dashboard_metrics['time_series'] = gsc_metrics.get('time_series', {})
+        except Exception as e:
+            print(f"[WARNING] Failed to fetch GSC metrics: {e}")
+        try:
+            psi_data = await pagespeed_fetcher.fetch_pagespeed_data(website_url)
+            if psi_data:
+                dashboard_metrics['ux'] = {
+                    'performance_score': psi_data.get('performance_score', 0),
+                    'lcp': psi_data.get('lcp', {}).get('value', 0),
+                    'fcp': psi_data.get('fcp', {}).get('value', 0),
+                    'cls': psi_data.get('cls', {}).get('value', 0)
+                }
+        except Exception as e:
+            print(f"[WARNING] Failed to fetch PageSpeed metrics: {e}")
+        try:
+            from .metadata_analyzer import MetadataAnalyzer
+            metadata_analyzer = MetadataAnalyzer()
+            metadata_result = await metadata_analyzer.analyze_website(website_url)
+            if metadata_result:
+                dashboard_metrics['metadata'] = {
+                    'meta_titles': metadata_result.get('meta_titles', 0),
+                    'meta_descriptions': metadata_result.get('meta_descriptions', 0),
+                    'image_alt_text': metadata_result.get('image_alt_text', 0),
+                    'h1_tags': metadata_result.get('h1_tags', 0)
+                }
+        except Exception as e:
+            print(f"[WARNING] Failed to fetch metadata metrics: {e}")
+        # Generate AI insights
+        insights = await benchmark_analyzer.generate_ai_insights(dashboard_metrics, business_type="general")
+        # Cache the AI insights together with dashboard metrics
+        dashboard_data = {"metrics": dashboard_metrics}
+        dashboard_data["ai_insights"] = insights
+        db.store_dashboard_cache(current_user, website_url, dashboard_data)
+        return insights
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error generating benchmark insights: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"

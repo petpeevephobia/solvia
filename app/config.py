@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # PageSpeed Insights API
     PAGESPEED_API_KEY: str = ""
     
+    # OpenAI API
+    OPENAI_API_KEY: str = ""
+    
     # JWT Settings
     SECRET_KEY: str = "your-super-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"

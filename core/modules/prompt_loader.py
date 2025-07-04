@@ -2,7 +2,7 @@ import os
 
 def load_prompt(filename):
     """
-    Load a prompt template from the prompts directory.
+    Load a prompt template from the app/auth/prompts directory.
     
     Args:
         filename (str): Name of the prompt file
@@ -10,7 +10,7 @@ def load_prompt(filename):
     Returns:
         str: The prompt template content
     """
-    prompt_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'prompts', filename)
+    prompt_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'app', 'auth', 'prompts', filename)
     with open(prompt_path, 'r', encoding='utf-8') as f:
         content = f.read()
         

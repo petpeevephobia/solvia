@@ -24,8 +24,6 @@ from data_collector import (
     get_url_inspection
 )
 from analysis_processor import generate_seo_analysis, get_business_analysis
-from core.modules.business_analysis import BusinessAnalyzer
-from core.modules.report_generator import ReportGenerator
 import openai
 from core.auth_setup import get_gsc_credentials, check_gsc_access, get_gsc_service
 from core.data_collector import (
@@ -704,108 +702,6 @@ def get_url_inspection(service, url):
             'page_fetch_state': 'Error Fetching Data'
         }
 
-def get_business_analysis(url):
-    """
-    Analyze a website's business context using the BusinessAnalyzer class.
-    
-    Args:
-        url (str): The URL of the website to analyze
-        
-    Returns:
-        dict: Business analysis data including model, target market, and recommendations
-    """
-    analyzer = BusinessAnalyzer()
-    business_data = analyzer.analyze_business(url)
-    return business_data
-
-def enhance_business_analysis_with_ai(initial_business_data, technical_metrics):
-    """
-    Enhance business analysis using GPT-4o-mini to make intelligent assumptions
-    and improve data quality for Airtable storage.
-    
-    Args:
-        initial_business_data (dict): Initial business analysis from BusinessAnalyzer
-        technical_metrics (dict): Technical performance and feature data
-        
-    Returns:
-        dict: Enhanced business analysis with AI improvements
-    """
-    print(f"\n�� Enhancing business analysis with AI...")
-    
-    # Load enhancement prompt template
-    prompt_file_path = os.path.join(os.path.dirname(__file__), 'prompts', 'business_analysis_enhancement.txt')
-    
-    with open(prompt_file_path, 'r', encoding='utf-8') as f:
-        prompt_template = f.read()
-    
-    # Format the prompt with available data
-    prompt = prompt_template.format(
-        url=technical_metrics.get('url', 'N/A'),
-        
-        # Initial business analysis
-        business_model=initial_business_data.get('business_model', 'Unknown'),
-        target_market=initial_business_data.get('target_market', 'Unknown'),
-        industry_sector=initial_business_data.get('industry_sector', 'Unknown'),
-        company_size=initial_business_data.get('company_size', 'Unknown'),
-        geographic_scope=initial_business_data.get('geographic_scope', 'Unknown'),
-        business_maturity=initial_business_data.get('business_maturity', 'Unknown'),
-        platform_detected=initial_business_data.get('platform_detected', 'Unknown'),
-        tech_sophistication=initial_business_data.get('tech_sophistication', 'Unknown'),
-        content_maturity=initial_business_data.get('content_maturity', 'Unknown'),
-        competitive_positioning=initial_business_data.get('competitive_positioning', 'Unknown'),
-        services_offered=initial_business_data.get('services_offered', 'Not specified'),
-        
-        # Technical context
-        performance_score=technical_metrics.get('performance_score', 'N/A'),
-        mobile_friendly_status=technical_metrics.get('mobile_friendly_status', 'N/A'),
-        has_ecommerce=initial_business_data.get('has_ecommerce', False),
-        has_local_presence=initial_business_data.get('has_local_presence', False),
-        has_content_marketing=initial_business_data.get('has_content_marketing', False),
-        has_lead_generation=initial_business_data.get('has_lead_generation', False),
-        has_social_proof=initial_business_data.get('has_social_proof', False),
-        social_media_integration=initial_business_data.get('social_media_integration', False),
-        has_advanced_features=initial_business_data.get('has_advanced_features', False)
-    )
-    
-    # Call OpenAI API
-    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "You are a business intelligence analyst. Respond only with valid JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3,  # Lower temperature for more consistent analysis
-        max_tokens=2500
-    )
-    
-    # Parse JSON response
-    ai_analysis = response.choices[0].message.content
-    
-    # Clean up the response to ensure it's valid JSON
-    if ai_analysis.startswith('```json'):
-        ai_analysis = ai_analysis.replace('```json', '').replace('```', '').strip()
-    
-    # Parse and validate JSON
-    enhanced_data = json.loads(ai_analysis)
-    print(f"✓ AI enhancement completed successfully")
-    
-    # Merge enhanced data back into the original structure
-    enhanced_business_data = initial_business_data.copy()
-    
-    # Update with AI enhancements (remove reasoning fields for storage)
-    for key, value in enhanced_data.items():
-        if not key.endswith('_reasoning'):
-            enhanced_business_data[key] = value
-    
-    # Add special AI insights
-    if 'business_insights' in enhanced_data:
-        enhanced_business_data['business_insights'] = enhanced_data['business_insights']
-    if 'seo_strategy_recommendations' in enhanced_data:
-        enhanced_business_data['seo_strategy_recommendations'] = enhanced_data['seo_strategy_recommendations']
-    
-    return enhanced_business_data
-
 def main():
     # Check for required environment variables
     required_vars = [
@@ -848,9 +744,6 @@ def main():
             table, records = get_airtable_records()
             print(f"Found {len(records)} records")
         
-        # Initialize report generator
-        report_generator = ReportGenerator()
-        
         # Process each record
         for record in records:
             url = record['fields'].get('url')
@@ -866,19 +759,6 @@ def main():
             sitemaps_status = get_sitemaps_status(service, url)
             mobile_test = get_mobile_usability_from_psi(url)
             keyword_performance = get_keyword_performance(service, url)
-            business_analysis = get_business_analysis(url)
-            
-            # Enhance business analysis with AI
-            technical_context = {
-                'url': url,
-                'performance_score': psi_metrics.get('performance_score', 0),
-                'mobile_friendly_status': mobile_test.get('mobile_friendly_status', 'Unknown')
-            }
-            enhanced_business_analysis = enhance_business_analysis_with_ai(business_analysis, technical_context)
-            
-            # Map AI values to valid Airtable options to prevent 422 errors
-            print(f"  🔧 Mapping enhanced business analysis to Airtable options...")
-            enhanced_business_analysis = map_ai_values_to_airtable_options(enhanced_business_analysis)
             
             # Combine all metrics into a flat structure (using enhanced business analysis)
             combined_metrics = {
@@ -927,71 +807,15 @@ def main():
                 'indexing_state': get_url_inspection(service, url).get('indexing_state', ''),
                 'last_crawl_time': get_url_inspection(service, url).get('last_crawl_time', ''),
                 'page_fetch_state': get_url_inspection(service, url).get('page_fetch_state', ''),
-                
-                # Enhanced business analysis (AI-improved)
-                'business_model': enhanced_business_analysis.get('business_model', ''),
-                'target_market': enhanced_business_analysis.get('target_market', ''),
-                'industry_sector': enhanced_business_analysis.get('industry_sector', ''),
-                'company_size': enhanced_business_analysis.get('company_size', ''),
-                'has_ecommerce': enhanced_business_analysis.get('has_ecommerce', False),
-                'has_local_presence': enhanced_business_analysis.get('has_local_presence', False),
-                'business_complexity_score': enhanced_business_analysis.get('business_complexity_score', 0),
-                'primary_age_group': enhanced_business_analysis.get('primary_age_group', ''),
-                'income_level': enhanced_business_analysis.get('income_level', ''),
-                'audience_sophistication': enhanced_business_analysis.get('audience_sophistication', ''),
-                'services_offered': enhanced_business_analysis.get('services_offered', ''),
-                'has_public_pricing': enhanced_business_analysis.get('has_public_pricing', False),
-                'service_count': enhanced_business_analysis.get('service_count', 0),
-                'geographic_scope': enhanced_business_analysis.get('geographic_scope', ''),
-                'target_locations': enhanced_business_analysis.get('target_locations', ''),
-                'is_location_based': enhanced_business_analysis.get('is_location_based', False),
-                'business_maturity': enhanced_business_analysis.get('business_maturity', ''),
-                'establishment_year': enhanced_business_analysis.get('establishment_year', 0) if enhanced_business_analysis.get('establishment_year') else None,
-                'experience_indicators': enhanced_business_analysis.get('experience_indicators', False),
-                'platform_detected': enhanced_business_analysis.get('platform_detected', ''),
-                'has_advanced_features': enhanced_business_analysis.get('has_advanced_features', False),
-                'social_media_integration': enhanced_business_analysis.get('social_media_integration', False),
-                'tech_sophistication': enhanced_business_analysis.get('tech_sophistication', ''),
-                'has_content_marketing': enhanced_business_analysis.get('has_content_marketing', False),
-                'has_lead_generation': enhanced_business_analysis.get('has_lead_generation', False),
-                'has_social_proof': enhanced_business_analysis.get('has_social_proof', False),
-                'content_maturity': enhanced_business_analysis.get('content_maturity', ''),
-                'phone_prominence': enhanced_business_analysis.get('phone_prominence', False),
-                'has_contact_forms': enhanced_business_analysis.get('has_contact_forms', False),
-                'has_live_chat': enhanced_business_analysis.get('has_live_chat', False),
-                'preferred_contact_method': enhanced_business_analysis.get('preferred_contact_method', ''),
-                'competitive_positioning': enhanced_business_analysis.get('competitive_positioning', ''),
-                'positioning_strength': enhanced_business_analysis.get('positioning_strength', ''),
-                'value_proposition': enhanced_business_analysis.get('value_proposition', ''),
-                'brand_strength': enhanced_business_analysis.get('brand_strength', ''),
-                'trust_indicators': enhanced_business_analysis.get('trust_indicators', ''),
-                'business_insights': enhanced_business_analysis.get('business_insights', 'No specific insights available'),
-                'seo_strategy_recommendations': enhanced_business_analysis.get('seo_strategy_recommendations', 'No existing recommendations'),
             }
             
             # Generate OpenAI analysis (using enhanced business data)
-            openai_analysis = generate_seo_analysis(combined_metrics, enhanced_business_analysis)
+            openai_analysis = generate_seo_analysis(combined_metrics, {})
             
             # Map data to SEO_Reports format and update table
-            seo_report_data = map_to_seo_reports(combined_metrics, openai_analysis, enhanced_business_analysis, tables)
+            seo_report_data = map_to_seo_reports(combined_metrics, openai_analysis, {}, tables)
             if seo_report_data:  # Only update if we got valid data
                 update_seo_reports_table(tables, seo_report_data)
-            
-            # Generate and send reports
-            recipient_email = record['fields'].get('contact_email')
-            recipient_name = record['fields'].get('contact_name', 'Valued Client')
-            
-            if recipient_email:
-                print(f"\nGenerating and sending report to {recipient_email}...")
-                report_generator.generate_and_send_report(
-                    website_data=combined_metrics,
-                    openai_analysis=openai_analysis,
-                    recipient_email=recipient_email,
-                    recipient_name=recipient_name
-                )
-                print("✅ Report sent successfully!")
-            else:
-                print("⚠️  No contact email found for report delivery")
             
             # Update Airtable with organized data
             if os.getenv('AIRTABLE_API_KEY') and os.getenv('AIRTABLE_BASE_ID'):

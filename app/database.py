@@ -233,7 +233,7 @@ class GoogleSheetsDB:
             cell = self.users_sheet.find(email)
             if cell:
                 return cell.row
-            return None
+                return None
         except Exception:
             return None
     
@@ -428,7 +428,7 @@ class GoogleSheetsDB:
             if cell:
                 self.sessions_sheet.delete_rows(cell.row)
                 return True
-            return False
+                return False
         except Exception as e:
             print(f"Error deleting session: {e}")
             return False
@@ -844,7 +844,7 @@ class GoogleSheetsDB:
         # Check if we have the reports sheet
         if not hasattr(self, 'seo_reports_sheet'):
             return 0
-            
+        
         try:
             now = datetime.utcnow()
             all_reports = self.seo_reports_sheet.get_all_records()
@@ -936,8 +936,8 @@ class GoogleSheetsDB:
                 if len(row_data) >= 2:
                     import json
                     return json.loads(row_data[1])  # data column
-            
-            return None
+                
+                return None
             
         except Exception as e:
             print(f"[ERROR] Error getting temp data: {e}")
@@ -946,11 +946,43 @@ class GoogleSheetsDB:
     def store_dashboard_cache(self, email: str, website_url: str, dashboard_data: Dict[str, Any]) -> bool:
         """Store complete dashboard data cache for same-day retrieval."""
         import json
-        
+        import re
+
+        # Ensure metrics includes a summary field
+        metrics = dashboard_data.get('metrics', {})
+        ai_insights = dashboard_data.get('ai_insights', {})
+        summary = metrics.get('summary', {})
+
+        # Copy key visibility metrics from ai_insights.visibility_performance.metrics
+        vp_metrics = ai_insights.get('visibility_performance', {}).get('metrics', {})
+        summary['total_impressions'] = vp_metrics.get('impressions', {}).get('current_value', 0)
+        summary['total_clicks'] = vp_metrics.get('clicks', {}).get('current_value', 0)
+        summary['avg_ctr'] = vp_metrics.get('ctr', {}).get('current_value', 0)
+        summary['avg_position'] = vp_metrics.get('avg_position', {}).get('current_value', 0)
+
+        # Fallback to zeros if still missing
+        for k in ['total_impressions', 'total_clicks', 'avg_ctr', 'avg_position']:
+            if summary.get(k) is None:
+                summary[k] = 0
+        metrics['summary'] = summary
+        dashboard_data['metrics'] = metrics
+
+        # Ensure ai_insights.visibility_performance.metrics always includes impressions, clicks, ctr, and avg_position fields, even if their values are zero
+        vp = ai_insights.get('visibility_performance', {})
+        vp_metrics = vp.get('metrics', {})
+        for key in ['impressions', 'clicks', 'ctr', 'avg_position']:
+            if key not in vp_metrics or not isinstance(vp_metrics[key], dict):
+                vp_metrics[key] = {"current_value": 0}
+        vp['metrics'] = vp_metrics
+        ai_insights['visibility_performance'] = vp
+        dashboard_data['ai_insights'] = ai_insights
+
         # Create cache key with today's date
         today = datetime.utcnow().strftime('%Y-%m-%d')
         cache_key = f"dashboard_{email}_{website_url}_{today}"
         cache_key = re.sub(r'[^a-zA-Z0-9_.-]', '_', cache_key)  # Clean special chars
+        print(f"[DEBUG][STORE] email: {email}, website_url: {website_url}, today: {today}, cache_key: {cache_key}")
+        print(f"[DEBUG][STORE] FULL cache_key: {cache_key}")
         
         # Add metadata to dashboard data
         cached_data = {
@@ -1008,57 +1040,65 @@ class GoogleSheetsDB:
             return False
 
     def get_dashboard_cache(self, email: str, website_url: str) -> Optional[Dict[str, Any]]:
-        """Get cached dashboard data for today if available."""
+        """Get the most recent cached dashboard data for the user/property, regardless of date. Always ensure metrics.summary exists."""
         import json
-        
-        # Create cache key with today's date
-        today = datetime.utcnow().strftime('%Y-%m-%d')
-        cache_key = f"dashboard_{email}_{website_url}_{today}"
-        cache_key = re.sub(r'[^a-zA-Z0-9_.-]', '_', cache_key)  # Clean special chars
-        
+        import re
+
+        # Generate the base cache key prefix (without date)
+        base_key = f"dashboard_{email}_{website_url}_"
+        base_key = re.sub(r'[^a-zA-Z0-9_.-]', '_', base_key)
+        print(f"[DEBUG][LOOKUP] base_key: {base_key}")
+
         if self.demo_mode:
-            # Get from memory cache for demo mode
-            cached_data = self._get_cached_data(f"dashboard_cache_{cache_key}")
-            if cached_data:
-                print(f"[DEBUG] Retrieved dashboard cache from demo mode: {cache_key}")
-                return cached_data.get('dashboard_data')
-            return None
-        
+            # Find the most recent cache in memory
+            matching = [
+                (k, v) for k, v in self._cache.items()
+                if k.startswith(f"dashboard_cache_{base_key}")
+            ]
+            if not matching:
+                return None
+            # Sort by cached_at if available, else by insertion order
+            most_recent = max(matching, key=lambda item: item[1][0].get('cached_at', ''))
+            return most_recent[1][0].get('dashboard_data')
+
         try:
-            # Get dashboard-cache worksheet
             cache_sheet = self.get_or_create_sheet('dashboard-cache', [
                 'cache_key', 'email', 'website_url', 'cache_date', 'dashboard_data', 'cached_at'
             ])
-            
-            if not cache_sheet:  # Demo mode fallback
-                cached_data = self._get_cached_data(f"dashboard_cache_{cache_key}")
-                if cached_data:
-                    return cached_data.get('dashboard_data')
+            if not cache_sheet:
                 return None
+            all_records = cache_sheet.get_all_records()
+            matching_records = [
+                record for record in all_records
+                if record.get('cache_key', '').startswith(base_key)
+            ]
+            if not matching_records:
+                print(f"[DEBUG][LOOKUP] No matching cache found for base_key: {base_key}")
+                return None
+            # Find the most recent by cache_date or cached_at
+            def get_sort_key(r):
+                return r.get('cache_date') or r.get('cached_at') or ''
+            most_recent = max(matching_records, key=get_sort_key)
+            print(f"[DEBUG][LOOKUP] Found most recent cache: {most_recent.get('cache_key')}")
+            cached_data = json.loads(most_recent['dashboard_data'])
             
-            # Find the cache key
-            try:
-                cell = cache_sheet.find(cache_key)
-                if cell:
-                    row_data = cache_sheet.row_values(cell.row)
-                    if len(row_data) >= 5:
-                        cached_data = json.loads(row_data[4])  # dashboard_data column
-                        
-                        # Verify cache is for today
-                        cache_date = cached_data.get('cache_date')
-                        if cache_date == today:
-                            print(f"[DEBUG] Retrieved valid dashboard cache: {cache_key}")
-                            return cached_data.get('dashboard_data')
-                        else:
-                            print(f"[DEBUG] Dashboard cache expired (date mismatch): {cache_date} vs {today}")
-                            return None
-            except:
-                # If find fails, no cache available
-                pass
+            # Ensure metrics.summary exists
+            metrics = cached_data.get('metrics', {})
+            if 'summary' not in metrics or not metrics['summary']:
+                summary = None
+                if 'originalApiData' in cached_data and cached_data['originalApiData']:
+                    summary = cached_data['originalApiData'].get('summary')
+                if not summary:
+                    summary = {
+                        'total_clicks': 0,
+                        'total_impressions': 0,
+                        'avg_ctr': 0,
+                        'avg_position': 0
+                    }
+                metrics['summary'] = summary
+                cached_data['metrics'] = metrics
             
-            print(f"[DEBUG] No dashboard cache found for: {cache_key}")
-            return None
-            
+            return cached_data.get('dashboard_data')
         except Exception as e:
             print(f"[ERROR] Error getting dashboard cache: {e}")
             return None

@@ -1,0 +1,71 @@
+## OUTPUT FORMAT
+Generate a JSON response with this structure:
+
+{
+  "analysis_timestamp": "2025-01-XX",
+  "overall_seo_health": {
+    "score": 0-100,
+    "grade": "excellent|good|average|poor",
+    "summary": "Brief overall assessment",
+    "top_strength": "Best performing metric",
+    "biggest_opportunity": "Highest impact improvement area"
+  },
+  "visibility_performance": {
+    "overall_assessment": "Brief category summary",
+    "metrics": {
+      "impressions": {
+        "current_value": "number",
+        "benchmark_level": "excellent|good|average|poor",
+        "score": 0-100,
+        "analysis": "Detailed performance analysis",
+        "next_tier_target": "What's needed for next level",
+        "recommendations": [
+          "Specific, actionable recommendation 1",
+          "Specific, actionable recommendation 2"
+        ],
+        "priority": "critical|high|medium|low",
+        "time_to_impact": "immediate|short-term|long-term"
+      },
+      "clicks": { /* same structure */ },
+      "ctr": { /* same structure */ },
+      "average_position": { /* same structure */ }
+    }
+  },
+  "performance_metrics": {
+    "overall_assessment": "Brief category summary",
+    "metrics": {
+      "performance_score": { /* same structure */ },
+      "lcp_seconds": { /* same structure */ },
+      "fcp_seconds": { /* same structure */ },
+      "cls_score": { /* same structure */ }
+    }
+  },
+  "metadata_optimization": {
+    "overall_assessment": "Brief category summary",
+    "metrics": {
+      "meta_titles": { /* same structure */ },
+      "meta_descriptions": { /* same structure */ },
+      "h1_tags": { /* same structure */ },
+      "image_alt_text": { /* same structure */ }
+    }
+  },
+  "action_plan": {
+    "immediate_actions": [
+      "Quick wins that can be implemented today",
+      "Critical fixes that need immediate attention"
+    ],
+    "short_term_goals": [
+      "30-90 day improvements",
+      "Medium priority optimizations"
+    ],
+    "long_term_strategy": [
+      "3-6 month strategic initiatives",
+      "Foundation building activities"
+    ]
+  },
+  "competitive_context": {
+    "industry_percentile": "top 10%|top 25%|top 50%|bottom 50%",
+    "peer_comparison": "How you compare to similar businesses",
+    "market_opportunity": "Untapped potential in your space"
+  }
+} 

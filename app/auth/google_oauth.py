@@ -309,7 +309,7 @@ class GoogleOAuthHandler:
                     self._clear_credentials(user_email)
                 except Exception as clear_error:
                     print(f"[WARNING] Could not clear credentials due to: {clear_error}")
-            return []
+                return []
         
         try:
             service = build('searchconsole', 'v1', credentials=credentials)
@@ -381,67 +381,47 @@ class GSCDataFetcher:
         self.db = GoogleSheetsDB()
     
     async def fetch_metrics(self, user_email: str, property_url: str, days: int = 30) -> Dict:
-        """Fetch SEO metrics from GSC comparing today's data vs exactly 30 days ago."""
+        """Fetch SEO metrics from GSC for the last 30 days comparing vs previous 30 days."""
         try:
             credentials = self.oauth_handler.get_credentials(user_email)
             if not credentials or not credentials.valid:
                 raise Exception("Invalid or missing Google credentials")
 
-            # Get all days in the current month
+            # Calculate 30-day date ranges
             today = datetime.utcnow().date()
-            current_date = today - timedelta(days=2)  # Data is usually delayed by 2 days
+            current_end_date = today - timedelta(days=3)  # Data is usually delayed by 3-4 days
+            current_start_date = current_end_date - timedelta(days=days - 1)  # 30 days total
             
-            # Get first day of current month
-            current_month_start = current_date.replace(day=1)
+            # For comparison, get the previous 30 days
+            comparison_end_date = current_start_date - timedelta(days=1)
+            comparison_start_date = comparison_end_date - timedelta(days=days - 1)
             
-            # Get last day of current month
-            if current_date.month == 12:
-                next_month = current_date.replace(year=current_date.year + 1, month=1, day=1)
-            else:
-                next_month = current_date.replace(month=current_date.month + 1, day=1)
-            current_month_end = next_month - timedelta(days=1)
+            print(f"[DEBUG] Fetching current 30-day data: {current_start_date} to {current_end_date}")
+            print(f"[DEBUG] Fetching comparison 30-day data: {comparison_start_date} to {comparison_end_date}")
+            print(f"[DEBUG] Today is: {today}, using end date: {current_end_date} (3 days delay)")
             
-            # Don't go beyond current_date (since data is delayed)
-            if current_month_end > current_date:
-                current_month_end = current_date
-            
-            print(f"[DEBUG] Fetching current month data: {current_month_start} to {current_month_end}")
-            print(f"[DEBUG] Today is: {today}, using current_date: {current_date} (2 days ago)")
-            
-            # Fetch data for entire current month
+            # Fetch data for current 30 days
             current_metrics = await self.get_gsc_data(
                 credentials, property_url, 
-                current_month_start.strftime('%Y-%m-%d'), 
-                current_month_end.strftime('%Y-%m-%d')
+                current_start_date.strftime('%Y-%m-%d'), 
+                current_end_date.strftime('%Y-%m-%d')
             )
 
-            # For comparison, get the same period from previous month
-            if current_month_start.month == 1:
-                prev_month_start = current_month_start.replace(year=current_month_start.year - 1, month=12, day=1)
-            else:
-                prev_month_start = current_month_start.replace(month=current_month_start.month - 1, day=1)
-            
-            # Calculate the same number of days in previous month
-            days_in_current_period = (current_month_end - current_month_start).days + 1
-            prev_month_end = prev_month_start + timedelta(days=days_in_current_period - 1)
-            
+            # Fetch data for comparison 30 days
             comparison_metrics = await self.get_gsc_data(
                 credentials, property_url, 
-                prev_month_start.strftime('%Y-%m-%d'), 
-                prev_month_end.strftime('%Y-%m-%d')
+                comparison_start_date.strftime('%Y-%m-%d'), 
+                comparison_end_date.strftime('%Y-%m-%d')
             )
             
-            print(f"[DEBUG] Fetching current data: {current_month_start} to {current_month_end}")
-            print(f"[DEBUG] Fetching comparison data: {prev_month_start} to {prev_month_end}")
-            
-            # Calculate deltas between current month and previous month
+            # Calculate deltas between current 30 days and previous 30 days
             current_summary = current_metrics.get('summary', {})
             comparison_summary = comparison_metrics.get('summary', {})
             
-            print(f"[DEBUG] Current month metrics summary: {current_summary}")
-            print(f"[DEBUG] Previous month metrics summary: {comparison_summary}")
+            print(f"[DEBUG] Current 30-day metrics summary: {current_summary}")
+            print(f"[DEBUG] Previous 30-day metrics summary: {comparison_summary}")
             
-            # Add month-over-month comparison changes to summary (preserving current values)
+            # Add 30-day comparison changes to summary (preserving current values)
             current_summary['impressions_change'] = current_summary.get('total_impressions', 0) - comparison_summary.get('total_impressions', 0)
             current_summary['clicks_change'] = current_summary.get('total_clicks', 0) - comparison_summary.get('total_clicks', 0)
             current_summary['ctr_change'] = current_summary.get('avg_ctr', 0) - comparison_summary.get('avg_ctr', 0)
@@ -449,31 +429,40 @@ class GSCDataFetcher:
 
             print(f"[DEBUG] Final summary after adding changes: {current_summary}")
 
-            print(f"[DEBUG] Month-over-Month Comparison Results:")
+            print(f"[DEBUG] 30-Day vs 30-Day Comparison Results:")
             print(f"[DEBUG] - Impressions: {current_summary.get('total_impressions', 0)} vs {comparison_summary.get('total_impressions', 0)} = {current_summary['impressions_change']:+}")
             print(f"[DEBUG] - Clicks: {current_summary.get('total_clicks', 0)} vs {comparison_summary.get('total_clicks', 0)} = {current_summary['clicks_change']:+}")
             print(f"[DEBUG] - CTR: {current_summary.get('avg_ctr', 0):.3f} vs {comparison_summary.get('avg_ctr', 0):.3f} = {current_summary['ctr_change']:+.3f}")
             print(f"[DEBUG] - Position: {current_summary.get('avg_position', 0):.1f} vs {comparison_summary.get('avg_position', 0):.1f} = {current_summary['position_change']:+.1f}")
             
-            # Calculate SEO score change based on month-over-month comparison
+            # Calculate SEO score change based on 30-day comparison
             current_seo_score = self._calculate_simplified_seo_score(current_summary)
             previous_seo_score = self._calculate_simplified_seo_score(comparison_summary)
             current_summary['seo_score_change'] = current_seo_score - previous_seo_score
             
             print(f"[DEBUG] SEO Score: {current_seo_score} vs {previous_seo_score} = {current_summary['seo_score_change']:+}")
             
-            # Use the current month data for time series (already fetched)
+            # Use the current 30-day data for time series (already fetched)
             chart_metrics = current_metrics
             
             # Combine metrics
             final_metrics = {
                 'summary': current_summary,
                 'time_series': chart_metrics.get('time_series', {}),
-                'start_date': current_month_start.strftime('%Y-%m-%d'),
-                'end_date': current_month_end.strftime('%Y-%m-%d'),
-                'comparison_start_date': prev_month_start.strftime('%Y-%m-%d'),
-                'comparison_end_date': prev_month_end.strftime('%Y-%m-%d'),
+                'start_date': current_start_date.strftime('%Y-%m-%d'),
+                'end_date': current_end_date.strftime('%Y-%m-%d'),
+                'comparison_start_date': comparison_start_date.strftime('%Y-%m-%d'),
+                'comparison_end_date': comparison_end_date.strftime('%Y-%m-%d'),
                 'website_url': property_url,
+                # Add visibility_performance metrics for dashboard caching
+                'visibility_performance': {
+                    'metrics': {
+                        'impressions': { 'current_value': current_summary.get('total_impressions', 0) },
+                        'clicks': { 'current_value': current_summary.get('total_clicks', 0) },
+                        'ctr': { 'current_value': current_summary.get('avg_ctr', 0) },
+                        'avg_position': { 'current_value': current_summary.get('avg_position', 0) }
+                    }
+                }
             }
             
             # Store the combined metrics
@@ -659,7 +648,7 @@ class GSCDataFetcher:
                     {'range': f'C{cell.row}', 'values': [[metrics_json]]},
                     {'range': f'D{cell.row}', 'values': [[datetime.utcnow().isoformat()]]}
                 ])
-            except gspread.exceptions.CellNotFound:
+            except gspread.exceptions.GSpreadException:
                 metrics_sheet.append_row([
                     user_email,
                     property_url,
@@ -695,221 +684,7 @@ class GSCDataFetcher:
             print(f"[ERROR] Error getting stored metrics: {e}")
             return None
 
-    async def fetch_keyword_data(self, user_email: str, property_url: str, days: int = 90) -> Dict:
-        """Fetch keyword performance data from Google Search Console."""
-        try:
-            print(f"[DEBUG] fetch_keyword_data called for {property_url}")
-            
-            # Get user's GSC credentials
-            credentials = self.oauth_handler.get_credentials(user_email)
-            if not credentials:
-                print("[ERROR] No GSC credentials found")
-                return {}
-            
-            print(f"[DEBUG] GSC credentials obtained successfully")
-            
-            # Build GSC service
-            service = build('webmasters', 'v3', credentials=credentials)
-            
-            # Calculate date range
-            end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=days)
-            
-            # Request keyword data
-            request = {
-                'startDate': start_date.isoformat(),
-                'endDate': end_date.isoformat(),
-                'dimensions': ['query'],
-                'rowLimit': 5000,  # Get up to 5000 keywords
-                'startRow': 0
-            }
-            
-            print(f"[DEBUG] Keyword data request: {request}")
-            
-            # Execute the request
-            response = service.searchanalytics().query(
-                siteUrl=property_url, 
-                body=request
-            ).execute()
-            
-            print(f"[DEBUG] Keyword data response received")
-            print(f"[DEBUG] Response keys: {response.keys() if response else 'None'}")
-            
-            # Process the keyword data
-            keyword_data = self._process_keyword_data(response, property_url)
-            
-            print(f"[DEBUG] Processed keyword data: {keyword_data}")
-            
-            return keyword_data
-            
-        except Exception as e:
-            print(f"[ERROR] Error fetching keyword data: {e}")
-            import traceback
-            print(f"[ERROR] Traceback: {traceback.format_exc()}")
-            return {}
-
-    def _process_keyword_data(self, response: Dict, property_url: str) -> Dict:
-        """Process raw keyword data into structured format."""
-        try:
-            if not response or 'rows' not in response:
-                print("[DEBUG] No keyword data found in response")
-                return {
-                    'total_keywords': 0,
-                    'avg_position': 0.0,
-                    'opportunities': 0,
-                    'branded_keywords': 0,
-                    'top_keywords': "",
-                    'keyword_insights': "No keyword data available yet. This is normal for new websites.",
-                    'keywords_list': []
-                }
-            
-            rows = response['rows']
-            print(f"[DEBUG] Processing {len(rows)} keyword rows")
-            
-            # Extract domain for branded keyword detection
-            from urllib.parse import urlparse
-            parsed = urlparse(property_url)
-            domain = parsed.netloc.replace("www.", "")
-            
-            # Process each keyword
-            total_keywords = len(rows)
-            total_position = 0
-            opportunities = 0
-            branded_keywords = 0
-            keyword_details = []
-            
-            for row in rows:
-                keyword = row['keys'][0]
-                position = row['position']
-                impressions = row['impressions']
-                clicks = row['clicks']
-                ctr = row['ctr']
-                
-                # Calculate total position
-                total_position += position
-                
-                # Check for opportunities (keywords in positions 4-20 with good impressions)
-                if 4 <= position <= 20 and impressions >= 10:
-                    opportunities += 1
-                
-                # Check for branded keywords
-                if self._is_branded_keyword(keyword, domain):
-                    branded_keywords += 1
-                
-                # Store keyword details for top keywords
-                keyword_details.append({
-                    'keyword': keyword,
-                    'position': position,
-                    'impressions': impressions,
-                    'clicks': clicks,
-                    'ctr': ctr
-                })
-            
-            # Calculate average position
-            avg_position = total_position / total_keywords if total_keywords > 0 else 0.0
-            
-            # Get top 5 keywords by clicks
-            top_keywords = sorted(keyword_details, key=lambda x: x['clicks'], reverse=True)[:5]
-            top_keywords_text = "; ".join([kw['keyword'] for kw in top_keywords])
-            
-            # Generate insights
-            keyword_insights = self._generate_keyword_insights(
-                total_keywords, avg_position, opportunities, branded_keywords, top_keywords
-            )
-            
-            return {
-                'total_keywords': total_keywords,
-                'avg_position': round(avg_position, 1),
-                'opportunities': opportunities,
-                'branded_keywords': branded_keywords,
-                'top_keywords': top_keywords_text,
-                'keyword_insights': keyword_insights,
-                'keywords_list': keyword_details
-            }
-            
-        except Exception as e:
-            print(f"[ERROR] Error processing keyword data: {e}")
-            return {
-                'total_keywords': 0,
-                'avg_position': 0.0,
-                'opportunities': 0,
-                'branded_keywords': 0,
-                'top_keywords': "",
-                'keyword_insights': f"Error processing keyword data: {str(e)}",
-                'keywords_list': []
-            }
-
-    def _is_branded_keyword(self, keyword: str, domain: str) -> bool:
-        """Check if a keyword contains the brand/domain name."""
-        try:
-            # Extract brand name from domain (remove TLD)
-            brand_parts = domain.split('.')[0].lower()
-            
-            # Check if keyword contains brand name
-            keyword_lower = keyword.lower()
-            
-            # Common brand indicators
-            brand_indicators = [
-                brand_parts,
-                brand_parts.replace('-', ' '),
-                brand_parts.replace('_', ' '),
-                brand_parts.replace('-', ''),
-                brand_parts.replace('_', '')
-            ]
-            
-            return any(indicator in keyword_lower for indicator in brand_indicators)
-            
-        except Exception as e:
-            print(f"[ERROR] Error checking branded keyword: {e}")
-            return False
-
-    def _generate_keyword_insights(self, total_keywords: int, avg_position: float, 
-                                 opportunities: int, branded_keywords: int, 
-                                 top_keywords: list) -> str:
-        """Generate insights based on keyword performance data."""
-        try:
-            insights = []
-            
-            if total_keywords == 0:
-                return "No keyword data available yet. This is normal for new websites."
-            
-            # Overall keyword portfolio assessment
-            if total_keywords < 10:
-                insights.append("Small keyword portfolio. Focus on expanding content to target more relevant keywords.")
-            elif total_keywords < 100:
-                insights.append("Growing keyword portfolio. Continue creating content around relevant topics.")
-            else:
-                insights.append(f"Strong keyword portfolio with {total_keywords} ranking terms.")
-            
-            # Position analysis
-            if avg_position <= 3:
-                insights.append("Excellent average position. Focus on maintaining rankings and improving CTR.")
-            elif avg_position <= 10:
-                insights.append("Good average position. Opportunities to improve rankings for better visibility.")
-            else:
-                insights.append("Average position needs improvement. Focus on content optimization and backlink building.")
-            
-            # Opportunity analysis
-            if opportunities > 0:
-                insights.append(f"Found {opportunities} high-opportunity keywords in positions 4-20. Prioritize these for optimization.")
-            
-            # Branded keyword analysis
-            branded_percentage = (branded_keywords / total_keywords * 100) if total_keywords > 0 else 0
-            if branded_percentage > 50:
-                insights.append("High percentage of branded keywords. Consider expanding non-branded keyword targeting.")
-            elif branded_percentage < 10:
-                insights.append("Low branded keyword presence. Focus on brand awareness and branded search optimization.")
-            
-            # Top keyword insights
-            if top_keywords:
-                top_keyword = top_keywords[0]['keyword']
-                insights.append(f"Top performing keyword: '{top_keyword}' with {top_keywords[0]['clicks']} clicks.")
-            
-            return " ".join(insights)
-            
-        except Exception as e:
-            print(f"[ERROR] Error generating keyword insights: {e}")
-            return "Keyword performance analysis completed."
+    # REMOVED: All keyword analysis functions - not displayed on dashboard
 
 class PageSpeedInsightsFetcher:
     """Handles fetching PageSpeed Insights data."""
@@ -956,7 +731,7 @@ class PageSpeedInsightsFetcher:
                         if raw:
                             return data
                         
-                        # Process current data
+                        # Process current data - only the 4 metrics displayed on dashboard
                         lh = data.get("lighthouseResult", {})
                         audits = lh.get("audits", {})
                         categories = lh.get("categories", {})
@@ -1104,714 +879,22 @@ class PageSpeedInsightsFetcher:
             return self._get_demo_data()
     
     def _get_demo_data(self) -> Dict:
-        """Return empty data when API is not available."""
+        """Return empty data when API is not available - only displayed metrics."""
         return {
             'performance_score': 0,
+            'performance_score_change': 0,
             'lcp': {'value': 0, 'score': 0},
+            'lcp_change': 0,
             'fcp': {'value': 0, 'score': 0},
+            'fcp_change': 0,
             'cls': {'value': 0, 'score': 0},
+            'cls_change': 0,
             'last_updated': datetime.utcnow().isoformat()
         }
 
-# Create PageSpeed Insights fetcher instance
-pagespeed_fetcher = PageSpeedInsightsFetcher()
+# REMOVED: MobileUsabilityFetcher class and all its methods - mobile metrics not displayed on dashboard
+# REMOVED: IndexingCrawlabilityFetcher class - indexing metrics not displayed on dashboard  
+# REMOVED: BusinessContextFetcher class - business metrics not displayed on dashboard
 
-class MobileUsabilityFetcher:
-    """Fetcher for mobile usability data using GSC and PageSpeed Insights."""
-
-    def __init__(self):
-        self.pagespeed_fetcher = PageSpeedInsightsFetcher()
-
-    async def fetch_mobile_data(self, url: str) -> Dict:
-        """Fetch mobile-friendly test data for a given URL via GSC and PageSpeed."""
-        print(f"[DEBUG] Fetching mobile data via GSC and PageSpeed for: {url}")
-        
-        try:
-            # Convert domain property to actual URL if needed
-            if url.startswith('sc-domain:'):
-                domain = url.replace('sc-domain:', '')
-                actual_url = f"https://{domain}"
-            else:
-                actual_url = url
-            
-            # Get the final URL after redirects
-            final_url = await self._get_final_url(actual_url)
-            print(f"[DEBUG] Final URL for mobile analysis: {final_url}")
-            
-            # Get PageSpeed data for mobile performance (raw=True)
-            pagespeed_data = await self.pagespeed_fetcher.fetch_pagespeed_data(final_url, strategy="mobile", raw=True)
-            
-            # Get GSC mobile usability data
-            gsc_mobile_data = await self._get_gsc_mobile_data(url, final_url)
-            
-            # Combine both data sources
-            return self._process_mobile_data(pagespeed_data, gsc_mobile_data)
-
-        except Exception as e:
-            print(f"Error fetching mobile data: {e}")
-            return self._get_demo_data()
-    
-    async def _get_final_url(self, url: str) -> str:
-        """Get the final URL after following redirects."""
-        try:
-            import aiohttp
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, allow_redirects=True) as response:
-                    final_url = str(response.url)
-                    print(f"[DEBUG] Final URL after redirects: {final_url}")
-                    return final_url
-        except Exception as e:
-            print(f"Error getting final URL: {e}")
-            return url
-    
-    async def _get_gsc_mobile_data(self, site_url: str, page_url: str) -> Dict:
-        """Get mobile usability data from Google Search Console."""
-        try:
-            # This would require GSC API credentials
-            # For now, we'll use PageSpeed data as a proxy
-            print(f"[DEBUG] Getting GSC mobile data for site: {site_url}, page: {page_url}")
-            
-            # Return basic mobile data structure
-            return {
-                'mobile_friendly': True,  # Assume mobile-friendly if PageSpeed works
-                'issues_count': 0,
-                'critical_issues': 0,
-                'warning_issues': 0,
-                'issues': []
-            }
-        except Exception as e:
-            print(f"Error getting GSC mobile data: {e}")
-            return {
-                'mobile_friendly': False,
-                'issues_count': 0,
-                'critical_issues': 0,
-                'warning_issues': 0,
-                'issues': []
-            }
-    
-    def _process_mobile_data(self, pagespeed_data: Dict, gsc_mobile_data: Dict) -> Dict:
-        """Process PageSpeed and GSC data to extract mobile usability info."""
-        try:
-            print("[DEBUG] Raw PageSpeed data:", pagespeed_data)
-            if not pagespeed_data:
-                print("[WARNING] No PageSpeed data available for mobile analysis")
-                return self._get_demo_data()
-            
-            # Extract mobile-specific metrics from PageSpeed
-            lighthouse_result = pagespeed_data.get('lighthouseResult', {})
-            audits = lighthouse_result.get('audits', {})
-            print("[DEBUG] Audits received:", audits)
-            
-            # Mobile-specific audits
-            viewport_audit = audits.get('viewport', {})
-            font_display_audit = audits.get('font-display', {})
-            tap_targets_audit = audits.get('tap-targets', {})
-            content_width_audit = audits.get('content-width', {})
-            
-            # Determine mobile friendliness based on audits with detailed explanations
-            mobile_issues = []
-            critical_issues = 0
-            warning_issues = 0
-            
-            # Check viewport configuration
-            if viewport_audit.get('score', 1) < 1:
-                mobile_issues.append({
-                    'title': 'Viewport Configuration Issue',
-                    'description': 'Your page lacks a proper viewport meta tag, causing it to display incorrectly on mobile devices.',
-                    'impact': 'Visitors on mobile will see a zoomed-out desktop version that\'s hard to read and navigate.',
-                    'solution': 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> to your HTML head.',
-                    'severity': 'critical'
-                })
-                critical_issues += 1
-            
-            # Check font display with detailed explanation
-            if font_display_audit.get('score', 1) < 1:
-                font_details = font_display_audit.get('details', {})
-                font_items = font_details.get('items', [])
-                
-                if font_items:
-                    # Count the number of problematic fonts without showing URLs
-                    font_count = len(font_items[:3])
-                    font_text = f"{font_count} web fonts" if font_count > 1 else "A web font"
-                    
-                    mobile_issues.append({
-                        'title': 'Font Display Performance Issue',
-                        'description': f'{font_text} are blocking text display during page load.',
-                        'impact': 'Visitors see invisible text for several seconds while fonts load, creating a poor reading experience and potential bounce.',
-                        'solution': 'Add font-display: swap; to your CSS @font-face rules to show fallback text immediately.',
-                        'severity': 'warning'
-                    })
-                else:
-                    mobile_issues.append({
-                        'title': 'Font Display Performance Issue',
-                        'description': 'Web fonts are blocking text display during page load.',
-                        'impact': 'Visitors see invisible text while fonts load, creating a frustrating reading experience.',
-                        'solution': 'Add font-display: swap; to your CSS @font-face rules to show fallback text immediately.',
-                        'severity': 'warning'
-                    })
-                warning_issues += 1
-            
-            # Check tap targets with specific measurements
-            if tap_targets_audit.get('score', 1) < 1:
-                tap_details = tap_targets_audit.get('details', {})
-                tap_items = tap_details.get('items', [])
-                
-                if tap_items:
-                    small_targets = len([item for item in tap_items if item.get('size', '').endswith('px')])
-                    mobile_issues.append({
-                        'title': 'Touch Target Size Issue',
-                        'description': f'{small_targets} clickable elements are too small or too close together for mobile users.',
-                        'impact': 'Visitors struggle to tap buttons and links accurately, leading to frustration and accidental clicks.',
-                        'solution': 'Ensure all clickable elements are at least 44px tall and have 8px spacing between them.',
-                        'severity': 'critical'
-                    })
-                else:
-                    mobile_issues.append({
-                        'title': 'Touch Target Size Issue',
-                        'description': 'Some clickable elements are too small or too close together for mobile users.',
-                        'impact': 'Visitors struggle to tap buttons and links accurately, leading to frustration.',
-                        'solution': 'Ensure all clickable elements are at least 44px tall and have 8px spacing.',
-                        'severity': 'critical'
-                    })
-                critical_issues += 1
-            
-            # Check content width
-            if content_width_audit.get('score', 1) < 1:
-                mobile_issues.append({
-                    'title': 'Content Width Issue',
-                    'description': 'Page content is wider than the mobile screen, requiring horizontal scrolling.',
-                    'impact': 'Visitors must scroll horizontally to read content, creating a poor mobile experience.',
-                    'solution': 'Use responsive CSS with max-width: 100% and avoid fixed-width elements wider than the viewport.',
-                    'severity': 'critical'
-                })
-                critical_issues += 1
-            
-            # Performance metrics
-            performance_score = pagespeed_data.get('lighthouseResult', {}).get('categories', {}).get('performance', {}).get('score', 0) * 100
-            
-            # Add performance-related issues that affect mobile experience
-            lcp = audits.get('largest-contentful-paint', {})
-            fcp = audits.get('first-contentful-paint', {})
-            cls = audits.get('cumulative-layout-shift', {})
-            
-            # Check LCP (Largest Contentful Paint)
-            if lcp and lcp.get('numericValue') is not None:
-                lcp_seconds = lcp.get('numericValue', 0) / 1000
-                if lcp_seconds > 4.0:
-                    mobile_issues.append({
-                        'title': 'Slow Content Loading (LCP)',
-                        'description': f'Your main content takes {lcp_seconds:.1f} seconds to load on mobile (should be under 2.5s).',
-                        'impact': 'Visitors see a blank screen for too long, leading to frustration and potential abandonment.',
-                        'solution': 'Optimize images, reduce server response time, and prioritize loading of above-the-fold content.',
-                        'severity': 'critical'
-                    })
-                    critical_issues += 1
-                elif lcp_seconds > 2.5:
-                    mobile_issues.append({
-                        'title': 'Slow Content Loading (LCP)',
-                        'description': f'Your main content takes {lcp_seconds:.1f} seconds to load on mobile (should be under 2.5s).',
-                        'impact': 'Visitors experience noticeable delays when viewing your content.',
-                        'solution': 'Optimize images, reduce server response time, and prioritize loading of above-the-fold content.',
-                        'severity': 'warning'
-                    })
-                    warning_issues += 1
-            elif not lcp or lcp.get('numericValue') is None:
-                mobile_issues.append({
-                    'title': 'Loading Performance Unknown',
-                    'description': 'Unable to measure how quickly your content loads on mobile devices.',
-                    'impact': 'Cannot assess if visitors experience slow loading times.',
-                    'solution': 'Ensure your site is accessible to performance testing tools and check for blocking scripts.',
-                    'severity': 'warning'
-                })
-                warning_issues += 1
-            
-            # Check FCP (First Contentful Paint)
-            if fcp and fcp.get('numericValue') is not None:
-                fcp_seconds = fcp.get('numericValue', 0) / 1000
-                if fcp_seconds > 3.0:
-                    mobile_issues.append({
-                        'title': 'Slow Initial Display (FCP)',
-                        'description': f'Your page takes {fcp_seconds:.1f} seconds to show any content on mobile (should be under 1.8s).',
-                        'impact': 'Visitors see a completely blank page for too long, creating uncertainty about whether the site is working.',
-                        'solution': 'Minimize render-blocking resources, optimize CSS delivery, and reduce server response time.',
-                        'severity': 'critical'
-                    })
-                    critical_issues += 1
-                elif fcp_seconds > 1.8:
-                    mobile_issues.append({
-                        'title': 'Slow Initial Display (FCP)',
-                        'description': f'Your page takes {fcp_seconds:.1f} seconds to show any content on mobile (should be under 1.8s).',
-                        'impact': 'Visitors experience a noticeable delay before seeing any content.',
-                        'solution': 'Minimize render-blocking resources and optimize CSS delivery.',
-                        'severity': 'warning'
-                    })
-                    warning_issues += 1
-            
-            # Check CLS (Cumulative Layout Shift)
-            if cls and cls.get('numericValue') is not None:
-                cls_value = cls.get('numericValue', 0)
-                if cls_value > 0.25:
-                    mobile_issues.append({
-                        'title': 'Layout Shifting Issues (CLS)',
-                        'description': f'Page elements move unexpectedly during loading (CLS: {cls_value:.2f}, should be under 0.1).',
-                        'impact': 'Visitors accidentally tap wrong buttons or lose their reading position as content shifts around.',
-                        'solution': 'Set explicit dimensions for images and ads, avoid inserting content above existing content.',
-                        'severity': 'critical'
-                    })
-                    critical_issues += 1
-                elif cls_value > 0.1:
-                    mobile_issues.append({
-                        'title': 'Layout Shifting Issues (CLS)',
-                        'description': f'Some page elements move during loading (CLS: {cls_value:.2f}, should be under 0.1).',
-                        'impact': 'Visitors may experience minor disruptions as content shifts.',
-                        'solution': 'Set explicit dimensions for images and avoid inserting content above existing content.',
-                        'severity': 'warning'
-                    })
-                    warning_issues += 1
-            
-            # If no specific issues found but performance is very low, add general explanation
-            if performance_score < 10 and not mobile_issues:
-                mobile_issues.append({
-                    'title': 'Poor Mobile Performance',
-                    'description': 'Your site has very poor mobile performance but specific issues could not be identified.',
-                    'impact': 'Visitors likely experience slow loading and poor responsiveness on mobile devices.',
-                    'solution': 'Check if your site blocks performance testing tools, optimize images, and reduce JavaScript.',
-                    'severity': 'critical'
-                })
-                critical_issues += 1
-            
-            print("[DEBUG] Mobile issues detected:", mobile_issues)
-            
-            # Determine overall mobile friendliness
-            is_mobile_friendly = critical_issues == 0 and performance_score > 50
-            
-            # Generate insights
-            insights = self._generate_mobile_insights(is_mobile_friendly, mobile_issues, performance_score)
-            
-            return {
-                'mobile_friendly': 'Yes' if is_mobile_friendly else 'No',
-                'issues_count': len(mobile_issues),
-                'critical_issues': critical_issues,
-                'warning_issues': warning_issues,
-                'issues': mobile_issues,
-                'performance_score': round(performance_score, 1),
-                'insights': insights,
-                'last_updated': datetime.utcnow().isoformat()
-            }
-            
-        except Exception as e:
-            print(f"Error processing mobile data: {e}")
-            return self._get_demo_data()
-    
-    def _generate_mobile_insights(self, is_mobile_friendly: bool, issues: List, performance_score: float) -> str:
-        """Generate mobile usability insights."""
-        if is_mobile_friendly:
-            if performance_score > 80:
-                return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Excellent mobile experience with high performance'
-            elif performance_score > 60:
-                return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Good mobile experience with room for performance improvements'
-            else:
-                return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Mobile-friendly but performance needs optimization'
-        else:
-            if issues:
-                # Extract titles from issue objects for the insight summary
-                issue_titles = []
-                for issue in issues[:3]:
-                    if isinstance(issue, dict):
-                        issue_titles.append(issue.get('title', 'Unknown issue'))
-                    else:
-                        issue_titles.append(str(issue))
-                return f'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Issues detected: {", ".join(issue_titles)}'
-    
-    def _get_demo_data(self) -> Dict:
-        """Return empty mobile usability data when real data is not available."""
-        return {
-            'mobile_friendly': 'No',
-            'issues_count': 0,
-            'critical_issues': 0,
-            'warning_issues': 0,
-            'issues': [],
-            'performance_score': 0,
-            'insights': 'No mobile usability data available',
-            'last_updated': datetime.utcnow().isoformat()
-        }
-
-# Create Mobile Usability fetcher instance
-mobile_fetcher = MobileUsabilityFetcher()
-
-class IndexingCrawlabilityFetcher:
-    """Fetcher for indexing and crawlability data from Google Search Console."""
-    
-    def __init__(self, credentials):
-        self.credentials = credentials
-        self.service = build('searchconsole', 'v1', credentials=credentials)
-    
-    def fetch_indexing_data(self, site_url):
-        """Fetch indexing and crawlability metrics."""
-        try:
-            print(f"[DEBUG] Fetching indexing data for site: {site_url}")
-            
-            # Get sitemap information
-            print("[DEBUG] Fetching sitemap information...")
-            sitemaps = self._get_sitemaps(site_url)
-            print(f"[DEBUG] Sitemap data: {sitemaps}")
-            
-            # Get URL inspection data (sample of indexed pages)
-            print("[DEBUG] Fetching indexed pages information...")
-            indexed_pages = self._get_indexed_pages(site_url)
-            print(f"[DEBUG] Indexed pages data: {indexed_pages}")
-            
-            # Get crawl stats
-            print("[DEBUG] Fetching crawl statistics...")
-            crawl_stats = self._get_crawl_stats(site_url)
-            print(f"[DEBUG] Crawl stats data: {crawl_stats}")
-            
-            result = {
-                'sitemap_status': sitemaps.get('status', 'Unknown'),
-                'sitemap_count': sitemaps.get('count', 0),
-                'indexed_pages': indexed_pages.get('count', 0),
-                'index_status': indexed_pages.get('status', 'Unknown'),
-                'crawl_errors': crawl_stats.get('errors', 0),
-                'crawl_success_rate': crawl_stats.get('success_rate', 0),
-                'last_crawl': crawl_stats.get('last_crawl', 'Unknown'),
-                'insights': self._generate_insights(sitemaps, indexed_pages, crawl_stats)
-            }
-            
-            print(f"[DEBUG] Final indexing result: {result}")
-            return result
-        except Exception as e:
-            print(f"Error fetching indexing data: {e}")
-            # Return empty data if API calls fail
-            print("[INFO] Using empty indexing data due to API error")
-            return {
-                'sitemap_status': 'Unknown',
-                'sitemap_count': 0,
-                'indexed_pages': 0,
-                'index_status': 'Unknown',
-                'crawl_errors': 0,
-                'crawl_success_rate': 0,
-                'last_crawl': 'Unknown',
-                'insights': ['No indexing data available']
-            }
-    
-    def _get_sitemaps(self, site_url):
-        """Get sitemap information."""
-        try:
-            print(f"[DEBUG] Calling sitemaps().list() for site: {site_url}")
-            request = self.service.sitemaps().list(siteUrl=site_url)
-            response = request.execute()
-            print(f"[DEBUG] Sitemaps API response: {response}")
-            
-            sitemaps = response.get('sitemap', [])
-            if sitemaps:
-                # Check if sitemaps are being processed successfully
-                successful_sitemaps = [s for s in sitemaps if s.get('isPending') == False]
-                result = {
-                    'status': 'Active' if successful_sitemaps else 'Pending',
-                    'count': len(sitemaps),
-                    'successful': len(successful_sitemaps)
-                }
-                print(f"[DEBUG] Processed sitemap result: {result}")
-                return result
-            else:
-                print("[DEBUG] No sitemaps found")
-                return {'status': 'Not Found', 'count': 0, 'successful': 0}
-        except Exception as e:
-            print(f"Error fetching sitemaps: {e}")
-            return {'status': 'Error', 'count': 0, 'successful': 0}
-    
-    def _get_indexed_pages(self, site_url):
-        """Get information about indexed pages."""
-        try:
-            print(f"[DEBUG] Starting URL inspection for site: {site_url}")
-            print(f"[DEBUG] Property type: {'Domain Property' if site_url.startswith('sc-domain:') else 'URL Prefix Property'}")
-            
-            # Skip URL inspection for now to avoid permission issues
-            # URL Inspection API requires very specific URL/property matching
-            print(f"[INFO] Skipping URL inspection to avoid 403 errors")
-            print(f"[INFO] URL Inspection API is very strict about property/URL matching")
-            
-            # Return a safe default result
-            result = {
-                'status': 'Skipped',
-                'count': 0,
-                'last_seen': 'Not checked (avoiding 403 errors)'
-            }
-            print(f"[DEBUG] Returning safe default result: {result}")
-            return result
-            
-        except Exception as e:
-            error_msg = str(e)
-            print(f"Error fetching indexed pages: {e}")
-            
-            # Check for common permission issues
-            if "PERMISSION_DENIED" in error_msg or "403" in error_msg:
-                print(f"[WARNING] URL Inspection API permission denied for {site_url}")
-                print(f"[INFO] This can happen when:")
-                print(f"[INFO] - OAuth scope 'webmasters' (full access) is not granted")
-                print(f"[INFO] - URL format doesn't match the property exactly")
-                print(f"[INFO] - Property type mismatch (domain vs URL prefix)")
-                print(f"[INFO] - The inspected URL is not part of this property")
-                print(f"[INFO] Suggestion: Check property setup in GSC")
-            
-            return {'status': 'Error', 'count': 0, 'last_seen': 'Unknown'}
-    
-    def _get_crawl_stats(self, site_url):
-        """Get crawl statistics."""
-        try:
-            # Use sitemaps as a proxy for crawl health since direct crawl stats are limited
-            end_date = datetime.now().date()
-            print(f"[DEBUG] Checking crawl health via sitemaps for site: {site_url}")
-            
-            sitemaps = self._get_sitemaps(site_url)
-            if sitemaps['status'] == 'Active':
-                result = {
-                    'success_rate': 90,  # Active sitemaps indicate good crawl health
-                    'errors': 0,
-                    'last_crawl': end_date.isoformat()
-                }
-            elif sitemaps['status'] == 'Pending':
-                result = {
-                    'success_rate': 50,  # Pending sitemaps indicate some issues
-                    'errors': 0,
-                    'last_crawl': end_date.isoformat()
-                }
-            else:
-                result = {
-                    'success_rate': 0,  # No sitemaps indicate crawl problems
-                    'errors': 0,
-                    'last_crawl': 'Unknown'
-                }
-            
-            print(f"[DEBUG] Processed crawl stats result: {result}")
-            return result
-        except Exception as e:
-            print(f"Error fetching crawl stats: {e}")
-            return {'success_rate': 0, 'errors': 0, 'last_crawl': 'Unknown'}
-    
-    def _generate_insights(self, sitemaps, indexed_pages, crawl_stats):
-        """Generate insights based on the data."""
-        insights = []
-        
-        # Sitemap insights
-        if sitemaps['status'] == 'Active':
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Sitemap is active and being processed')
-        elif sitemaps['status'] == 'Pending':
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12,6 12,12 16,14"></polyline></svg>Sitemap is pending processing')
-        elif sitemaps['status'] == 'Not Found':
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>No sitemap found - consider adding one')
-        else:
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Sitemap issues detected')
-        
-        # Indexing insights
-        if indexed_pages['status'] == 'PASS':
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Pages are being indexed properly')
-        elif indexed_pages['status'] == 'FAIL':
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Indexing issues detected')
-        else:
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>Indexing status unclear')
-        
-        # Crawl insights
-        if crawl_stats['success_rate'] > 80:
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><polyline points="20,6 9,17 4,12"></polyline></svg>Crawling is working well')
-        elif crawl_stats['success_rate'] > 50:
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Some crawling issues detected')
-        else:
-            insights.append('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: text-top; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Crawling problems detected')
-        
-        return insights 
-
-class BusinessContextFetcher:
-    """Fetcher for business context and intelligence data."""
-    
-    def __init__(self):
-        self.business_analyzer = None
-        # Don't import here - will import when needed
-    
-    async def fetch_business_data(self, url: str) -> Dict:
-        """Fetch business context and intelligence data."""
-        try:
-            print(f"[DEBUG] Fetching business context data for: {url}")
-            
-            # Convert domain property to actual URL if needed
-            final_url = await self._get_final_url(url)
-            print(f"[DEBUG] Final URL for business analysis: {final_url}")
-            
-            # Try to import and use the business analyzer
-            if self.business_analyzer is None:
-                try:
-                    import sys
-                    import os
-                    # Add the project root to the path if not already there
-                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                    if project_root not in sys.path:
-                        sys.path.insert(0, project_root)
-                    
-                    # Try direct import from file path
-                    import importlib.util
-                    spec = importlib.util.spec_from_file_location(
-                        "business_analysis", 
-                        os.path.join(project_root, "core", "modules", "business_analysis.py")
-                    )
-                    business_analysis_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(business_analysis_module)
-                    BusinessAnalyzer = business_analysis_module.BusinessAnalyzer
-                    
-                    self.business_analyzer = BusinessAnalyzer()
-                    print("[DEBUG] BusinessAnalyzer successfully imported and initialized via direct file import")
-                except Exception as e:
-                    print(f"Warning: BusinessAnalyzer not available: {e}")
-                    print(f"[DEBUG] Current sys.path: {sys.path[:3]}...")  # Show first 3 paths
-                    self.business_analyzer = False  # Mark as failed
-            
-            if self.business_analyzer and self.business_analyzer is not False:
-                # Use the business analyzer if available
-                business_data = self.business_analyzer.analyze_business(final_url)
-                print(f"[DEBUG] Business analysis completed: {business_data}")
-                
-                # Format the data for the frontend
-                result = self._format_business_data(business_data)
-                print(f"[DEBUG] Formatted business data: {result}")
-                return result
-            else:
-                # Fallback to basic analysis
-                print("[DEBUG] Using fallback business analysis")
-                return await self._fallback_business_analysis(final_url)
-                
-        except Exception as e:
-            print(f"Error fetching business context data: {e}")
-            print("[INFO] Using empty business data due to error")
-            return self._get_demo_data()
-    
-    async def _get_final_url(self, url: str) -> str:
-        """Get the final URL after following redirects."""
-        try:
-            # Convert domain property to actual URL if needed
-            if url.startswith('sc-domain:'):
-                domain = url.replace('sc-domain:', '')
-                actual_url = f"https://{domain}"
-            else:
-                actual_url = url
-            
-            import aiohttp
-            async with aiohttp.ClientSession() as session:
-                async with session.get(actual_url, allow_redirects=True) as response:
-                    final_url = str(response.url)
-                    print(f"[DEBUG] Final URL after redirects: {final_url}")
-                    return final_url
-        except Exception as e:
-            print(f"Error getting final URL: {e}")
-            # Return the original URL if we can't get the final URL
-            if url.startswith('sc-domain:'):
-                domain = url.replace('sc-domain:', '')
-                return f"https://{domain}"
-            return url
-    
-    def _format_business_data(self, business_data: Dict) -> Dict:
-        """Format business analysis data for frontend consumption."""
-        try:
-            return {
-                'business_type': business_data.get('business_model', 'Unknown'),
-                'target_market': business_data.get('target_market', 'Unknown'),
-                'industry_sector': business_data.get('industry_sector', 'General'),
-                'company_size': business_data.get('company_size', 'Unknown'),
-                'primary_age_group': business_data.get('primary_age_group', 'General'),
-                'income_level': business_data.get('income_level', 'Mid-Range'),
-                'audience_sophistication': business_data.get('audience_sophistication', 'General'),
-                'geographic_focus': business_data.get('geographic_focus', 'Local'),
-                'business_maturity': business_data.get('business_maturity', 'Established'),
-                'technology_platform': business_data.get('technology_platform', 'Standard'),
-                'content_strategy': business_data.get('content_marketing', {}).get('strategy', 'Basic'),
-                'competitive_position': business_data.get('competitive_position', 'Standard'),
-                'insights': business_data.get('business_insights', []),
-                'seo_recommendations': business_data.get('seo_strategy_recommendations', []),
-                'last_updated': datetime.utcnow().isoformat()
-            }
-        except Exception as e:
-            print(f"Error formatting business data: {e}")
-            return self._get_demo_data()
-    
-    async def _fallback_business_analysis(self, url: str) -> Dict:
-        """Basic business analysis when the full analyzer is not available."""
-        try:
-            # URL should already be converted to actual URL by the calling method
-            actual_url = url
-            print(f"[DEBUG] Fallback analysis using URL: {actual_url}")
-            
-            import aiohttp
-            from bs4 import BeautifulSoup
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(actual_url) as response:
-                    html = await response.text()
-                    soup = BeautifulSoup(html, 'html.parser')
-                    
-                    # Basic analysis
-                    text_content = soup.get_text().lower()
-                    
-                    # Determine business type
-                    if any(word in text_content for word in ['shop', 'buy', 'cart', 'checkout']):
-                        business_type = 'E-commerce'
-                    elif any(word in text_content for word in ['service', 'consulting', 'expert']):
-                        business_type = 'Professional Services'
-                    elif any(word in text_content for word in ['software', 'app', 'platform']):
-                        business_type = 'SaaS'
-                    else:
-                        business_type = 'Information/Content'
-                    
-                    # Determine target market
-                    if any(word in text_content for word in ['business', 'enterprise', 'corporate']):
-                        target_market = 'B2B'
-                    else:
-                        target_market = 'B2C'
-                    
-                    return {
-                        'business_type': business_type,
-                        'target_market': target_market,
-                        'industry_sector': 'General',
-                        'company_size': 'Small',
-                        'primary_age_group': 'General',
-                        'income_level': 'Mid-Range',
-                        'audience_sophistication': 'General',
-                        'geographic_focus': 'Local',
-                        'business_maturity': 'Established',
-                        'technology_platform': 'Standard',
-                        'content_strategy': 'Basic',
-                        'competitive_position': 'Standard',
-                        'insights': [
-                            f"Identified as {business_type} business targeting {target_market} market",
-                            "Basic analysis completed - connect GSC for deeper insights"
-                        ],
-                        'seo_recommendations': [
-                            "Focus on local SEO if serving local customers",
-                            "Optimize for mobile users",
-                            "Create valuable, relevant content"
-                        ],
-                        'last_updated': datetime.utcnow().isoformat()
-                    }
-        except Exception as e:
-            print(f"Error in fallback business analysis: {e}")
-            return self._get_demo_data()
-    
-    def _get_demo_data(self) -> Dict:
-        """Return empty business context data when real data is not available."""
-        return {
-            'business_type': 'Unknown',
-            'target_market': 'Unknown',
-            'industry_sector': 'Unknown',
-            'company_size': 'Unknown',
-            'primary_age_group': 'Unknown',
-            'income_level': 'Unknown',
-            'audience_sophistication': 'Unknown',
-            'geographic_focus': 'Unknown',
-            'business_maturity': 'Unknown',
-            'technology_platform': 'Unknown',
-            'content_strategy': 'Unknown',
-            'competitive_position': 'Unknown',
-            'insights': [],
-            'seo_recommendations': [],
-            'last_updated': datetime.utcnow().isoformat()
-        }
-
-# Create Business Context fetcher instance
-business_fetcher = BusinessContextFetcher() 
+# Initialize the optimized components (only keeping PageSpeed fetcher for displayed UX metrics)
+pagespeed_fetcher = PageSpeedInsightsFetcher() 
