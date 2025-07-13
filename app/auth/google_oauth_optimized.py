@@ -41,25 +41,19 @@ class GoogleOAuthHandler:
         print(f"[DEBUG] Client Secret loaded: {'Yes' if self.client_secret and self.client_secret != 'your_google_client_secret_here' else 'No'}")
         print(f"[DEBUG] Redirect URI: {self.redirect_uri}")
         
-        # Check if we're in demo mode (no Google credentials)
-        self.demo_mode = not (self.client_id and self.client_secret and 
-                             self.client_id != 'your_google_client_id_here' and 
-                             self.client_secret != 'your_google_client_secret_here')
-        if self.demo_mode:
-            print("[WARNING] Google OAuth running in DEMO MODE - no real GSC connection available")
-            print("[INFO] To enable real GSC connection, set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file")
-            print("[INFO] See GOOGLE_OAUTH_SETUP.md for setup instructions")
+        # Check if we have valid Google credentials
+        if not (self.client_id and self.client_secret and 
+                self.client_id != 'your_google_client_id_here' and 
+                self.client_secret != 'your_google_client_secret_here'):
+            print("[CRITICAL] Google OAuth credentials not properly configured")
+            print("[SETUP] Please ensure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set in your .env file")
+            print("[SETUP] See GOOGLE_OAUTH_SETUP.md for setup instructions")
+            raise Exception("Google OAuth credentials required. Cannot start Solvia without proper configuration.")
         else:
             print("[SUCCESS] Google OAuth credentials loaded successfully!")
     
     def get_auth_url(self, state: str = None) -> str:
         """Generate Google OAuth authorization URL."""
-        if self.demo_mode:
-            # Return a demo URL that will trigger the demo flow
-            demo_url = f"{self.redirect_uri}?demo=true&state={state or 'demo'}"
-            print(f"[DEBUG] Demo mode - returning demo URL: {demo_url}")
-            return demo_url
-        
         try:
             print(f"[DEBUG] Generating real OAuth URL for user (state): {state}")
             
@@ -86,24 +80,11 @@ class GoogleOAuthHandler:
             return auth_url
         except Exception as e:
             print(f"[ERROR] Error generating auth URL: {e}")
-            # Fallback to demo mode
-            fallback_url = f"{self.redirect_uri}?demo=true&state={state or 'demo'}"
-            print(f"[DEBUG] Fallback to demo URL: {fallback_url}")
-            return fallback_url
+            return None
     
     async def handle_callback(self, code: str, user_email: str) -> Dict:
         """Handle OAuth callback and store credentials."""
-        if self.demo_mode or code == 'demo':
-            # Demo mode - simulate successful connection
-            return {
-                "success": True,
-                "demo_mode": True,
-                "message": "Demo mode - GSC connection simulated"
-            }
-        
         try:
-            print(f"[DEBUG] handle_callback received state (user_email): {user_email}")
-
             flow = Flow.from_client_config(
                 {
                     "web": {
@@ -119,10 +100,8 @@ class GoogleOAuthHandler:
             flow.redirect_uri = self.redirect_uri
             
             # Exchange code for tokens
-            print(f"[DEBUG] Exchanging authorization code for token for user: {user_email}")
             flow.fetch_token(code=code)
             credentials = flow.credentials
-            print(f"[DEBUG] Token fetched successfully for user: {user_email}")
             
             # Store credentials in Google Sheets
             self._store_credentials(user_email, credentials)
@@ -142,13 +121,7 @@ class GoogleOAuthHandler:
     
     def _store_credentials(self, user_email: str, credentials: Credentials):
         """Store OAuth credentials in Google Sheets."""
-        # Check if database is in demo mode
-        if self.db.demo_mode:
-            print(f"[DEBUG] Database in demo mode, cannot store credentials for {user_email}")
-            return
-            
         try:
-            print(f"[DEBUG] _store_credentials called for user: {user_email}")
             # Create gsc_connections sheet if it doesn't exist
             try:
                 gsc_connections_sheet = self.db.client.open_by_key(self.db.users_sheet.spreadsheet.id).worksheet('gsc-connections')
@@ -168,7 +141,6 @@ class GoogleOAuthHandler:
             try:
                 cell = gsc_connections_sheet.find(user_email)
                 # Update existing credentials using batch update
-                print(f"[DEBUG] Found existing credentials for {user_email} at row {cell.row}. Updating token.")
                 gsc_connections_sheet.batch_update([
                     {'range': f'B{cell.row}', 'values': [[credentials.token]]},
                     {'range': f'C{cell.row}', 'values': [[credentials.refresh_token or '']]},
@@ -177,7 +149,6 @@ class GoogleOAuthHandler:
                 ])
             except:
                 # Add new credentials
-                print(f"[DEBUG] No existing credentials for {user_email}. Adding new row.")
                 gsc_connections_sheet.append_row([
                     user_email,
                     credentials.token,
@@ -186,27 +157,19 @@ class GoogleOAuthHandler:
                     datetime.utcnow().isoformat(),
                     datetime.utcnow().isoformat()
                 ])
-            print(f"[SUCCESS] Stored credentials for {user_email}")
         except Exception as e:
             print(f"[ERROR] Error in _store_credentials: {e}")
     
     def get_credentials(self, user_email: str) -> Optional[Credentials]:
         """Get stored OAuth credentials for user."""
-        # Check if database is in demo mode
-        if self.db.demo_mode:
-            print(f"[DEBUG] Database in demo mode, no credentials available for {user_email}")
-            return None
-            
         # Check cache first
         cache_key = f"creds_{user_email}"
         if cache_key in self._credentials_cache:
             cached_time, cached_creds = self._credentials_cache[cache_key]
             if (datetime.now() - cached_time).seconds < self._cache_timeout:
-                print(f"[DEBUG] Using cached credentials for {user_email}")
                 return cached_creds
         
         try:
-            print(f"[DEBUG] get_credentials called for user: {user_email}")
             # Get GSC connections sheet
             gsc_connections_sheet = self.db.client.open_by_key(self.db.users_sheet.spreadsheet.id).worksheet('gsc-connections')
             
@@ -226,7 +189,7 @@ class GoogleOAuthHandler:
                         try:
                             expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
                         except:
-                            print(f"[DEBUG] Could not parse expiry date: {expires_at_str}")
+                            pass
                     
                     # Create credentials object
                     credentials = Credentials(
@@ -241,13 +204,11 @@ class GoogleOAuthHandler:
                     
                     # Check if token needs refresh
                     if expires_at and expires_at <= datetime.now():
-                        print(f"[DEBUG] Token expired for {user_email}, attempting refresh")
                         if refresh_token:
                             try:
                                 credentials.refresh(Request())
                                 # Update stored credentials
                                 self._store_credentials(user_email, credentials)
-                                print(f"[DEBUG] Token refreshed successfully for {user_email}")
                             except Exception as e:
                                 print(f"[ERROR] Failed to refresh token for {user_email}: {e}")
                                 return None
@@ -258,7 +219,6 @@ class GoogleOAuthHandler:
                     # Cache the credentials
                     self._credentials_cache[cache_key] = (datetime.now(), credentials)
                     
-                    print(f"[DEBUG] Credentials retrieved successfully for {user_email}")
                     return credentials
                 else:
                     print(f"[ERROR] Incomplete credential data for {user_email}")
@@ -274,16 +234,6 @@ class GoogleOAuthHandler:
     
     async def get_gsc_properties(self, user_email: str) -> List[Dict]:
         """Get available Google Search Console properties for user."""
-        if self.demo_mode:
-            print("[DEBUG] Demo mode - returning sample GSC properties")
-            return [
-                {
-                    "siteUrl": "https://example.com/",
-                    "permissionLevel": "siteOwner",
-                    "isVerified": True
-                }
-            ]
-        
         try:
             print(f"[DEBUG] get_gsc_properties called for user: {user_email}")
             
@@ -323,10 +273,6 @@ class GoogleOAuthHandler:
     
     def _clear_credentials(self, user_email: str):
         """Clear stored credentials for user."""
-        if self.db.demo_mode:
-            print(f"[DEBUG] Database in demo mode, cannot clear credentials for {user_email}")
-            return
-            
         try:
             print(f"[DEBUG] Clearing credentials for user: {user_email}")
             
@@ -605,10 +551,6 @@ class GSCDataFetcher:
     
     def _store_metrics(self, user_email: str, property_url: str, metrics: Dict):
         """Store metrics in Google Sheets for caching."""
-        if self.oauth_handler.db.demo_mode:
-            print(f"[DEBUG] Database in demo mode, cannot store metrics")
-            return
-            
         try:
             print(f"[DEBUG] Storing metrics for {user_email}")
             # Implementation would store in a metrics cache sheet
@@ -619,10 +561,6 @@ class GSCDataFetcher:
     
     async def get_stored_metrics(self, user_email: str, website_url: str) -> Optional[Dict]:
         """Get cached metrics if available and recent."""
-        if self.oauth_handler.db.demo_mode:
-            print(f"[DEBUG] Database in demo mode, no stored metrics available")
-            return None
-            
         try:
             print(f"[DEBUG] Checking for stored metrics for {user_email}")
             # Implementation would check cache

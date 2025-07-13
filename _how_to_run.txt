@@ -7,6 +7,7 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 # optional: access interactive api docs
 http://localhost:8000/docs
 
+-----------------------------------------------------------------------------------------------------------------------------------------
 
 25 jun 2025:
 - data is not laoded in dashboard
@@ -27,4 +28,27 @@ http://localhost:8000/docs
 - define benchmarks
 
 4 jul 2025:
++ display all cached data
++ save latest reloaded data as cache
++ display latest cache regardless of date created
 - design recommendation cards in fixes page
+- make ai insights appear on dashboard
+
+5 jul 2025:
+- supabase dashboard cache loadup
+- set up sp db auth api
+- create rls policy
+
+6 jul 2025:
++ select gsc property (verified)
++ load visivility performance metrics
++ load ai insights
+
+7 jul 2025:
+- load ai insights
+
+8 jul 2025:
+- load ai insights
+
+9 jul 2025:
++ connect to gsc and select property with supabase

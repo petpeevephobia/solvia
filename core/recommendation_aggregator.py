@@ -26,7 +26,6 @@ class RecommendationAggregator:
         Args:
             openai_analysis (dict): Analysis containing recommendations from generate_seo_analysis()
         """
-        print("\t🎯 Processing Technical SEO recommendations...")
         
         raw_recommendations = openai_analysis.get('recommendations', [])
         
@@ -36,8 +35,6 @@ class RecommendationAggregator:
                 scored_rec = self._score_technical_recommendation(rec)
                 self.recommendations.append(scored_rec)
                 
-        print(f"\t\t✓ Processed {len([r for r in self.recommendations if r['category'] == 'technical'])} technical recommendations")
-        
     def _is_technical_recommendation(self, recommendation: Dict[str, Any]) -> bool:
         """Determine if a recommendation is technical SEO related."""
         action_type = recommendation.get('action_type', '').lower()

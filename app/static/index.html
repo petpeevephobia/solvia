@@ -278,6 +278,59 @@
                 window.location.href = '/dashboard';
             }
         });
+
+        // Check for ?verified=1 in the URL or type=signup in the hash and show a popup if present
+        window.addEventListener('DOMContentLoaded', function() {
+            // Check for verified=1 in the main URL parameters
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('verified') === '1') {
+                document.querySelectorAll('.tab')[1].click();
+                // Show alert after switching tabs to avoid it being cleared
+                setTimeout(() => {
+                    showAlert('loginAlert', 'Your account is verified. You can now log in.', 'success');
+                }, 100);
+                return;
+            }
+            
+            // Check for verified=1 in the redirect_to parameter (nested URL)
+            const redirectTo = params.get('redirect_to');
+            if (redirectTo) {
+                try {
+                    const redirectUrl = new URL(redirectTo);
+                    const redirectParams = new URLSearchParams(redirectUrl.search);
+                    if (redirectParams.get('verified') === '1') {
+                        document.querySelectorAll('.tab')[1].click();
+                        // Show alert after switching tabs to avoid it being cleared
+                        setTimeout(() => {
+                            showAlert('loginAlert', 'Your account is verified. You can now log in.', 'success');
+                        }, 100);
+                        return;
+                    }
+                } catch (e) {
+                    // Could not parse redirect_to URL
+                }
+            }
+            
+            // Check for type=signup in the hash
+            if (window.location.hash && window.location.hash.includes('type=signup')) {
+                document.querySelectorAll('.tab')[1].click();
+                // Show alert after switching tabs to avoid it being cleared
+                setTimeout(() => {
+                    showAlert('loginAlert', 'Your account is verified. You can now log in.', 'success');
+                }, 100);
+                return;
+            }
+            
+            // Check for error_code=otp_expired in the hash
+            if (window.location.hash && window.location.hash.includes('error_code=otp_expired')) {
+                document.querySelectorAll('.tab')[1].click();
+                // Show alert after switching tabs to avoid it being cleared
+                setTimeout(() => {
+                    showAlert('loginAlert', 'The verification link is invalid or has expired. Please request a new verification email.', 'error');
+                }, 100);
+                return;
+            }
+        });
     </script>
 </body>
 </html> 

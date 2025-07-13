@@ -9,6 +9,8 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import openai
 from app.config import settings
+from core.modules.prompt_loader import load_prompt
+import inspect
 
 class BenchmarkAnalyzer:
     """Analyzes user metrics against SEO benchmarks and generates AI-powered insights."""
@@ -27,7 +29,6 @@ class BenchmarkAnalyzer:
                 data = json.load(f)
                 return data.get('seo_benchmarks', {})
         except Exception as e:
-            print(f"Error loading benchmarks: {e}")
             return {}
     
     def get_benchmark_level(self, metric_name: str, value: float, category: str) -> str:
@@ -60,7 +61,6 @@ class BenchmarkAnalyzer:
             
             return 'poor'
         except Exception as e:
-            print(f"Error determining benchmark level for {metric_name}: {e}")
             return 'average'
     
     def calculate_metric_score(self, metric_name: str, value: float, category: str) -> int:
@@ -97,7 +97,6 @@ class BenchmarkAnalyzer:
                 else:
                     return int(((poor_value - value) / (poor_value - excellent_value)) * 100)
         except Exception as e:
-            print(f"Error calculating score for {metric_name}: {e}")
             return 50
     
     def prepare_analysis_data(self, dashboard_metrics: Dict[str, Any]) -> Dict[str, Any]:
@@ -191,71 +190,191 @@ class BenchmarkAnalyzer:
         
         return analysis_data
     
-    async def generate_ai_insights(self, dashboard_metrics: Dict[str, Any], business_type: str = "general") -> Dict[str, Any]:
+    def generate_ai_insights(self, dashboard_metrics: Dict[str, Any], business_type: str = "general") -> Dict[str, Any]:
+        caller = inspect.stack()[1]
         """Generate AI-powered insights using OpenAI API."""
         if not self.openai_client:
-            return self._generate_fallback_insights(dashboard_metrics)
+            raise Exception("OpenAI client not available. Cannot generate AI insights.")
+        
+        # Check if OpenAI API key is configured
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            print("[ERROR] OPENAI_API_KEY not found in environment variables")
+            return self._get_fallback_insights()
+        
+        analysis_data = self.prepare_analysis_data(dashboard_metrics)
+        prompt = self._create_analysis_prompt(analysis_data, business_type)
+        
         
         try:
-            analysis_data = self.prepare_analysis_data(dashboard_metrics)
+            # Use the new OpenAI client format
+            client = openai.OpenAI(api_key=api_key)
             
-            # Prepare the prompt
-            prompt = self._create_analysis_prompt(analysis_data, business_type)
-            
-            # Call OpenAI API
-            response = await openai.ChatCompletion.acreate(
+            response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert SEO analyst specializing in data-driven insights and actionable recommendations."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "system", "content": "You are an expert SEO analyst specializing in data-driven insights and actionable recommendations. You must respond with valid JSON only, no markdown formatting."},
+                    {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
                 max_tokens=2000
             )
             
-            # Parse the response
             ai_response = response.choices[0].message.content
-            try:
-                # Try to parse as JSON
-                insights = json.loads(ai_response)
-                return insights
-            except json.JSONDecodeError:
-                # If not valid JSON, return fallback insights
-                print(f"Invalid JSON response from OpenAI: {ai_response}")
-                return self._generate_fallback_insights(dashboard_metrics)
-                
+            
+            print(f"[DEBUG] OpenAI raw response:\t{ai_response}")
+            
+            if not ai_response or ai_response.strip() == "":
+                print("[ERROR] OpenAI returned empty response")
+                return self._get_fallback_insights()
+            
+            # Try to extract JSON from markdown code blocks first
+            insights = None
+            if "```json" in ai_response:
+                json_start = ai_response.find("```json") + 7
+                json_end = ai_response.find("```", json_start)
+                if json_end > json_start:
+                    json_content = ai_response[json_start:json_end].strip()
+                    try:
+                        insights = json.loads(json_content)
+                        print("[DEBUG] Successfully extracted JSON from code block")
+                    except json.JSONDecodeError as e:
+                        print(f"[ERROR] Failed to parse JSON from code block: {e}")
+                        print(f"[DEBUG] JSON content: {json_content[:200]}...")
+            
+            # If no code block found or parsing failed, try parsing the raw response
+            if insights is None:
+                try:
+                    insights = json.loads(ai_response)
+                except json.JSONDecodeError as e:
+                    print(f"[ERROR] Failed to parse raw JSON response: {e}")
+                    print(f"[DEBUG] Raw response: {ai_response[:200]}...")
+                    return self._get_fallback_insights()
+            
+            # Ensure all expected keys are present
+            required_keys = [
+                "overall_seo_health",
+                "visibility_performance",
+                "performance_metrics",
+                "metadata_optimization",
+                "action_plan",
+                "competitive_context"
+            ]
+            for key in required_keys:
+                if key not in insights:
+                    insights[key] = {}
+            
+            # Handle the actual response structure - check if insights are nested under "insights" key
+            if "insights" in insights:
+                insights_data = insights["insights"]
+            elif "analysis" in insights:
+                insights_data = insights["analysis"]
+            else:
+                insights_data = insights
+
+            def extract_section(section):
+                sec = insights_data.get(section, {})
+                # If the section is already in the expected format, use it
+                if "metrics" in sec and "overall_assessment" in sec:
+                    overall = sec.get("overall_assessment", "Analysis not available")
+                    metrics = sec.get("metrics", {})
+                    # Patch: If overall_assessment is missing or 'Analysis not available', aggregate per-metric analyses
+                    if not overall or overall == "Analysis not available":
+                        analyses = [v.get("analysis") for v in metrics.values() if isinstance(v, dict) and v.get("analysis")]
+                        if analyses:
+                            overall = " ".join(analyses)
+                    return {
+                        "overall_assessment": overall,
+                        "metrics": metrics
+                    }
+                # If the section is a flat dict of metrics, wrap it in 'metrics'
+                if isinstance(sec, dict) and not ("metrics" in sec and "overall_assessment" in sec):
+                    metrics = sec
+                    overall = "Analysis not available"
+                    # Patch: Aggregate per-metric analyses if possible
+                    analyses = [v.get("analysis") for v in metrics.values() if isinstance(v, dict) and v.get("analysis")]
+                    if analyses:
+                        overall = " ".join(analyses)
+                    return {
+                        "overall_assessment": overall,
+                        "metrics": metrics
+                    }
+                # Otherwise, just return the whole section as metrics
+                return {
+                    "overall_assessment": "Analysis not available",
+                    "metrics": sec
+                }
+
+            ai_insights = {
+                "visibility_performance": extract_section("visibility_performance"),
+                "performance_metrics": extract_section("performance_metrics"),
+                "metadata_optimization": extract_section("metadata_optimization"),
+                "analysis": insights_data.get("overall_seo_health", {}),
+                "recommendations": insights_data.get("action_plan", {})
+            }
+            return ai_insights
+            
         except Exception as e:
-            print(f"Error generating AI insights: {e}")
-            return self._generate_fallback_insights(dashboard_metrics)
+            print(f"[ERROR] OpenAI API error: {e}")
+            print(f"[ERROR] Error type: {type(e)}")
+            return self._get_fallback_insights()
+    
+    def _get_fallback_insights(self) -> Dict[str, Any]:
+        """Return fallback insights when OpenAI API fails."""
+        return {
+            "overall_seo_health": {
+                "score": 0,
+                "status": "Unable to analyze",
+                "summary": "AI analysis temporarily unavailable"
+            },
+            "visibility_performance": {
+                "score": 0,
+                "status": "Unable to analyze",
+                "summary": "Visibility analysis temporarily unavailable"
+            },
+            "performance_metrics": {
+                "score": 0,
+                "status": "Unable to analyze",
+                "summary": "Performance analysis temporarily unavailable"
+            },
+            "metadata_optimization": {
+                "score": 0,
+                "status": "Unable to analyze",
+                "summary": "Metadata analysis temporarily unavailable"
+            },
+            "action_plan": {
+                "priority_actions": [],
+                "quick_wins": [],
+                "long_term_strategy": []
+            },
+            "competitive_context": {
+                "industry_benchmarks": {},
+                "competitive_analysis": "Analysis temporarily unavailable"
+            }
+        }
     
     def _load_prompt_files(self) -> tuple[str, str]:
-        """Load prompt instructions and JSON template from separate files."""
-        # Load prompt instructions
-        prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', 'benchmark_analysis_prompt.txt')
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            prompt_instructions = f.read()
+        """Load prompt instructions and JSON template from a single file using prompt_loader."""
+        # Load the complete prompt file using prompt_loader (which cleans the JSON template)
+        complete_prompt = load_prompt('benchmark_analysis_prompt.txt')
         
-        # Load JSON template
-        template_path = os.path.join(os.path.dirname(__file__), 'prompts', 'benchmark_response_template.txt')
-        with open(template_path, 'r', encoding='utf-8') as f:
-            json_template = f.read()
+        # Split the content at 'REQUIRED OUTPUT FORMAT (JSON):' to separate prompt and template
+        if 'REQUIRED OUTPUT FORMAT (JSON):' in complete_prompt:
+            parts = complete_prompt.split('REQUIRED OUTPUT FORMAT (JSON):')
+            if len(parts) >= 2:
+                prompt_instructions = parts[0].strip()
+                json_template = parts[1].strip()
+                return prompt_instructions, json_template
         
-        return prompt_instructions, json_template
+        # Fallback if splitting doesn't work
+        return complete_prompt, ""
     
-
-
     def _create_analysis_prompt(self, analysis_data: Dict[str, Any], business_type: str) -> str:
         """Create the analysis prompt for OpenAI by loading and concatenating prompt files."""
         # Load prompt files
         prompt_instructions, json_template = self._load_prompt_files()
         
-        # Create the complete prompt
+        # Create the complete prompt with input data
         complete_prompt = f"""{prompt_instructions}
 
 ## INPUT DATA
@@ -264,95 +383,9 @@ Benchmark Data: {json.dumps(analysis_data['benchmark_data'], indent=2)}
 Calculated Metrics: {json.dumps(analysis_data['calculated_metrics'], indent=2)}
 Business Type: {business_type}
 
-{json_template}"""
+Please analyze the above data and respond with a JSON object following the required format."""
         
         return complete_prompt
     
-    def _generate_fallback_insights(self, dashboard_metrics: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate fallback insights when AI is not available."""
-        return {
-            "analysis_timestamp": datetime.now().isoformat(),
-            "overall_seo_health": {
-                "score": 75,
-                "grade": "good",
-                "summary": "Your website shows good SEO performance with room for improvement.",
-                "top_strength": "Performance metrics",
-                "biggest_opportunity": "Metadata optimization"
-            },
-            "visibility_performance": {
-                "overall_assessment": "Good visibility with opportunities for improvement",
-                "metrics": {
-                    "impressions": {
-                        "current_value": dashboard_metrics.get('summary', {}).get('total_impressions', 0),
-                        "benchmark_level": "good",
-                        "score": 70,
-                        "analysis": "Your search visibility is performing well within industry standards.",
-                        "next_tier_target": "Focus on expanding keyword coverage and content creation",
-                        "recommendations": [
-                            "Create more content targeting relevant keywords",
-                            "Improve internal linking structure"
-                        ],
-                        "priority": "medium",
-                        "time_to_impact": "short-term"
-                    }
-                }
-            },
-            "performance_metrics": {
-                "overall_assessment": "Good performance with optimization opportunities",
-                "metrics": {
-                    "performance_score": {
-                        "current_value": dashboard_metrics.get('ux', {}).get('performance_score', 0),
-                        "benchmark_level": "good",
-                        "score": 75,
-                        "analysis": "Your website performance is good but can be improved.",
-                        "next_tier_target": "Optimize images and reduce server response time",
-                        "recommendations": [
-                            "Compress and optimize images",
-                            "Implement browser caching"
-                        ],
-                        "priority": "high",
-                        "time_to_impact": "immediate"
-                    }
-                }
-            },
-            "metadata_optimization": {
-                "overall_assessment": "Metadata needs attention for better SEO performance",
-                "metrics": {
-                    "meta_titles": {
-                        "current_value": dashboard_metrics.get('metadata', {}).get('meta_titles', 0),
-                        "benchmark_level": "average",
-                        "score": 60,
-                        "analysis": "Meta titles need optimization for better search visibility.",
-                        "next_tier_target": "Optimize titles on all pages",
-                        "recommendations": [
-                            "Rewrite meta titles to include primary keywords",
-                            "Ensure titles are 50-60 characters long"
-                        ],
-                        "priority": "high",
-                        "time_to_impact": "immediate"
-                    }
-                }
-            },
-            "action_plan": {
-                "immediate_actions": [
-                    "Optimize meta titles and descriptions",
-                    "Compress website images"
-                ],
-                "short_term_goals": [
-                    "Improve page loading speed",
-                    "Create more content"
-                ],
-                "long_term_strategy": [
-                    "Build quality backlinks",
-                    "Develop comprehensive content strategy"
-                ]
-            },
-            "competitive_context": {
-                "industry_percentile": "top 50%",
-                "peer_comparison": "You're performing well compared to similar websites",
-                "market_opportunity": "Focus on content creation and technical optimization"
-            }
-        }
-
 # Global instance
-benchmark_analyzer = BenchmarkAnalyzer() 
+benchmark_analyzer = BenchmarkAnalyzer()

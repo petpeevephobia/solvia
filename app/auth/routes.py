@@ -3,7 +3,7 @@ Authentication routes for Solvia.
 """
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Header, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import RedirectResponse
 from app.auth.models import (
@@ -15,10 +15,12 @@ from app.auth.utils import (
     generate_verification_token, generate_reset_token,
     is_strong_password, send_verification_email
 )
-from app.database import db
+from app.database.supabase_db import SupabaseAuthDB
 from app.config import settings
-from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, pagespeed_fetcher
+from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, PageSpeedInsightsFetcher
 import uuid
+import json
+from app.database.supabase_db import SupabaseAuthDB
 
 # New models for website management
 from pydantic import BaseModel, HttpUrl
@@ -50,26 +52,26 @@ class GSCMetricsResponse(BaseModel):
 
 class DashboardDataResponse(BaseModel):
     user: Optional[UserResponse]
+    metrics: Optional[dict] = None
+    ai_insights: Optional[dict] = None
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 
-# Initialize Google OAuth handler
-google_oauth = GoogleOAuthHandler()
-gsc_fetcher = GSCDataFetcher(google_oauth)
+# Initialize database and Google OAuth handler
+db = SupabaseAuthDB()
+google_oauth = GoogleOAuthHandler(db)
+gsc_fetcher = GSCDataFetcher(google_oauth, db)
+pagespeed_fetcher = PageSpeedInsightsFetcher(db)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """Get current user from JWT token."""
     from app.auth.utils import verify_token
     
     token = credentials.credentials
-    print(f"[DEBUG] get_current_user called with token: {token[:20] if token else 'None'}...")
-    
     email = verify_token(token)
-    print(f"[DEBUG] Token verification result - email: {email}")
     
     if email is None:
-        print(f"[DEBUG] Token validation failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -80,90 +82,76 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate):
-    """Register a new user."""
+    """Register a new user using Supabase Auth."""
     # Validate password strength
     if not is_strong_password(user.password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters long and contain uppercase, lowercase, and digit"
         )
-    
-    # Check if user already exists
-    existing_user = db.get_user_by_email(user.email)
-    if existing_user:
+    # Register user with Supabase Auth
+    result = db.register_user(user.email, user.password)
+    if "error" in result and result["error"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User with this email already exists"
+            detail=f"Registration failed: {result['error']}"
         )
-    
-    # Hash password and create user
-    password_hash = get_password_hash(user.password)
-    verification_token = generate_verification_token()
-    
-    success = db.create_user(user, password_hash, verification_token)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create user"
-        )
-
-    # Send verification email
-    send_verification_email(user.email, verification_token)
-
-    # Generate a user ID (since we don't store it in the current DB structure)
-    user_id = str(uuid.uuid4())
-    
+    user_obj = result.get("user", {})
+    if hasattr(user_obj, '__dict__'):
+        user_dict = user_obj.__dict__
+    else:
+        user_dict = user_obj
     return UserResponse(
-        id=user_id,
+        id=user_dict.get("id", str(uuid.uuid4())),
         email=user.email,
         message="User registered successfully. Please check your email to verify your account.",
         created_at=datetime.utcnow().isoformat()
     )
 
 
-@router.post("/login", response_model=TokenResponse)
-async def login(user_credentials: UserLogin):
-    """Login user and return access token."""
-    # Get user from database
-    user = db.get_user_by_email(user_credentials.email)
-    print(f"[DEBUG] User from DB: {user}")
-    print(f"[DEBUG] Password to check: {user_credentials.password}")
-    if user:
-        print(f"[DEBUG] Stored hash: {user.password_hash}")
-    if not user:
+@router.post("/login")
+async def login(user: UserLogin):
+    """Login a user using Supabase Auth."""
+    result = db.login_user(user.email, user.password)
+    if "error" in result and result["error"]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            detail="Invalid credentials"
         )
     
-    # Verify password
-    is_valid = verify_password(user_credentials.password, user.password_hash)
-    print(f"[DEBUG] Password valid: {is_valid}")
-    if not is_valid:
+    # Extract the access token from the Supabase session
+    session = result.get("session")
+    
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            detail="No session returned from authentication"
         )
     
-    # Check if email is verified
-    if not user.is_verified:
+    # The session is a Session object, not a dict, so we need to access its attributes
+    try:
+        access_token = session.access_token
+    except AttributeError:
+        # Fallback: try to get it as a dict if it has __dict__
+        if hasattr(session, '__dict__'):
+            access_token = session.__dict__.get('access_token')
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not extract access token from session"
+            )
+    
+    if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Please verify your email before logging in"
+            detail="No access token in session"
         )
     
-    # Update last login
-    db.update_last_login(user.email)
-    
-    # Create access token
-    access_token_expires = timedelta(minutes=30)  # 30 minutes
-    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
-    
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        expires_in=access_token_expires.total_seconds()
-    )
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": result.get("user")
+    }
 
 
 @router.post("/verify-email")
@@ -183,27 +171,15 @@ async def verify_email(verification: EmailVerification):
 
 @router.post("/forgot-password")
 async def forgot_password(reset_request: PasswordReset):
-    """Send password reset email."""
-    user = db.get_user_by_email(reset_request.email)
-    if not user:
-        # Don't reveal if email exists or not
+    """Send password reset email using Supabase Auth."""
+    try:
+        # Use Supabase's built-in password reset
+        result = db.supabase.auth.reset_password_email(reset_request.email)
         return {"message": "If the email exists, a reset link has been sent"}
-    
-    # Generate reset token
-    reset_token = generate_reset_token()
-    success = db.set_reset_token(user.email, reset_token)
-    
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process reset request"
-        )
-    
-    # TODO: Send reset email
-    return {
-        "message": "If the email exists, a reset link has been sent",
-        "reset_token": reset_token  # Remove this in production
-    }
+    except Exception as e:
+        # Don't reveal if email exists or not
+        print(f"Password reset error: {e}")
+        return {"message": "If the email exists, a reset link has been sent"}
 
 
 @router.post("/reset-password")
@@ -233,9 +209,11 @@ async def logout(current_user: str = Depends(get_current_user)):
 async def refresh_token(current_user: str = Depends(get_current_user)):
     """Refresh the access token."""
     try:
+        # Use the current_user email directly (it's already the email from JWT)
+        user_email = current_user
         # Create a new access token
         access_token_expires = timedelta(minutes=30)
-        new_access_token = create_access_token(data={"sub": current_user}, expires_delta=access_token_expires)
+        new_access_token = create_access_token(data={"sub": user_email}, expires_delta=access_token_expires)
         
         return TokenResponse(
             access_token=new_access_token,
@@ -253,68 +231,46 @@ async def refresh_token(current_user: str = Depends(get_current_user)):
 @router.post("/refresh-token")
 async def refresh_token_manual(request: Request):
     """Refresh the access token without requiring current user validation."""
-    print("[TOKEN DEBUG] /refresh-token endpoint called")
-    
     try:
         # Get the token from the Authorization header
         auth_header = request.headers.get('Authorization')
-        print(f"[TOKEN DEBUG] Authorization header: {auth_header[:30] if auth_header else 'None'}...")
         
         if not auth_header or not auth_header.startswith('Bearer '):
-            print("[TOKEN DEBUG] Invalid authorization header format")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authorization header"
             )
         
         token = auth_header.split(' ')[1]
-        print(f"[TOKEN DEBUG] Extracted token: {token[:20]}...")
         
         # Manually verify the token (even if expired)
         from app.auth.utils import verify_token
         email = verify_token(token)
-        print(f"[TOKEN DEBUG] verify_token result: {email}")
         
         if not email:
-            print("[TOKEN DEBUG] Token verification failed, trying unverified decode...")
             # Try to decode the token manually to get the email even if expired
             try:
                 from jose import jwt
                 from app.config import settings
                 # Decode without verification to get payload - jose requires a key parameter
                 payload = jwt.decode(token, key="", options={"verify_signature": False})
-                print(f"[TOKEN DEBUG] Unverified payload: {payload}")
                 email = payload.get("sub")
                 if not email:
-                    print("[TOKEN DEBUG] No 'sub' field in unverified payload")
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="Invalid token"
                     )
-                print(f"[TOKEN DEBUG] Extracted email from unverified payload: {email}")
             except Exception as e:
-                print(f"[TOKEN DEBUG] Failed to decode unverified payload: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token"
                 )
         
-        print(f"[TOKEN DEBUG] Final email for refresh: {email}")
-        
-        # Verify user exists
-        user = db.get_user_by_email(email)
-        print(f"[TOKEN DEBUG] User lookup result: {user is not None}")
-        if not user:
-            print(f"[TOKEN DEBUG] User not found in database: {email}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
-            )
-        
+        # For Supabase Auth, we trust the JWT payload
+        user_email = email
         # Create a new access token
         access_token_expires = timedelta(minutes=30)
-        new_access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
-        print(f"[TOKEN DEBUG] New token created: {new_access_token[:20]}...")
+        new_access_token = create_access_token(data={"sub": user_email}, expires_delta=access_token_expires)
         
         return TokenResponse(
             access_token=new_access_token,
@@ -324,7 +280,7 @@ async def refresh_token_manual(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[TOKEN DEBUG] Error refreshing token: {e}")
+        print(f"Error refreshing token: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to refresh token"
@@ -332,20 +288,26 @@ async def refresh_token_manual(request: Request):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: str = Depends(get_current_user)):
-    """Get current user information."""
-    user = db.get_user_by_email(current_user)
-    if not user:
+async def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get current user information from Supabase Auth using access token."""
+    access_token = credentials.credentials
+    user_info = db.get_user(access_token)
+    user_obj = user_info.get("user") if user_info else None
+    if not user_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+    # Convert user_obj to dict if needed
+    if hasattr(user_obj, '__dict__'):
+        user = user_obj.__dict__
+    else:
+        user = user_obj
     return UserResponse(
-        id=str(uuid.uuid4()),  # Generate a UUID since we don't store user IDs
-        email=user.email,
+        id=user.get("id", str(uuid.uuid4())),
+        email=user.get("email", ""),
         message="User information retrieved successfully",
-        created_at=user.created_at if hasattr(user, 'created_at') and user.created_at else datetime.utcnow().isoformat()
+        created_at=user.get("created_at", datetime.utcnow().isoformat())
     )
 
 
@@ -385,9 +347,8 @@ async def verify_email(token: str, request: Request):
 async def get_dashboard_data(current_user: str = Depends(get_current_user)):
     """Get all data needed for user dashboard."""
     try:
-        user = db.get_user_by_email(current_user)
-        
-        # Convert user data to response model if exists
+        # For Supabase Auth, current_user is already the email
+        user_email = current_user
         user_response = None
         if user:
             user_response = UserResponse(
@@ -396,11 +357,16 @@ async def get_dashboard_data(current_user: str = Depends(get_current_user)):
                 is_verified=user.is_verified,
                 created_at=user.created_at
             )
-        
-        return DashboardDataResponse(
-            user=user_response
-        )
-        
+        # Fetch cached dashboard data (metrics and ai_insights)
+        website_url = db.get_selected_gsc_property(current_user)
+        dashboard_cache = None
+        if website_url:
+            dashboard_cache = db.get_dashboard_cache(current_user, website_url)
+        return {
+            "user": user_response,
+            "metrics": dashboard_cache["metrics"] if dashboard_cache and "metrics" in dashboard_cache else None,
+            "ai_insights": dashboard_cache["ai_insights"] if dashboard_cache and "ai_insights" in dashboard_cache else None
+        }
     except Exception as e:
         print(f"Error getting dashboard data: {e}")
         raise HTTPException(
@@ -411,67 +377,73 @@ async def get_dashboard_data(current_user: str = Depends(get_current_user)):
 
 # Google OAuth and Search Console Integration
 @router.get("/google/authorize")
-async def google_authorize(current_user: str = Depends(get_current_user)):
+async def google_authorize(request: Request):
     """Generate Google OAuth authorization URL."""
     try:
-        # The user's email is passed as the 'state' parameter to identify
-        # the user upon callback.
-        print(f"[DEBUG] /google/authorize called for user: '{current_user}'")
-        auth_url = google_oauth.get_auth_url(state=current_user)
-        
-        return {
-            "auth_url": auth_url,
-            "message": "Redirect user to this URL to authorize Google Search Console access"
-        }
+        # Try to get the current user, redirect to login if not authenticated
+        credentials = request.headers.get("authorization")
+        if not credentials or not credentials.lower().startswith("bearer "):
+            return RedirectResponse(url="/ui", status_code=302)
+        token = credentials.split(" ", 1)[1]
+        from app.auth.utils import verify_token
+        email = verify_token(token)
+        if not email:
+            return RedirectResponse(url="/ui", status_code=302)
+        auth_url = google_oauth.get_auth_url(state=email)
+        return {"auth_url": auth_url}
     except Exception as e:
-        print(f"Error generating Google auth URL: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate authorization URL"
-        )
+        print(f"Error generating auth URL: {e}")
+        return RedirectResponse(url="/ui", status_code=302)
 
 
 @router.get("/google/callback")
 async def google_callback(
     code: str,
     state: Optional[str] = None,
-    error: Optional[str] = None
+    error: Optional[str] = None,
+    request: Request = None
 ):
-    """Handle Google OAuth callback and store credentials."""
+    """Handle Google OAuth callback."""
+    
+    if error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OAuth error: {error}"
+        )
+    
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authorization code not provided"
+        )
+    
     try:
-        print(f"[DEBUG] Google callback received - code: {code[:20]}..., state from URL: '{state}', error: {error}")
-        
-        if error:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Google OAuth error: {error}"
-            )
-        
-        # The state parameter MUST contain the user's email.
-        if not state:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Missing state parameter with user information"
-            )
-        
+        # The state parameter contains the user's email
         user_email = state
         
-        # Handle OAuth callback
-        result = await google_oauth.handle_callback(code, user_email)
+        if not user_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User email not found in state parameter"
+            )
         
-        print(f"[DEBUG] OAuth callback result: {result}")
+        # Get JWT from Authorization header
+        jwt_token = None
+        if request:
+            auth_header = request.headers.get("authorization")
+            if auth_header and auth_header.lower().startswith("bearer "):
+                jwt_token = auth_header.split(" ", 1)[1]
         
-        # Redirect to property selection page after successful OAuth
-        if result.get("success"):
-            return RedirectResponse(url=f"/property-selection?oauth_success=true")
-        else:
-            return RedirectResponse(url=f"/property-selection?oauth_error=true")
-            
-    except HTTPException:
-        raise
+        result = await google_oauth.handle_callback(code, user_email, jwt_token=jwt_token)
+        
+        return RedirectResponse(url="/property-selection")
+        
     except Exception as e:
-        print(f"Error handling Google callback: {e}")
-        return RedirectResponse(url="/dashboard?oauth_error=true")
+        print(f"Error in OAuth callback: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to complete OAuth process"
+        )
 
 
 @router.get("/google/callback/test")
@@ -483,22 +455,20 @@ async def google_callback_test():
 @router.get("/gsc/properties", response_model=list[GSCPropertyResponse])
 async def get_gsc_properties(current_user: str = Depends(get_current_user)):
     """Get user's Google Search Console properties."""
+    
     try:
-        print(f"[DEBUG] get_gsc_properties called for user: {current_user}")
         
         # Get GSC properties
         properties = await google_oauth.get_gsc_properties(current_user)
         
-        print(f"[DEBUG] Retrieved properties: {properties}")
-        
         if not properties:
-            print(f"[DEBUG] No properties found for user: {current_user}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No Google Search Console properties found. Please make sure you have verified websites in GSC."
             )
         
         return properties
+        
     except HTTPException:
         raise
     except Exception as e:
@@ -590,7 +560,6 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
                 detail="No GSC property selected. Please select a property first."
             )
 
-        print(f"[INFO] Loading GSC metrics for user '{current_user}' and property '{website_url}'")
         metrics = await gsc_fetcher.fetch_metrics(current_user, website_url)
         if not metrics or "summary" not in metrics:
             raise HTTPException(
@@ -598,9 +567,6 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
                 detail="Failed to fetch GSC metrics or data is empty."
             )
         summary = metrics.get('summary', {})
-        print(f"[INFO] Visibility Performance: Impressions={summary.get('total_impressions')}, Clicks={summary.get('total_clicks')}, CTR={summary.get('avg_ctr')}, Avg Position={summary.get('avg_position')}")
-        print(f"[INFO] Organic Traffic Trends: {metrics.get('time_series', {}).get('clicks', [])}")
-        print(f"[INFO] Impressions Trends: {metrics.get('time_series', {}).get('impressions', [])}")
         return GSCMetricsResponse(
             summary=metrics.get('summary', {}),
             time_series=metrics.get('time_series', {}),
@@ -654,59 +620,40 @@ async def refresh_gsc_metrics(current_user: str = Depends(get_current_user)):
         )
 
 
-@router.post("/dashboard/cache")
-async def cache_dashboard_data(
-    dashboard_data: dict,
-    ai_insights: dict = None,
-    current_user: str = Depends(get_current_user)
-):
-    """Cache complete dashboard data for same-day retrieval, including optional AI insights."""
-    try:
-        # Get the selected property for the user
-        website_url = db.get_selected_gsc_property(current_user)
-        if not website_url:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No GSC property selected. Please select a property first."
-            )
-        # If ai_insights is provided, add it to dashboard_data
-        if ai_insights:
-            dashboard_data['ai_insights'] = ai_insights
-        # Store dashboard cache
-        success = db.store_dashboard_cache(current_user, website_url, dashboard_data)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to cache dashboard data"
-            )
-        return {
-            "success": True,
-            "message": "Dashboard data cached successfully!",
-            "cached_at": datetime.utcnow().isoformat()
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error caching dashboard data: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to cache dashboard data"
-        )
-
-
 @router.get("/dashboard/cache")
-async def get_dashboard_cache_route(current_user: str = Depends(get_current_user)):
+async def get_dashboard_cache_route(request: Request, current_user: str = Depends(get_current_user)):
     # Get user email
     email = current_user
+    # Get user's JWT from Authorization header
+    user_jwt = request.headers.get("authorization", "").replace("Bearer ", "")
+    db = SupabaseAuthDB(access_token=user_jwt)
     # Get website_url for the user using db
     website_url = db.get_selected_gsc_property(email)
     if not website_url:
         return {"success": False, "has_cache": False, "data": None, "message": "No website property selected for user."}
     cache = db.get_dashboard_cache(email, website_url)
     if cache:
-        return {"success": True, "has_cache": True, "data": cache, "message": "Cached dashboard data retrieved successfully!"}
+        return {"success": True, "has_cache": True, "data": cache, "message": "Loaded latest cached dashboard data."}
     else:
         return {"success": True, "has_cache": False, "data": None, "message": "No cached dashboard data found."}
+
+
+@router.post("/dashboard/cache")
+async def cache_dashboard_data(request: Request, dashboard_data: dict, ai_insights: dict = None, current_user: str = Depends(get_current_user)):
+    email = current_user
+    user_jwt = request.headers.get("authorization", "").replace("Bearer ", "")
+    db = SupabaseAuthDB(access_token=user_jwt)
+    website_url = db.get_selected_gsc_property(email)
+    if not website_url:
+        return {"success": False, "message": "No website property selected for user."}
+    # Optionally merge ai_insights into dashboard_data if provided
+    if ai_insights:
+        dashboard_data["ai_insights"] = ai_insights
+    success = db.store_dashboard_cache(email, website_url, dashboard_data)
+    if success:
+        return {"success": True, "message": "Dashboard data cached successfully!"}
+    else:
+        return {"success": False, "message": "Failed to cache dashboard data"}
 
 
 @router.post("/gsc/clear-credentials")
@@ -740,9 +687,6 @@ async def get_pagespeed_metrics(current_user: str = Depends(get_current_user)):
                 detail="No GSC property selected. Please select a property first."
             )
 
-        print(f"[DEBUG] Fetching PageSpeed data for user '{current_user}' and property '{website_url}'")
-        
-        # Fetch PageSpeed data
         psi_data = await pagespeed_fetcher.fetch_pagespeed_data(website_url)
         
         if not psi_data:
@@ -774,9 +718,6 @@ async def get_metadata_analysis(current_user: str = Depends(get_current_user)):
                 detail="No GSC property selected. Please select a property first."
             )
 
-        print(f"[DEBUG] Fetching metadata analysis for: {website_url}")
-        
-        # Create metadata analyzer instance
         from .metadata_analyzer import MetadataAnalyzer
         analyzer = MetadataAnalyzer()
         
@@ -785,7 +726,6 @@ async def get_metadata_analysis(current_user: str = Depends(get_current_user)):
         
         if not analysis_result:
             # Fallback to demo data if analysis fails
-            print(f"[WARNING] Metadata analysis failed for {website_url}, using demo data")
             return {
                 "meta_titles_optimized": 0,
                 "meta_titles_total": 0,
@@ -814,8 +754,17 @@ async def get_metadata_analysis(current_user: str = Depends(get_current_user)):
 
 
 @router.get("/benchmark/insights")
-async def get_benchmark_insights(current_user: str = Depends(get_current_user)):
-    """Generate AI-powered insights by comparing user metrics against industry benchmarks and cache them with dashboard metrics."""
+async def get_benchmark_insights(
+    current_user: str = Depends(get_current_user),
+    x_explicit_ai_request: str = Header(None),
+    explicit_ai: str = Query(None)
+):
+    # Safeguard: Only allow AI generation if header or query param is set
+    if not (x_explicit_ai_request == "true" or (explicit_ai and explicit_ai.lower() == "true")):
+        raise HTTPException(
+            status_code=403,
+            detail="AI insights generation is only allowed on explicit user request."
+        )
     try:
         # Get the selected property for the user
         website_url = db.get_selected_gsc_property(current_user)
@@ -828,19 +777,19 @@ async def get_benchmark_insights(current_user: str = Depends(get_current_user)):
         # Check for cached dashboard data with ai_insights
         cached_data = db.get_dashboard_cache(current_user, website_url)
         if cached_data and 'ai_insights' in cached_data:
-            print("[BENCHMARK DEBUG] Returning cached AI insights.")
             return cached_data['ai_insights']
 
-        print(f"[BENCHMARK DEBUG] Generating benchmark insights for: {website_url}")
         from .benchmark_analyzer import benchmark_analyzer
         dashboard_metrics = {}
+        
         try:
-            gsc_metrics = await gsc_fetcher.fetch_gsc_data(website_url)
+            gsc_metrics = await gsc_fetcher.fetch_metrics(current_user, website_url)
             if gsc_metrics:
                 dashboard_metrics['summary'] = gsc_metrics.get('summary', {})
                 dashboard_metrics['time_series'] = gsc_metrics.get('time_series', {})
         except Exception as e:
-            print(f"[WARNING] Failed to fetch GSC metrics: {e}")
+            print(f"Failed to fetch GSC metrics: {e}")
+        
         try:
             psi_data = await pagespeed_fetcher.fetch_pagespeed_data(website_url)
             if psi_data:
@@ -851,7 +800,8 @@ async def get_benchmark_insights(current_user: str = Depends(get_current_user)):
                     'cls': psi_data.get('cls', {}).get('value', 0)
                 }
         except Exception as e:
-            print(f"[WARNING] Failed to fetch PageSpeed metrics: {e}")
+            print(f"Failed to fetch PageSpeed metrics: {e}")
+        
         try:
             from .metadata_analyzer import MetadataAnalyzer
             metadata_analyzer = MetadataAnalyzer()
@@ -864,9 +814,11 @@ async def get_benchmark_insights(current_user: str = Depends(get_current_user)):
                     'h1_tags': metadata_result.get('h1_tags', 0)
                 }
         except Exception as e:
-            print(f"[WARNING] Failed to fetch metadata metrics: {e}")
+            print(f"Failed to fetch metadata metrics: {e}")
+        
         # Generate AI insights
-        insights = await benchmark_analyzer.generate_ai_insights(dashboard_metrics, business_type="general")
+        insights = benchmark_analyzer.generate_ai_insights(dashboard_metrics, business_type="general")
+        
         # Cache the AI insights together with dashboard metrics
         dashboard_data = {"metrics": dashboard_metrics}
         dashboard_data["ai_insights"] = insights

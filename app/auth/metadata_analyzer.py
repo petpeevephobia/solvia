@@ -3,7 +3,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import time
 
 class MetadataAnalyzer:
@@ -14,232 +14,179 @@ class MetadataAnalyzer:
         self.timeout = 30  # 30 second timeout per request
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         
-    async def analyze_website(self, website_url: str) -> Optional[Dict]:
+    async def analyze_website(self, website_url: str) -> Optional[Dict[str, Any]]:
         """Analyze a website's metadata and SEO elements."""
         try:
-            print(f"[METADATA] Starting analysis for: {website_url}")
-            
+            print(f"[DEBUG] Starting metadata analysis for: {website_url}")
             # Clean and normalize the URL
             base_url = self._normalize_url(website_url)
             if not base_url:
-                print(f"[METADATA] Invalid URL: {website_url}")
+                print("[DEBUG] Invalid base URL, aborting analysis.")
                 return None
             
             # Get list of pages to analyze
             pages_to_analyze = await self._discover_pages(base_url)
-            print(f"[METADATA] Found {len(pages_to_analyze)} pages to analyze")
             
             if not pages_to_analyze:
-                print(f"[METADATA] No pages found to analyze")
+                print("[DEBUG] No pages found to analyze.")
                 return None
             
             # Analyze each page
             analysis_results = []
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=self.timeout),
-                headers={'User-Agent': self.user_agent}
-            ) as session:
+            async with aiohttp.ClientSession() as session:
                 
                 for i, page_url in enumerate(pages_to_analyze[:self.max_pages]):
-                    print(f"[METADATA] Analyzing page {i+1}/{min(len(pages_to_analyze), self.max_pages)}: {page_url}")
-                    
                     page_analysis = await self._analyze_page(session, page_url)
+                    print(f"[DEBUG] Page analysis result: {page_analysis}")
                     if page_analysis:
                         analysis_results.append(page_analysis)
-                    
-                    # Small delay to be respectful
-                    await asyncio.sleep(0.5)
             
             # Aggregate results
             if not analysis_results:
-                print(f"[METADATA] No successful page analyses")
+                print("[DEBUG] No successful page analyses.")
                 return None
                 
             aggregated_results = self._aggregate_results(analysis_results)
             
-            # Print comprehensive image summary
-            self._print_website_image_summary(analysis_results, aggregated_results)
-            
-            print(f"[METADATA] Analysis complete: {aggregated_results}")
-            
             return aggregated_results
             
         except Exception as e:
-            print(f"[METADATA] Error analyzing website {website_url}: {e}")
+            print(f"[DEBUG] Exception in analyze_website: {e}")
             return None
     
     def _normalize_url(self, url: str) -> Optional[str]:
-        """Normalize and validate URL."""
+        """Normalize and validate a URL."""
         try:
-            # Handle GSC property formats
             if url.startswith('sc-domain:'):
-                # Convert sc-domain:example.com to https://example.com
-                domain = url.replace('sc-domain:', '')
-                url = f"https://{domain}"
-            elif not url.startswith(('http://', 'https://')):
-                url = f"https://{url}"
+                url = url.replace('sc-domain:', '')
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
             
-            # Parse and validate
             parsed = urlparse(url)
             if not parsed.netloc:
                 return None
-                
+            
             return f"{parsed.scheme}://{parsed.netloc}"
             
         except Exception as e:
-            print(f"[METADATA] Error normalizing URL {url}: {e}")
             return None
-    
+
     async def _discover_pages(self, base_url: str) -> List[str]:
-        """Discover pages on the website to analyze."""
+        """Discover pages to analyze from sitemap and homepage."""
         try:
-            pages = [base_url]  # Always include homepage
+            pages = set()
             
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=self.timeout),
-                headers={'User-Agent': self.user_agent}
-            ) as session:
-                
-                # Try to get sitemap first
-                sitemap_pages = await self._get_sitemap_pages(session, base_url)
-                if sitemap_pages:
-                    pages.extend(sitemap_pages[:self.max_pages-1])  # Reserve 1 slot for homepage
-                    return list(set(pages))  # Remove duplicates
-                
-                # Fallback: crawl homepage for internal links
-                homepage_links = await self._get_homepage_links(session, base_url)
-                if homepage_links:
-                    pages.extend(homepage_links[:self.max_pages-1])
-                
-                return list(set(pages))  # Remove duplicates
-                
+            # Try to get sitemap pages
+            sitemap_pages = await self._get_sitemap_pages(base_url)
+            pages.update(sitemap_pages)
+            
+            # Get homepage links as fallback
+            homepage_links = await self._get_homepage_links(base_url)
+            pages.update(homepage_links)
+            
+            # Always include the homepage
+            pages.add(base_url)
+            
+            return list(pages)
+            
         except Exception as e:
-            print(f"[METADATA] Error discovering pages: {e}")
             return [base_url]  # Return at least the homepage
-    
-    async def _get_sitemap_pages(self, session: aiohttp.ClientSession, base_url: str) -> List[str]:
-        """Try to get pages from sitemap.xml."""
+
+    async def _get_sitemap_pages(self, base_url: str) -> List[str]:
+        """Get pages from sitemap.xml."""
         try:
             sitemap_urls = [
                 f"{base_url}/sitemap.xml",
                 f"{base_url}/sitemap_index.xml",
-                f"{base_url}/robots.txt"  # Check robots.txt for sitemap
+                f"{base_url}/sitemap/sitemap.xml"
             ]
             
-            for sitemap_url in sitemap_urls:
-                try:
-                    async with session.get(sitemap_url) as response:
-                        if response.status == 200:
-                            content = await response.text()
-                            
-                            if sitemap_url.endswith('robots.txt'):
-                                # Extract sitemap URLs from robots.txt
-                                sitemap_matches = re.findall(r'Sitemap:\s*(.+)', content, re.IGNORECASE)
-                                for sitemap_match in sitemap_matches:
-                                    sitemap_match = sitemap_match.strip()
-                                    async with session.get(sitemap_match) as sitemap_response:
-                                        if sitemap_response.status == 200:
-                                            sitemap_content = await sitemap_response.text()
-                                            return self._parse_sitemap(sitemap_content)
-                            else:
-                                return self._parse_sitemap(content)
+            pages = []
+            async with aiohttp.ClientSession() as session:
+                for sitemap_url in sitemap_urls:
+                    try:
+                        async with session.get(sitemap_url) as response:
+                            if response.status == 200:
+                                content = await response.text()
+                                pages.extend(self._parse_sitemap(content, base_url))
+                                break
                                 
-                except Exception as e:
-                    print(f"[METADATA] Error fetching {sitemap_url}: {e}")
-                    continue
+                    except Exception as e:
+                        continue
             
-            return []
+            return pages
             
         except Exception as e:
-            print(f"[METADATA] Error getting sitemap pages: {e}")
             return []
-    
-    def _parse_sitemap(self, sitemap_content: str) -> List[str]:
+
+    def _parse_sitemap(self, content: str, base_url: str) -> List[str]:
         """Parse sitemap XML content."""
         try:
-            # Simple regex approach for XML parsing
-            url_matches = re.findall(r'<loc>(.*?)</loc>', sitemap_content)
+            # Simple regex-based parsing
+            url_pattern = r'<loc>(.*?)</loc>'
+            url_matches = re.findall(url_pattern, content, re.IGNORECASE)
+            
             return [url.strip() for url in url_matches if url.strip()]
         except Exception as e:
-            print(f"[METADATA] Error parsing sitemap: {e}")
             return []
-    
-    async def _get_homepage_links(self, session: aiohttp.ClientSession, base_url: str) -> List[str]:
-        """Get internal links from homepage."""
+
+    async def _get_homepage_links(self, base_url: str) -> List[str]:
+        """Get links from homepage."""
         try:
-            async with session.get(base_url) as response:
-                if response.status != 200:
-                    return []
-                
-                html = await response.text()
-                soup = BeautifulSoup(html, 'html.parser')
-                
-                links = []
-                domain = urlparse(base_url).netloc
-                
-                for link in soup.find_all('a', href=True):
-                    href = link['href']
-                    
-                    # Convert relative URLs to absolute
-                    full_url = urljoin(base_url, href)
-                    
-                    # Only include internal links
-                    if urlparse(full_url).netloc == domain:
-                        links.append(full_url)
-                
-                return links[:self.max_pages]
-                
-        except Exception as e:
-            print(f"[METADATA] Error getting homepage links: {e}")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(base_url) as response:
+                    if response.status == 200:
+                        content = await response.text()
+                        
+                        # Extract links using regex
+                        link_pattern = r'href=["\']([^"\']+)["\']'
+                        links = re.findall(link_pattern, content)
+                        
+                        # Filter and normalize links
+                        valid_links = []
+                        for link in links:
+                            if link.startswith('/'):
+                                valid_links.append(urljoin(base_url, link))
+                            elif link.startswith('http') and base_url in link:
+                                valid_links.append(link)
+                        
+                        return valid_links[:10]  # Limit to first 10 links
+            
             return []
-    
-    async def _analyze_page(self, session: aiohttp.ClientSession, page_url: str) -> Optional[Dict]:
+            
+        except Exception as e:
+            return []
+
+    async def _analyze_page(self, session: aiohttp.ClientSession, page_url: str) -> Optional[Dict[str, Any]]:
         """Analyze a single page for metadata and SEO elements."""
         try:
+            print(f"[DEBUG] Fetching page: {page_url}")
             async with session.get(page_url) as response:
+                print(f"[DEBUG] HTTP status for {page_url}: {response.status}")
                 if response.status != 200:
-                    print(f"[METADATA] Failed to fetch {page_url}: {response.status}")
+                    print(f"[DEBUG] Non-200 status for {page_url}, skipping.")
                     return None
-                
-                html = await response.text()
-                soup = BeautifulSoup(html, 'html.parser')
-                
-                # Analyze meta title
-                title_tag = soup.find('title')
-                title_text = title_tag.get_text().strip() if title_tag else ""
-                title_optimized = self._is_title_optimized(title_text)
-                
-                # Analyze meta description
-                meta_desc = soup.find('meta', attrs={'name': 'description'})
-                desc_text = meta_desc.get('content', '').strip() if meta_desc else ""
-                desc_optimized = self._is_description_optimized(desc_text)
-                
-                # Analyze H1 tags
-                h1_tags = soup.find_all('h1')
-                h1_optimized = self._are_h1_tags_optimized(h1_tags)
-                
-                # Analyze images with detailed console output 
-                images = soup.find_all('img')
-                images_with_alt = [img for img in images if img.get('alt', '').strip()]
-                
-                # Highlight image tags in terminal
-                self._highlight_image_tags(page_url, images)
-                
-                return {
+                content = await response.text()
+                print(f"[DEBUG] Content length for {page_url}: {len(content)}")
+                # Extract metadata
+                analysis = {
                     'url': page_url,
-                    'title': title_text,
-                    'title_optimized': title_optimized,
-                    'meta_description': desc_text,
-                    'description_optimized': desc_optimized,
-                    'h1_count': len(h1_tags),
-                    'h1_optimized': h1_optimized,
-                    'total_images': len(images),
-                    'images_with_alt': len(images_with_alt),
-                    'images_optimized': len(images_with_alt) == len(images) if images else True
+                    'title': self._extract_title(content),
+                    'meta_description': self._extract_meta_description(content),
+                    'meta_keywords': self._extract_meta_keywords(content),
+                    'h1_tags': self._extract_h1_tags(content),
+                    'h2_tags': self._extract_h2_tags(content),
+                    'images_without_alt': self._find_images_without_alt(content),
+                    'canonical_url': self._extract_canonical_url(content),
+                    'robots_meta': self._extract_robots_meta(content),
+                    'og_tags': self._extract_og_tags(content),
+                    'twitter_tags': self._extract_twitter_tags(content),
+                    'schema_markup': self._extract_schema_markup(content)
                 }
-                
+                print(f"[DEBUG] Extracted analysis for {page_url}: {analysis}")
+                return analysis
         except Exception as e:
-            print(f"[METADATA] Error analyzing page {page_url}: {e}")
+            print(f"[DEBUG] Exception in _analyze_page for {page_url}: {e}")
             return None
     
     def _is_title_optimized(self, title: str) -> bool:
@@ -278,211 +225,66 @@ class MetadataAnalyzer:
         h1_text = h1_tags[0].get_text().strip()
         return len(h1_text) > 0
     
-    def _highlight_image_tags(self, page_url: str, images: List) -> None:
-        """Highlight and display image tags found on the page."""
+    def _aggregate_results(self, analysis_results: List[Dict[str, Any]]) -> Dict[str, Any]:
         try:
-            print(f"\n{'='*80}")
-            print(f"🖼️  IMAGE ANALYSIS FOR: {page_url}")
-            print(f"{'='*80}")
-            
-            if not images:
-                print("❌ No <img> tags found on this page")
-                print(f"{'='*80}\n")
-                return
-            
-            print(f"📊 Found {len(images)} image(s) on this page:")
-            print("-" * 80)
-            
-            for i, img in enumerate(images, 1):
-                # Extract image attributes
-                src = img.get('src', '')
-                alt = img.get('alt', '')
-                title = img.get('title', '')
-                width = img.get('width', '')
-                height = img.get('height', '')
-                loading = img.get('loading', '')
-                
-                # Color coding for terminal output
-                status_icon = "✅" if alt.strip() else "❌"
-                alt_status = "HAS ALT TEXT" if alt.strip() else "MISSING ALT TEXT"
-                
-                print(f"\n🏷️  IMAGE #{i} - {status_icon} {alt_status}")
-                print(f"   📂 Source: {src[:100]}{'...' if len(src) > 100 else ''}")
-                
-                if alt.strip():
-                    print(f"   ✨ Alt Text: \"{alt}\"")
-                else:
-                    print(f"   ⚠️  Alt Text: [EMPTY - NEEDS ATTENTION]")
-                
-                if title.strip():
-                    print(f"   🏷️  Title: \"{title}\"")
-                
-                # Additional attributes
-                attrs = []
-                if width: attrs.append(f"width={width}")
-                if height: attrs.append(f"height={height}")
-                if loading: attrs.append(f"loading={loading}")
-                
-                if attrs:
-                    print(f"   📐 Attributes: {', '.join(attrs)}")
-                
-                # Show the actual HTML tag (truncated for readability)
-                img_html = str(img)
-                if len(img_html) > 200:
-                    img_html = img_html[:200] + "..."
-                print(f"   🔍 HTML: {img_html}")
-                
-                print("-" * 80)
-            
-            # Summary statistics
-            images_with_alt = len([img for img in images if img.get('alt', '').strip()])
-            images_without_alt = len(images) - images_with_alt
-            alt_percentage = (images_with_alt / len(images)) * 100 if images else 0
-            
-            print(f"\n📈 SUMMARY FOR THIS PAGE:")
-            print(f"   • Total Images: {len(images)}")
-            print(f"   • With Alt Text: {images_with_alt} ✅")
-            print(f"   • Without Alt Text: {images_without_alt} ❌")
-            print(f"   • Alt Text Coverage: {alt_percentage:.1f}%")
-            
-            if alt_percentage < 100:
-                print(f"   ⚠️  RECOMMENDATION: Add alt text to {images_without_alt} image(s) for better accessibility")
-            else:
-                print(f"   🎉 EXCELLENT: All images have alt text!")
-            
-            print(f"{'='*80}\n")
-            
-        except Exception as e:
-            print(f"[METADATA] Error highlighting image tags: {e}")
-    
-    def _print_website_image_summary(self, analysis_results: List[Dict], aggregated_results: Dict) -> None:
-        """Print a comprehensive summary of all images found across the website."""
-        try:
-            print(f"\n{'🌐'*40}")
-            print(f"🖼️  WEBSITE-WIDE IMAGE ANALYSIS SUMMARY")
-            print(f"{'🌐'*40}")
-            
-            total_pages = len(analysis_results)
-            total_images = aggregated_results.get('image_alt_text_total', 0)
-            images_with_alt = aggregated_results.get('image_alt_text_optimized', 0)
-            images_without_alt = total_images - images_with_alt
-            
-            print(f"📊 OVERALL STATISTICS:")
-            print(f"   • Pages Analyzed: {total_pages}")
-            print(f"   • Total Images Found: {total_images}")
-            print(f"   • Images with Alt Text: {images_with_alt} ✅")
-            print(f"   • Images without Alt Text: {images_without_alt} ❌")
-            
-            if total_images > 0:
-                coverage_percentage = (images_with_alt / total_images) * 100
-                print(f"   • Alt Text Coverage: {coverage_percentage:.1f}%")
-                
-                # Performance rating
-                if coverage_percentage >= 95:
-                    rating = "🏆 EXCELLENT"
-                    color = "✅"
-                elif coverage_percentage >= 80:
-                    rating = "👍 GOOD"
-                    color = "🟡"
-                elif coverage_percentage >= 60:
-                    rating = "⚠️ NEEDS IMPROVEMENT"
-                    color = "🟠"
-                else:
-                    rating = "❌ POOR"
-                    color = "🔴"
-                
-                print(f"   • Accessibility Rating: {color} {rating}")
-            else:
-                print(f"   • Alt Text Coverage: N/A (No images found)")
-            
-            print(f"\n📋 PAGE-BY-PAGE BREAKDOWN:")
-            print("-" * 80)
-            
-            for i, result in enumerate(analysis_results, 1):
-                page_images = result.get('total_images', 0)
-                page_with_alt = result.get('images_with_alt', 0)
-                page_without_alt = page_images - page_with_alt
-                page_url = result.get('url', 'Unknown')
-                
-                # Truncate URL for display
-                display_url = page_url if len(page_url) <= 60 else page_url[:57] + "..."
-                
-                status_icon = "✅" if page_without_alt == 0 and page_images > 0 else "❌" if page_without_alt > 0 else "➖"
-                
-                print(f"{i:2d}. {status_icon} {display_url}")
-                print(f"     Images: {page_images} total, {page_with_alt} with alt, {page_without_alt} missing alt")
-            
-            print("-" * 80)
-            
-            if images_without_alt > 0:
-                print(f"\n🔧 RECOMMENDATIONS:")
-                print(f"   • Add alt text to {images_without_alt} images across {total_pages} pages")
-                print(f"   • Focus on decorative images: use alt=\"\" for purely decorative images")
-                print(f"   • Descriptive alt text: describe the image content and context")
-                print(f"   • Keep alt text concise: aim for 125 characters or less")
-                print(f"   • Avoid redundant phrases: don't start with 'image of' or 'picture of'")
-            else:
-                print(f"\n🎉 CONGRATULATIONS!")
-                print(f"   • All {total_images} images across your website have alt text!")
-                print(f"   • Your website meets accessibility standards for images")
-                print(f"   • Continue this excellent practice for any new images you add")
-            
-            print(f"\n{'🌐'*40}\n")
-            
-        except Exception as e:
-            print(f"[METADATA] Error printing website image summary: {e}")
-    
-    def _aggregate_results(self, results: List[Dict]) -> Dict:
-        """Aggregate analysis results from multiple pages."""
-        try:
-            total_pages = len(results)
-            
-            # Count optimized elements
-            titles_optimized = sum(1 for r in results if r['title_optimized'])
-            descriptions_optimized = sum(1 for r in results if r['description_optimized'])
-            h1_optimized = sum(1 for r in results if r['h1_optimized'])
-            
-            # Count images
-            total_images = sum(r['total_images'] for r in results)
-            images_with_alt = sum(r['images_with_alt'] for r in results)
-            
-            # Calculate percentages for SEO score
-            title_percentage = round((titles_optimized / total_pages) * 100) if total_pages > 0 else 0
-            desc_percentage = round((descriptions_optimized / total_pages) * 100) if total_pages > 0 else 0
-            h1_percentage = round((h1_optimized / total_pages) * 100) if total_pages > 0 else 0
-            alt_percentage = round((images_with_alt / total_images) * 100) if total_images > 0 else 100
-            
-            # Generate insights
-            insights = self._generate_insights(
-                titles_optimized, total_pages,
-                descriptions_optimized, total_pages,
-                images_with_alt, total_images,
-                h1_optimized, total_pages
-            )
-            
-            return {
-                # Counts for display
-                "meta_titles_optimized": titles_optimized,
-                "meta_titles_total": total_pages,
-                "meta_descriptions_optimized": descriptions_optimized,
-                "meta_descriptions_total": total_pages,
-                "image_alt_text_optimized": images_with_alt,
-                "image_alt_text_total": total_images,
-                "h1_tags_optimized": h1_optimized,
-                "h1_tags_total": total_pages,
-                
-                # Percentages for SEO score calculation
-                "meta_titles": title_percentage,
-                "meta_descriptions": desc_percentage,
-                "image_alt_text": alt_percentage,
-                "h1_tags": h1_percentage,
-                
-                "insights": insights,
-                "pages_analyzed": total_pages
+            print(f"[DEBUG] Aggregating results for {len(analysis_results)} pages.")
+            aggregated = {
+                'total_pages_analyzed': len(analysis_results),
+                'pages_with_titles': 0,
+                'pages_with_descriptions': 0,
+                'pages_with_keywords': 0,
+                'total_h1_tags': 0,
+                'total_h2_tags': 0,
+                'images_with_alt': 0,
+                'images_without_alt_count': 0,
+                'pages_with_canonical': 0,
+                'pages_with_robots_meta': 0,
+                'pages_with_og_tags': 0,
+                'pages_with_twitter_tags': 0,
+                'pages_with_schema': 0,
+                'issues': []
             }
-            
+            for result in analysis_results:
+                print(f"[DEBUG] Aggregating page result: {result}")
+                if result.get('title'):
+                    aggregated['pages_with_titles'] += 1
+                if result.get('meta_description'):
+                    aggregated['pages_with_descriptions'] += 1
+                if result.get('meta_keywords'):
+                    aggregated['pages_with_keywords'] += 1
+                if result.get('canonical_url'):
+                    aggregated['pages_with_canonical'] += 1
+                if result.get('robots_meta'):
+                    aggregated['pages_with_robots_meta'] += 1
+                if result.get('og_tags'):
+                    aggregated['pages_with_og_tags'] += 1
+                if result.get('twitter_tags'):
+                    aggregated['pages_with_twitter_tags'] += 1
+                if result.get('schema_markup'):
+                    aggregated['pages_with_schema'] += 1
+                h1s = result.get('h1_tags', [])
+                aggregated['total_h1_tags'] += len(h1s)
+                if len(h1s) > 0:
+                    aggregated['images_with_alt'] += 1  # count pages with at least one h1
+                aggregated['total_h2_tags'] += len(result.get('h2_tags', []))
+                images_without_alt = result.get('images_without_alt', [])
+                aggregated['images_without_alt_count'] += len(images_without_alt)
+            # Calculate percentages
+            total_pages = aggregated['total_pages_analyzed']
+            meta_titles = int((aggregated['pages_with_titles'] / total_pages) * 100) if total_pages > 0 else 0
+            meta_descriptions = int((aggregated['pages_with_descriptions'] / total_pages) * 100) if total_pages > 0 else 0
+            h1_tags = int((aggregated['images_with_alt'] / total_pages) * 100) if total_pages > 0 else 0
+            total_images = aggregated['images_with_alt'] + aggregated['images_without_alt_count']
+            image_alt_text = int((aggregated['images_with_alt'] / total_images) * 100) if total_images > 0 else 0
+            # Add dashboard fields
+            aggregated['meta_titles'] = meta_titles
+            aggregated['meta_descriptions'] = meta_descriptions
+            aggregated['image_alt_text'] = image_alt_text
+            aggregated['h1_tags'] = h1_tags
+            print(f"[DEBUG] Final aggregated metrics: {aggregated}")
+            return aggregated
         except Exception as e:
-            print(f"[METADATA] Error aggregating results: {e}")
+            print(f"[DEBUG] Exception in _aggregate_results: {e}")
             return {}
     
     def _generate_insights(self, titles_opt: int, titles_total: int,
@@ -525,3 +327,72 @@ class MetadataAnalyzer:
             insights.append("Overall metadata optimization looks good. Continue monitoring for new content.")
         
         return insights 
+
+    def _extract_title(self, content: str) -> str:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        title_tag = soup.find('title')
+        return title_tag.get_text().strip() if title_tag else ''
+
+    def _extract_meta_description(self, content: str) -> str:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        desc_tag = soup.find('meta', attrs={'name': 'description'})
+        return desc_tag['content'].strip() if desc_tag and desc_tag.has_attr('content') else ''
+
+    def _extract_meta_keywords(self, content: str) -> str:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        kw_tag = soup.find('meta', attrs={'name': 'keywords'})
+        return kw_tag['content'].strip() if kw_tag and kw_tag.has_attr('content') else ''
+
+    def _extract_h1_tags(self, content: str) -> list:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        return [h1.get_text().strip() for h1 in soup.find_all('h1')]
+
+    def _extract_h2_tags(self, content: str) -> list:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        return [h2.get_text().strip() for h2 in soup.find_all('h2')]
+
+    def _find_images_without_alt(self, content: str) -> list:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        return [img['src'] for img in soup.find_all('img') if not img.has_attr('alt') or not img['alt'].strip()]
+
+    def _extract_canonical_url(self, content: str) -> str:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        link_tag = soup.find('link', rel='canonical')
+        return link_tag['href'].strip() if link_tag and link_tag.has_attr('href') else ''
+
+    def _extract_robots_meta(self, content: str) -> str:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        robots_tag = soup.find('meta', attrs={'name': 'robots'})
+        return robots_tag['content'].strip() if robots_tag and robots_tag.has_attr('content') else ''
+
+    def _extract_og_tags(self, content: str) -> dict:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        og_tags = {}
+        for tag in soup.find_all('meta'):
+            if tag.has_attr('property') and tag['property'].startswith('og:'):
+                og_tags[tag['property']] = tag['content'] if tag.has_attr('content  ') else ''
+        return og_tags
+
+    def _extract_twitter_tags(self, content: str) -> dict:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        twitter_tags = {}
+        for tag in soup.find_all('meta'):
+            if tag.has_attr('name') and tag['name'].startswith('twitter:'):
+                twitter_tags[tag['name']] = tag['content'] if tag.has_attr('content') else ''
+        return twitter_tags
+
+    def _extract_schema_markup(self, content: str) -> list:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        scripts = soup.find_all('script', type='application/ld+json')
+        return [script.string for script in scripts if script.string] 

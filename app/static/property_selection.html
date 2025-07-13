@@ -78,12 +78,25 @@
 
         async function loadGSCProperties() {
             try {
+                // IMMEDIATE LOADING INDICATOR - Show loading state instantly
+                const container = document.getElementById('properties-container');
+                const loadingHtml = `
+                    <div class="loading-center">
+                        <div class="loading"></div>
+                        <p>Loading your Google Search Console properties...</p>
+                    </div>
+                `;
+                container.innerHTML = loadingHtml;
+                
                 const token = localStorage.getItem('auth_token');
                 
                 if (!token) {
                     showError('No authentication token found. Please log in again.');
                     return;
                 }
+                
+                // Small delay to ensure loading indicator is visible
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
                 const response = await fetch('/auth/gsc/properties', {
                     headers: {
@@ -93,11 +106,9 @@
 
                 if (response.ok) {
                     gscProperties = await response.json();
-                    console.log('[DEBUG] GSC properties:', gscProperties);
                     displayProperties();
                 } else {
                     const errorText = await response.text();
-                    console.log('[DEBUG] Error response:', errorText);
                     
                     // Check if it's a credentials issue
                     if (response.status === 500 && errorText.includes('credentials')) {
@@ -107,7 +118,6 @@
                     }
                 }
             } catch (error) {
-                console.error('Error loading GSC properties:', error);
                 showError(`Failed to load your Google Search Console properties: ${error.message}`);
             }
         }
@@ -216,7 +226,6 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Property selected successfully:', data);
                     showLoadingStep();
                     finishSetup();
                 } else {
@@ -224,7 +233,6 @@
                     throw new Error(error.detail || 'Failed to select property');
                 }
             } catch (error) {
-                console.error('Error selecting property:', error);
                 showError(error.message || 'Failed to select website. Please try again.');
                 
                 // Reset button state
@@ -303,5 +311,38 @@
             // Success message stays on page permanently
         }
     </script>
+    <script>
+document.addEventListener('DOMContentLoaded', async function () {
+    // Check if we have a JWT token
+    const jwt = localStorage.getItem('auth_token');
+    
+    if (!jwt) {
+        alert('Session expired. Please log in again.');
+        window.location.href = '/ui';
+        return;
+    }
+
+    // Check if this is an OAuth callback (has code parameter)
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    const error = urlParams.get('error');
+
+    if (error) {
+        alert('Google authorization failed: ' + error);
+        window.location.href = '/ui';
+        return;
+    }
+
+    // If this is an OAuth callback, the server has already processed it
+    // We just need to load the GSC properties
+    if (code && state) {
+        // (debug log removed)
+    }
+
+    // Load GSC properties on page load
+    await loadGSCProperties();
+});
+</script>
 </body>
 </html> 

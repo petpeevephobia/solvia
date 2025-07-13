@@ -88,8 +88,6 @@ def get_airtable_records():
         
         # Test the connection by getting records
         records = table.all()
-        print(f"Successfully connected to Airtable table '{table_name}'")
-        
         return table, records
         
     except Exception as e:
@@ -125,14 +123,11 @@ def get_site_info(service, url):
             site_url = site.get('siteUrl', '')
             if site_url == domain_property:
                 original_is_domain = True
-                print(f"\tFound original domain property: {domain_property}")
                 break
             elif site_url.startswith('http') and domain in site_url:
-                print(f"\tFound original URL prefix property: {site_url}")
                 break
         
         # For verification, always return URL prefix version first
-        print(f"\tChecking URL prefix version: {url_prefix}")
         return url_prefix, False, original_is_domain
         
     except Exception as e:
@@ -161,7 +156,6 @@ def get_gsc_metrics(service, url, days=30):
     try:
         # First try with URL prefix format for verification
         site_url, is_domain_property, original_is_domain = get_site_info(service, url)
-        print(f"\tVerifying access using URL prefix: {site_url}")
         
         # For initial verification, always use path for URL prefix
         parsed = urlparse(url)
@@ -186,16 +180,13 @@ def get_gsc_metrics(service, url, days=30):
         # Try URL prefix version first
         encoded_site_url = quote(site_url, safe=':/')
         try:
-            print(f"\tVerifying access to: {site_url}")
             response = service.searchanalytics().query(
                 siteUrl=encoded_site_url,
                 body=request
             ).execute()
-            print("Successfully verified URL access")
             
             # If original was domain property, switch back for actual data fetch
             if original_is_domain:
-                print("\tSwitching back to domain property for data fetch...")
                 domain = parsed.netloc.replace('www.', '')
                 site_url = f"sc-domain:{domain}"
                 encoded_site_url = quote(site_url, safe=':/')
@@ -204,7 +195,6 @@ def get_gsc_metrics(service, url, days=30):
                 # Update request with full URL for domain property
                 request['dimensionFilterGroups'][0]['filters'][0]['expression'] = page_url
                 
-                print(f"\tFetching data using domain property: {site_url}")
                 response = service.searchanalytics().query(
                     siteUrl=encoded_site_url,
                     body=request
@@ -241,14 +231,6 @@ def get_gsc_metrics(service, url, days=30):
                 }
         
         if not response.get('rows'):
-            print(f"\t⚠️  No GSC data found for URL: {url}")
-            print(f"\t   Possible reasons:")
-            print(f"\t   - Website is new (no search traffic yet)")
-            print(f"\t   - URL not properly verified in GSC")
-            print(f"\t   - Different property type needed (domain vs URL prefix)")
-            print(f"\t   - No search traffic in the selected time period ({days} days)")
-            print(f"\t   - Website not indexed by Google yet")
-            print(f"\t   ✅ Continuing with other metrics...")
             return {
                 'impressions': 0,
                 'clicks': 0,
@@ -263,12 +245,10 @@ def get_gsc_metrics(service, url, days=30):
             'ctr': round(row['ctr'] * 100, 2),
             'average_position': round(row['position'], 2)
         }
-        print(f"\tRetrieved metrics for {url}: {metrics}")
         return metrics
         
     except Exception as e:
         error_message = str(e)
-        print(f"\tError querying GSC for {url}: {error_message}")
         return {
             'impressions': 0,
             'clicks': 0,
@@ -284,7 +264,6 @@ def get_psi_metrics(url, strategy="mobile"):
     """Fetch PageSpeed Insights metrics for a given URL."""
     api_key = os.getenv("PSI_API_KEY")
     if not api_key:
-        print("PSI_API_KEY env var not set; returning zeroed PSI metrics")
         return {
             "performance_score": 0,
             "first_contentful_paint": 0,
@@ -313,7 +292,6 @@ def get_psi_metrics(url, strategy="mobile"):
             "cumulative_layout_shift": round(audits.get("cumulative-layout-shift", {}).get("numericValue", 0), 2)
         }
     except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error fetching PSI metrics for {url}: {http_err}")
         try:
             print(f"Response body: {r.text}")
         except Exception:
@@ -359,7 +337,6 @@ def get_sitemaps_status(service, url):
     site_property = domain_property if original_is_domain else url_prefix
     
     try:
-        print(f"Fetching sitemap submission data for {site_property}...")
         resp = service.sitemaps().list(siteUrl=site_property).execute()
         entries = resp.get("sitemap", [])
         
@@ -418,11 +395,8 @@ def get_sitemaps_status(service, url):
 
 def get_mobile_usability_from_psi(url):
     """Extract mobile usability data from PageSpeed Insights API."""
-    print(f"\nChecking mobile usability via PageSpeed Insights for {url}...")
-    
     api_key = os.getenv("PSI_API_KEY")
     if not api_key:
-        print("\tPSI_API_KEY not set; skipping mobile usability check")
         return {
             "mobile_friendly_status": "NO_API_KEY",
             "mobile_friendly_issues_count": 0,
@@ -439,8 +413,6 @@ def get_mobile_usability_from_psi(url):
             "key": api_key,
             "category": "accessibility"  # This includes mobile usability
         }
-        
-        print(f"\tCalling PageSpeed Insights API for mobile analysis...")
         
         response = requests.get(endpoint, params=params)
         response.raise_for_status()
@@ -477,15 +449,10 @@ def get_mobile_usability_from_psi(url):
             mobile_status = "NOT_MOBILE_FRIENDLY" 
             mobile_passed = "No"
         
-        print(f"\t✓ Mobile usability check completed: {mobile_status}")
-        
-        # Format for Airtable field types
-        issues_text = "; ".join(mobile_issues) if mobile_issues else ""
-        
         return {
             "mobile_friendly_status": mobile_status,
             "mobile_friendly_issues_count": len(mobile_issues),
-            "mobile_friendly_issues": issues_text,
+            "mobile_friendly_issues": "; ".join(mobile_issues),
             "mobile_test_loading_state": "COMPLETE",
             "mobile_passed": mobile_passed
         }
@@ -506,7 +473,6 @@ def get_mobile_usability_from_psi(url):
 
 def get_keyword_performance(service, url, days=90):
     """Get top performing keywords for a URL from GSC."""
-    print(f"\nAnalyzing keyword performance for {url}...")
     
     # Get site property (domain vs URL prefix)
     parsed = urlparse(url)
@@ -526,7 +492,6 @@ def get_keyword_performance(service, url, days=90):
     start_date = end_date - timedelta(days=days)
     
     try:
-        print(f"\tFetching keyword data from GSC...")
         
         # Request top keywords for this specific URL
         request = {
@@ -552,7 +517,6 @@ def get_keyword_performance(service, url, days=90):
         keywords_data = []
         
         if response.get('rows'):
-            print(f"\tFound {len(response['rows'])} keywords")
             
             for row in response['rows']:
                 keyword = row['keys'][0]
@@ -586,8 +550,6 @@ def get_keyword_performance(service, url, days=90):
         top_keywords = sorted(keywords_data, key=lambda x: x['monthly_clicks'], reverse=True)[:5]
         top_keywords_text = "; ".join([kw['keyword_text'] for kw in top_keywords])
         
-        print(f"\tTop keywords: {top_keywords_text[:100]}...")
-        
         return {
             'top_keywords': top_keywords_text,
             'total_keywords_tracked': len(keywords_data),
@@ -610,7 +572,6 @@ def get_keyword_performance(service, url, days=90):
 
 def get_url_inspection(service, url):
     """Get URL inspection data from Google Search Console."""
-    print(f"\nFetching URL inspection data for {url}...")
     
     # Get site property (domain vs URL prefix)
     parsed = urlparse(url)
@@ -627,7 +588,6 @@ def get_url_inspection(service, url):
     site_property = domain_property if original_is_domain else url_prefix
     
     try:
-        print(f"\tChecking URL inspection for {url}...")
         
         # For URL inspection, we need to use the full URL
         inspection_url = url
@@ -678,10 +638,6 @@ def get_url_inspection(service, url):
         
         page_fetch_state = fetch_state_mapping.get(fetch_state, 'Not Available')
         
-        print(f"\t✓ URL inspection completed: {verdict}")
-        print(f"\t  Page fetch state: {page_fetch_state}")
-        
-        # Clean up values for Airtable field types
         return {
             'index_verdict': str(verdict).replace('"', '').strip(),
             'coverage_state': str(coverage_state).replace('"', '').strip(),
@@ -726,8 +682,8 @@ def main():
         return
 
     try:
-        # Initialize OpenAI
-        openai.api_key = os.getenv('OPENAI_API_KEY')
+        # Initialize OpenAI with new client format
+        client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         
         # Get GSC credentials and create service
         print("Getting Google Search Console credentials...")

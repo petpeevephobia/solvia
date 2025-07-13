@@ -209,35 +209,4 @@ class GoogleSheetsReportGenerator:
             
         except Exception as e:
             print(f"  ❌ Error generating report for {email}: {e}")
-            return False
-
-
-def test_google_sheets_reports():
-    """Test function to generate reports for Google Sheets users."""
-    
-    print("🧪 Testing Google Sheets Report Generation")
-    print("=" * 50)
-    
-    # Initialize the report generator
-    gs_reports = GoogleSheetsReportGenerator()
-    
-    # Test getting users with websites
-    users = gs_reports.get_users_with_websites()
-    print(f"Found {len(users)} users with websites:")
-    for user in users:
-        print(f"  - {user['email']}: {user['website_url']}")
-    
-    if users:
-        print(f"\n🎯 Generating test report for first user...")
-        first_user = users[0]
-        success = gs_reports.generate_single_report(first_user['email'])
-        if success:
-            print("✅ Test report generation successful!")
-        else:
-            print("❌ Test report generation failed!")
-    else:
-        print("⚠️  No users found for testing.")
-
-
-if __name__ == "__main__":
-    test_google_sheets_reports() 
+            return False 

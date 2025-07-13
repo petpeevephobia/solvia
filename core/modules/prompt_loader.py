@@ -10,7 +10,11 @@ def load_prompt(filename):
     Returns:
         str: The prompt template content
     """
-    prompt_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'app', 'auth', 'prompts', filename)
+    # Construct path from project root (core/modules -> project root -> app/auth/prompts)
+    current_dir = os.path.dirname(__file__)  # core/modules
+    modules_dir = os.path.dirname(current_dir)  # core
+    project_root = os.path.dirname(modules_dir)  # project root
+    prompt_path = os.path.join(project_root, 'app', 'auth', 'prompts', filename)
     with open(prompt_path, 'r', encoding='utf-8') as f:
         content = f.read()
         

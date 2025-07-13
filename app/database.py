@@ -10,6 +10,9 @@ from app.config import settings
 from app.auth.models import UserInDB, UserCreate
 import uuid
 import re
+from uuid import uuid4
+import os
+from app.database.supabase_client import supabase
 
 
 class GoogleSheetsDB:
@@ -18,7 +21,6 @@ class GoogleSheetsDB:
     def __init__(self):
         
         """Initialize Google Sheets connection or demo mode."""
-        self.demo_mode = False
         self.demo_users = []
         self.demo_metrics = []
         self.demo_reports = []  # Initialize demo reports storage
@@ -96,14 +98,8 @@ class GoogleSheetsDB:
             print(f"[ERROR] Credentials file: {settings.GOOGLE_SHEETS_CREDENTIALS_FILE}")
             print(f"[ERROR] Users Sheet ID: {settings.USERS_SHEET_ID}")
             print(f"[ERROR] Sessions Sheet ID: {settings.SESSIONS_SHEET_ID}")
-            print("Running in DEMO MODE with in-memory storage")
-            self.demo_mode = True
-            
-            # Initialize demo data
-            self._init_demo_data()
-            print(f"[DEBUG] Demo mode initialized with {len(self.demo_users)} users")
-            for user in self.demo_users:
-                print(f"[DEBUG] Demo user: {user['email']}")
+            print("[CRITICAL] Solvia requires Google Sheets connection. Demo mode is disabled.")
+            raise Exception("Google Sheets connection required. Cannot start Solvia without proper configuration.")
         
         # Perform periodic cleanup tasks
         self._perform_cleanup_tasks()
@@ -123,63 +119,49 @@ class GoogleSheetsDB:
         self._cache[key] = (data, datetime.utcnow())
     
     def _perform_cleanup_tasks(self):
-        """Perform periodic cleanup tasks - only once per day."""
-        # Check if cleanup has already been performed today using a file-based lock
-        import os
-        import tempfile
-        
+        """Perform daily cleanup tasks."""
         today = datetime.utcnow().date().isoformat()
-        lock_file = os.path.join(tempfile.gettempdir(), f"solvia_cleanup_{today}.lock")
+        lock_file = f"cleanup_lock_{today}.txt"
         
-        # Check if cleanup already performed today
+        # Check if cleanup was already performed today
         if os.path.exists(lock_file):
             try:
                 # Check if lock file is from today
                 lock_mtime = datetime.fromtimestamp(os.path.getmtime(lock_file)).date()
                 if lock_mtime == datetime.utcnow().date():
-                    print(f"[DEBUG] Cleanup already performed today ({today}), skipping")
                     return
             except (OSError, ValueError):
                 # If we can't read the lock file, proceed with cleanup
                 pass
         
-        print(f"[DEBUG] Performing daily cleanup tasks for {today}")
-        
         try:
             # Cleanup expired sessions
             sessions_cleaned = self.cleanup_expired_sessions()
-            print(f"[DEBUG] Cleaned {sessions_cleaned} expired sessions")
         except Exception as e:
             print(f"Error cleaning up sessions: {e}")
             
         try:
             # Cleanup expired dashboard cache (older than 7 days)  
             cache_cleaned = self.cleanup_dashboard_cache(days_old=7)
-            print(f"[DEBUG] Cleaned {cache_cleaned} expired dashboard cache entries")
         except Exception as e:
-            print(f"[DEBUG] Warning: Could not cleanup expired dashboard cache: {e}")
+            print(f"Warning: Could not cleanup expired dashboard cache: {e}")
             
         try:
             # Cleanup expired reports (older than 30 days)
             reports_cleaned = self.cleanup_expired_reports()
             print(f"[INFO] Cleaned up {reports_cleaned} expired SEO reports")
         except Exception as e:
-            print(f"[DEBUG] Warning: Could not cleanup expired reports: {e}")
+            print(f"Warning: Could not cleanup expired reports: {e}")
             
         # Create lock file to mark cleanup as completed for today
         try:
             with open(lock_file, 'w') as f:
                 f.write(f"Cleanup completed at {datetime.utcnow().isoformat()}")
-            print(f"[DEBUG] Daily cleanup completed for {today}")
         except Exception as e:
-            print(f"[DEBUG] Warning: Could not create cleanup lock file: {e}")
+            print(f"Warning: Could not create cleanup lock file: {e}")
     
     def get_or_create_sheet(self, sheet_name: str, headers: List[str] = None) -> gspread.Worksheet:
         """Get a worksheet by name, or create it if it doesn't exist."""
-        if self.demo_mode:
-            print(f"[DEBUG] Database in demo mode, cannot access sheet: {sheet_name}")
-            return None
-            
         try:
             sheet = self.client.open_by_key(settings.USERS_SHEET_ID).worksheet(sheet_name)
             return sheet
@@ -194,149 +176,67 @@ class GoogleSheetsDB:
                 sheet.append_row(headers)
             return sheet
     
-    def _init_demo_data(self):
-        """Initialize demo data for testing."""
-        # Create demo users
-        demo_users = [
-            {
-                'email': 'solviapteltd@gmail.com',
-                'password_hash': '$2b$12$kCnUogTNLWFUEgIgEu.5QOjqG3r96qKkBTXKFuAJT9TQc7lJ4JR4C',  # "Password1"
-                'created_at': '2024-01-01T00:00:00',
-                'last_login': '',
-                'is_verified': 'TRUE',
-                'verification_token': '',
-                'reset_token': ''
-            }
-        ]
-        
-        for demo_user in demo_users:
-            self.demo_users.append(demo_user)
-        
-        # Create demo metrics
-        for i in range(30):
-            date = datetime.now() - timedelta(days=29-i)
-            demo_metric = {
-                'email': 'demo@example.com',
-                'date': date.date().isoformat(),
-                'organic_traffic': 0,
-                'impressions': 0,
-                'avg_position': 0,
-                'ctr': 0,
-                'seo_score': 0,
-                'created_at': date.isoformat()
-            }
-            self.demo_metrics.append(demo_metric)
-    
     def _find_user_row(self, email: str) -> Optional[int]:
         """Find the row number for a user by email."""
         try:
             cell = self.users_sheet.find(email)
             if cell:
                 return cell.row
-                return None
+            return None
         except Exception:
             return None
     
     def create_user(self, user: UserCreate, password_hash: str, verification_token: str) -> bool:
         """Create a new user in the database."""
-        if self.demo_mode:
-            # Add to demo data
-            demo_user = {
-                'email': user.email,
-                'password_hash': password_hash,
-                'created_at': datetime.utcnow().isoformat(),
-                'last_login': '',
-                'is_verified': 'FALSE',
-                'verification_token': verification_token,
-                'reset_token': ''
-            }
-            self.demo_users.append(demo_user)
-            return True
-        
         try:
-            now = datetime.utcnow().isoformat()
-            user_data = [
+            # Check if user already exists
+            existing_user = self._find_user_row(user.email)
+            if existing_user:
+                print(f"User {user.email} already exists")
+                return False
+            
+            # Add new user
+            self.users_sheet.append_row([
                 user.email,
                 password_hash,
-                now,  # created_at
-                "",   # last_login
-                "FALSE",  # is_verified
-                verification_token,  # verification_token
-                ""   # reset_token
-            ]
-            self.users_sheet.append_row(user_data)
+                datetime.utcnow().isoformat(),
+                '',  # last_login
+                'FALSE',  # is_verified
+                verification_token,
+                ''  # reset_token
+            ])
+            print(f"Created user: {user.email}")
             return True
         except Exception as e:
             print(f"Error creating user: {e}")
             return False
     
     def get_user_by_email(self, email: str) -> Optional[UserInDB]:
-        """Get user by email."""
-        print(f"[DEBUG] get_user_by_email called with email: '{email}'")
-        print(f"[DEBUG] Demo mode: {self.demo_mode}")
-        
-        if self.demo_mode:
-            # Use demo data
-            print(f"[DEBUG] Searching in demo users: {[u['email'] for u in self.demo_users]}")
-            for user_record in self.demo_users:
-                if user_record.get('email') == email:
-                    print(f"[DEBUG] Found user in demo data: {email}")
-                    return UserInDB(
-                        id=str(uuid.uuid4()),
-                        email=user_record.get('email'),
-                        password_hash=user_record.get('password_hash'),
-                        created_at=user_record.get('created_at'),
-                        is_verified=user_record.get('is_verified', '').upper() == "TRUE",
-                        verification_token=user_record.get('verification_token'),
-                        reset_token=user_record.get('reset_token')
-                    )
-            print(f"[DEBUG] User not found in demo data: {email}")
-            return None
-        
+        """Get user by email from the database."""
         try:
-            # Check cache first
-            cache_key = f"user_{email}"
-            cached_user = self._get_cached_data(cache_key)
-            if cached_user:
-                print(f"[DEBUG] Returning cached user data for: {email}")
-                return cached_user
+            # Find user row
+            user_row = self._find_user_row(email)
+            if not user_row:
+                return None
             
-            # Get all users as records (dictionary format)
-            print(f"[DEBUG] Searching for email: '{email}'")
-            all_users = self.users_sheet.get_all_records()
-            print(f"[DEBUG] Emails in sheet:")
-            for user_record in all_users:
-                print(f"  - '{user_record.get('email')}'")
-            # Find user by email
-            for user_record in all_users:
-                if user_record.get('email') == email:
-                    print(f"[DEBUG] Match found for email: '{email}'")
-                    user = UserInDB(
-                        id=str(uuid.uuid4()),  # Generate a UUID for the user
-                        email=user_record.get('email'),
-                        password_hash=user_record.get('password_hash'),
-                        created_at=user_record.get('created_at') if user_record.get('created_at') else datetime.utcnow().isoformat(),
-                        is_verified=user_record.get('is_verified', '').upper() == "TRUE",
-                        verification_token=user_record.get('verification_token'),
-                        reset_token=user_record.get('reset_token')
-                    )
-                    # Cache the user data
-                    self._set_cached_data(cache_key, user)
-                    return user
-            
+            # Get user data
+            user_data = self.users_sheet.row_values(user_row)
+            if len(user_data) < 7:
+                print(f"Invalid user data for {email}: insufficient columns")
             return None
+        
+            return UserInDB(
+                id=str(uuid4()),
+                email=user_data[0],
+                password_hash=user_data[1],
+                created_at=user_data[2],
+                last_login=user_data[3] if user_data[3] else None,
+                is_verified=user_data[4].upper() == 'TRUE',
+                verification_token=user_data[5] if user_data[5] else None,
+                reset_token=user_data[6] if user_data[6] else None
+            )
         except Exception as e:
-            print(f"Error getting user: {e}")
-            # If it's a rate limit error, try to return cached data or fall back to demo mode
-            if "429" in str(e) or "quota" in str(e).lower():
-                print("[WARNING] Google Sheets rate limit exceeded, checking cache")
-                cached_user = self._get_cached_data(f"user_{email}")
-                if cached_user:
-                    return cached_user
-                print("[WARNING] No cached data available, switching to demo mode")
-                # Switch to demo mode temporarily
-                self.demo_mode = True
-                return self.get_user_by_email(email)  # Recursive call with demo mode
+            print(f"Error getting user by email: {e}")
             return None
     
     def update_user_verification(self, email: str, is_verified: bool = True) -> bool:
@@ -356,21 +256,11 @@ class GoogleSheetsDB:
     
     def update_last_login(self, email: str) -> bool:
         """Update user's last login timestamp."""
-        if self.demo_mode:
-            # Update demo data
-            for user in self.demo_users:
-                if user['email'] == email:
-                    user['last_login'] = datetime.utcnow().isoformat()
-                    return True
-            return False
-        
         try:
             row = self._find_user_row(email)
             if row is None:
                 return False
-            
-            now = datetime.utcnow().isoformat()
-            self.users_sheet.update_cell(row, 4, now)  # last_login column
+            self.users_sheet.update_cell(row, 4, datetime.utcnow().isoformat())
             return True
         except Exception as e:
             print(f"Error updating last login: {e}")
@@ -427,8 +317,7 @@ class GoogleSheetsDB:
             cell = self.sessions_sheet.find(session_token)
             if cell:
                 self.sessions_sheet.delete_rows(cell.row)
-                return True
-                return False
+            return True
         except Exception as e:
             print(f"Error deleting session: {e}")
             return False
@@ -436,7 +325,7 @@ class GoogleSheetsDB:
     def cleanup_expired_sessions(self) -> int:
         """Remove expired sessions and return count of removed sessions."""
         # Check if we're in demo mode or don't have sessions sheet
-        if self.demo_mode or not hasattr(self, 'sessions_sheet'):
+        if not hasattr(self, 'sessions_sheet'):
             return 0
             
         try:
@@ -491,25 +380,6 @@ class GoogleSheetsDB:
 
     def get_user_metrics(self, email: str, days: int = 30) -> List[Dict[str, Any]]:
         """Get user's metrics for last N days."""
-        if self.demo_mode:
-            # Use demo data
-            user_metrics = []
-            cutoff_date = datetime.now() - timedelta(days=days)
-            
-            for metric in self.demo_metrics:
-                if metric['email'] == email:
-                    try:
-                        metric_date = datetime.fromisoformat(metric['date'])
-                        if metric_date >= cutoff_date:
-                            user_metrics.append(metric)
-                    except ValueError:
-                        # Skip invalid dates
-                        continue
-            
-            # Sort by date
-            user_metrics.sort(key=lambda x: x['date'])
-            return user_metrics
-        
         try:
             metrics = self.seo_metrics_sheet.get_all_records()
             user_metrics = []
@@ -572,10 +442,6 @@ class GoogleSheetsDB:
 
     def add_user_website(self, email: str, website_url: str) -> bool:
         """Adds or updates a website for a user."""
-        if self.demo_mode:
-            # In demo mode, we can just assume this works
-            return True
-            
         try:
             # We can use the user's email to uniquely identify their row.
             # We will add the website to the 'users' sheet.
@@ -603,18 +469,6 @@ class GoogleSheetsDB:
 
     def get_user_website(self, email: str) -> Optional[Dict[str, Any]]:
         """Gets the selected website for a user."""
-        if self.demo_mode:
-            # Return demo website for the demo user
-            if email == 'solviapteltd@gmail.com':
-                # Check if user has selected a specific GSC property format
-                cache_key = f"gsc_property_{email}"
-                cached_property = self._get_cached_data(cache_key)
-                if cached_property:
-                    return {"website_url": cached_property}
-                # Default to the domain property format used in GSC
-                return {"website_url": "sc-domain:thenadraagency.com"}
-            return {"website_url": ""}
-
         try:
             # Check cache first
             cache_key = f"website_{email}"
@@ -645,32 +499,6 @@ class GoogleSheetsDB:
             if "429" in str(e) or "quota" in str(e).lower():
                 print("[WARNING] Google Sheets rate limit exceeded, using empty data")
                 return {"website_url": ""}
-            return None
-
-    def get_selected_gsc_property(self, email: str) -> str | None:
-        """
-        Returns the selected GSC property URL for the given user.
-        """
-        print(f"[DEBUG] get_selected_gsc_property called for: {email}")
-        
-        # Check cache first
-        cache_key = f"gsc_property_{email}"
-        cached_property = self._get_cached_data(cache_key)
-        if cached_property:
-            print(f"[DEBUG] Returning cached GSC property for {email}: {cached_property}")
-            return cached_property
-        
-        website = self.get_user_website(email)
-        print(f"[DEBUG] get_user_website returned for {email}: {website}")
-        
-        if website and website.get("website_url"):
-            website_url = website["website_url"]
-            print(f"[DEBUG] Caching GSC property for {email}: {website_url}")
-            # Cache the result
-            self._set_cached_data(cache_key, website_url)
-            return website_url
-        
-        print(f"[DEBUG] No GSC property found for {email}")
         return None
 
     def store_seo_report(self, email: str, website_url: str, report_data: Dict[str, Any]) -> str:
@@ -698,24 +526,6 @@ class GoogleSheetsDB:
         # Set expiration (30 days from now)
         expires_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
         
-        if self.demo_mode:
-            # Store in demo data
-            demo_report = {
-                'report_id': report_id,
-                'email': email,
-                'website_url': website_url,
-                'business_model': report_data.get('business_model', ''),
-                'report_data': json.dumps(report_data),
-                'total_recommendations': total_recommendations,
-                'quick_wins_count': quick_wins_count,
-                'avg_priority_score': avg_priority_score,
-                'generated_at': datetime.utcnow().isoformat(),
-                'expires_at': expires_at
-            }
-            self.demo_reports.append(demo_report)
-            print(f"[DEBUG] Stored report in demo mode: {report_id}")
-            return report_id
-        
         try:
             # Store in Google Sheets
             report_row = [
@@ -734,11 +544,6 @@ class GoogleSheetsDB:
             self.seo_reports_sheet.append_row(report_row)
             print(f"[SUCCESS] Stored SEO report: {report_id} for user: {email}")
             
-            # Clear cache for this user's reports
-            cache_key = f"reports_{email}"
-            if cache_key in self._cache:
-                del self._cache[cache_key]
-            
             return report_id
             
         except Exception as e:
@@ -749,19 +554,6 @@ class GoogleSheetsDB:
         """
         Get all SEO reports for a user, ordered by most recent first.
         """
-        # Check cache first
-        cache_key = f"reports_{email}"
-        cached_reports = self._get_cached_data(cache_key)
-        if cached_reports:
-            return cached_reports[:limit]
-        
-        if self.demo_mode:
-            # Use demo data
-            user_reports = [report for report in self.demo_reports if report['email'] == email]
-            user_reports.sort(key=lambda x: x['generated_at'], reverse=True)
-            self._set_cached_data(cache_key, user_reports)
-            return user_reports[:limit]
-        
         try:
             all_reports = self.seo_reports_sheet.get_all_records()
             user_reports = []
@@ -780,9 +572,6 @@ class GoogleSheetsDB:
             # Sort by generated_at (most recent first)
             user_reports.sort(key=lambda x: x['generated_at'], reverse=True)
             
-            # Cache the results
-            self._set_cached_data(cache_key, user_reports)
-            
             return user_reports[:limit]
             
         except Exception as e:
@@ -793,19 +582,6 @@ class GoogleSheetsDB:
         """
         Get a specific report by ID (with email verification for security).
         """
-        if self.demo_mode:
-            # Search demo data
-            for report in self.demo_reports:
-                if report['report_id'] == report_id and report['email'] == email:
-                    # Check if expired
-                    try:
-                        expires_at = datetime.fromisoformat(report['expires_at'])
-                        if expires_at > datetime.utcnow():
-                            return report
-                    except (ValueError, KeyError):
-                        pass
-            return None
-        
         try:
             all_reports = self.seo_reports_sheet.get_all_records()
             
@@ -829,22 +605,6 @@ class GoogleSheetsDB:
         """
         Remove expired SEO reports and return count of removed reports.
         """
-        if self.demo_mode:
-            # Clean demo data
-            now = datetime.utcnow()
-            initial_count = len(self.demo_reports)
-            
-            self.demo_reports = [
-                report for report in self.demo_reports
-                if datetime.fromisoformat(report['expires_at']) > now
-            ]
-            
-            return initial_count - len(self.demo_reports)
-        
-        # Check if we have the reports sheet
-        if not hasattr(self, 'seo_reports_sheet'):
-            return 0
-        
         try:
             now = datetime.utcnow()
             all_reports = self.seo_reports_sheet.get_all_records()
@@ -889,11 +649,6 @@ class GoogleSheetsDB:
 
     def store_temp_data(self, key: str, data: Dict[str, Any]) -> bool:
         """Store temporary data for 30-day comparisons."""
-        if self.demo_mode:
-            # Store in memory cache for demo mode
-            self._set_cached_data(f"temp_{key}", data)
-            return True
-        
         try:
             # Get or create temp-data worksheet
             temp_sheet = self.get_or_create_sheet('temp-data', ['key', 'data', 'created_at'])
@@ -914,17 +669,12 @@ class GoogleSheetsDB:
             
             return True
             
-            
         except Exception as e:
             print(f"[ERROR] Error storing temp data: {e}")
             return False
     
     def get_temp_data(self, key: str) -> Optional[Dict[str, Any]]:
         """Get temporary data for 30-day comparisons."""
-        if self.demo_mode:
-            # Get from memory cache for demo mode
-            return self._get_cached_data(f"temp_{key}")
-        
         try:
             # Get temp-data worksheet
             temp_sheet = self.get_or_create_sheet('temp-data', ['key', 'data', 'created_at'])
@@ -993,12 +743,6 @@ class GoogleSheetsDB:
             'website_url': website_url
         }
         
-        if self.demo_mode:
-            # Store in memory cache for demo mode
-            self._set_cached_data(f"dashboard_cache_{cache_key}", cached_data)
-            print(f"[DEBUG] Stored dashboard cache in demo mode: {cache_key}")
-            return True
-        
         try:
             # Get or create dashboard-cache worksheet
             cache_sheet = self.get_or_create_sheet('dashboard-cache', [
@@ -1049,18 +793,6 @@ class GoogleSheetsDB:
         base_key = re.sub(r'[^a-zA-Z0-9_.-]', '_', base_key)
         print(f"[DEBUG][LOOKUP] base_key: {base_key}")
 
-        if self.demo_mode:
-            # Find the most recent cache in memory
-            matching = [
-                (k, v) for k, v in self._cache.items()
-                if k.startswith(f"dashboard_cache_{base_key}")
-            ]
-            if not matching:
-                return None
-            # Sort by cached_at if available, else by insertion order
-            most_recent = max(matching, key=lambda item: item[1][0].get('cached_at', ''))
-            return most_recent[1][0].get('dashboard_data')
-
         try:
             cache_sheet = self.get_or_create_sheet('dashboard-cache', [
                 'cache_key', 'email', 'website_url', 'cache_date', 'dashboard_data', 'cached_at'
@@ -1105,35 +837,16 @@ class GoogleSheetsDB:
 
     def cleanup_dashboard_cache(self, days_old: int = 7) -> int:
         """Clean up dashboard cache entries older than specified days."""
-        if self.demo_mode:
-            # Clean demo cache
-            cutoff_date = datetime.utcnow() - timedelta(days=days_old)
-            keys_to_remove = []
-            
-            for key in list(self._cache.keys()):
-                if key.startswith('dashboard_cache_'):
-                    cached_data, cached_time = self._cache[key]
-                    if cached_time < cutoff_date:
-                        keys_to_remove.append(key)
-            
-            for key in keys_to_remove:
-                del self._cache[key]
-            
-            return len(keys_to_remove)
-        
         try:
             cache_sheet = self.get_or_create_sheet('dashboard-cache', [
                 'cache_key', 'email', 'website_url', 'cache_date', 'dashboard_data', 'cached_at'
             ])
-            
             if not cache_sheet:
                 return 0
-            
             # Get all records
             all_records = cache_sheet.get_all_records()
             rows_to_delete = []
             cutoff_date = datetime.utcnow() - timedelta(days=days_old)
-            
             for i, record in enumerate(all_records, start=2):  # Start at row 2 (after header)
                 try:
                     cached_at = datetime.fromisoformat(record.get('cached_at', ''))
@@ -1142,14 +855,12 @@ class GoogleSheetsDB:
                 except (ValueError, TypeError):
                     # Invalid date format, consider it old
                     rows_to_delete.append(i)
-            
             # Use batch delete operation instead of individual deletes
             if rows_to_delete:
                 # Group consecutive rows for batch deletion
                 row_ranges = []
                 start = rows_to_delete[0]
                 end = rows_to_delete[0]
-                
                 for row in rows_to_delete[1:]:
                     if row == end + 1:
                         end = row
@@ -1157,20 +868,16 @@ class GoogleSheetsDB:
                         row_ranges.append((start, end))
                         start = end = row
                 row_ranges.append((start, end))
-                
                 # Delete in reverse order to maintain row indices
                 for start, end in reversed(row_ranges):
                     if start == end:
                         cache_sheet.delete_rows(start)
                     else:
                         cache_sheet.delete_rows(start, end)
-            
             return len(rows_to_delete)
-            
         except Exception as e:
             print(f"[ERROR] Error cleaning dashboard cache: {e}")
             return 0
 
 
-# Create database instance
-db = GoogleSheetsDB() 
+# sheets_db = GoogleSheetsDB()  # Uncomment if you need to use Google Sheets for other features 

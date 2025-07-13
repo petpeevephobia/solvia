@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Google OAuth Configuration
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/property-selection"
     
     # PageSpeed Insights API
     PAGESPEED_API_KEY: str = ""

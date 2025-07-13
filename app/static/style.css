@@ -59,6 +59,33 @@ body {
     margin-right: 0.5rem;
 }
 
+.loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+.gsc-banner.loading {
+    position: relative;
+}
+
+.gsc-banner.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    pointer-events: none;
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }

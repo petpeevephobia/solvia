@@ -11,6 +11,11 @@ Usage:
 
 import sys
 import os
+from dotenv import load_dotenv
+
+with open('.env', 'r') as f:
+    print("[DEBUG] .env file contents:\n" + f.read())
+load_dotenv()
 
 # Add the core directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'core'))

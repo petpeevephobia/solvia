@@ -5,13 +5,13 @@ import os
 import sys
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 
 # Add project root to the Python path
 # This is the directory that contains `app` and `core`
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root))   
 
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles 
@@ -26,6 +26,9 @@ from .database import db
 # from core.modules.business_analysis import BusinessAnalyzer
 from core.analysis_processor import generate_seo_analysis
 from core.recommendation_aggregator import RecommendationAggregator
+
+from dotenv import load_dotenv
+load_dotenv()
 
 # Create FastAPI app
 app = FastAPI(
@@ -76,16 +79,8 @@ async def health_check():
     }
 
 @app.get("/ui")
-async def serve_ui():
-    """Serve the authentication UI."""
-    ui_file = os.path.join(static_dir, "index.html")
-    if os.path.exists(ui_file):
-        return FileResponse(ui_file)
-    else:
-        return {
-            "error": "UI not found",
-            "message": "Please ensure the UI files are in the static directory"
-        }
+def serve_ui():
+    return FileResponse("app/static/index.html")
 
 @app.get("/dashboard")
 async def serve_dashboard():
@@ -124,8 +119,60 @@ async def serve_setup_wizard():
         }
 
 @app.get("/property-selection")
-async def serve_property_selection():
-    """Serve the property selection UI."""
+async def serve_property_selection(
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+    request: Request = None
+):
+    """Serve the property selection UI and handle OAuth callbacks."""
+    
+    # If this is an OAuth callback (has code parameter), handle it
+    if code and state:
+        
+        if error:
+            return FileResponse(os.path.join(static_dir, "property_selection.html"))
+        
+        try:
+            # Import the Google OAuth handler
+            from app.auth.google_oauth import GoogleOAuthHandler
+            from app.database.supabase_db import SupabaseAuthDB
+            
+            # Initialize OAuth handler
+            db = SupabaseAuthDB()
+            google_oauth = GoogleOAuthHandler(db)
+            
+            # The state parameter contains the user's email
+            user_email = state
+            
+            if not user_email:
+                return FileResponse(os.path.join(static_dir, "property_selection.html"))
+            
+            # Handle the OAuth callback without JWT token (we'll store credentials using email)
+            result = await google_oauth.handle_callback(code, user_email, jwt_token=None)
+            
+            # Serve the property selection page
+            property_file = os.path.join(static_dir, "property_selection.html")
+            if os.path.exists(property_file):
+                return FileResponse(property_file)
+            else:
+                return {
+                    "error": "Property selection page not found",
+                    "message": "Please ensure the property selection files are in the static directory"
+                }
+                
+        except Exception as e:
+            # Still serve the page even if OAuth fails
+            property_file = os.path.join(static_dir, "property_selection.html")
+            if os.path.exists(property_file):
+                return FileResponse(property_file)
+            else:
+                return {
+                    "error": "Property selection page not found",
+                    "message": "Please ensure the property selection files are in the static directory"
+                }
+    
+    # Regular property selection page request (no OAuth callback)
     property_file = os.path.join(static_dir, "property_selection.html")
     if os.path.exists(property_file):
         return FileResponse(property_file)
@@ -139,7 +186,6 @@ async def serve_property_selection():
 async def generate_report(current_user: str = Depends(get_current_user)):
     """Generate SEO analysis report with prioritized recommendations using real metrics data."""
     try:
-        print(f"[DEBUG] Generating report for user: {current_user}")
         
         # Get user's website
         user_website = db.get_user_website(current_user)
@@ -150,21 +196,17 @@ async def generate_report(current_user: str = Depends(get_current_user)):
             )
         
         website_url = user_website['website_url']
-        print(f"[DEBUG] Analyzing website: {website_url}")
         
         # Initialize business analyzer
         # business_analyzer = BusinessAnalyzer()
         
         # Get business analysis
-        print("[DEBUG] Conducting business analysis...")
         # business_analysis = business_analyzer.analyze_business(website_url)
         
         # Fetch real metrics from existing Solvia endpoints
-        print("[DEBUG] Fetching real metrics from Solvia...")
         metrics_data = await fetch_real_metrics_for_analysis(current_user, website_url)
         
         # Generate AI analysis with recommendations using real data
-        print("[DEBUG] Generating AI analysis with prioritized recommendations...")
         openai_analysis = generate_seo_analysis(metrics_data, business_analysis)
         
         if not openai_analysis:
@@ -188,12 +230,10 @@ async def generate_report(current_user: str = Depends(get_current_user)):
         }
         
         # Store the report in the user's database
-        print("[DEBUG] Storing SEO report in database...")
         report_id = db.store_seo_report(current_user, website_url, report_data)
         
         if report_id:
             report_data["report_id"] = report_id
-            print(f"[SUCCESS] Report stored with ID: {report_id}")
         else:
             print("[WARNING] Failed to store report, but continuing...")
         
@@ -203,7 +243,6 @@ async def generate_report(current_user: str = Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Error generating report: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error: {str(e)}"
@@ -233,7 +272,6 @@ async def fetch_real_metrics_for_analysis(current_user: str, website_url: str) -
     
     try:
         # Try to fetch GSC metrics
-        print("[DEBUG] Attempting to fetch GSC metrics...")
         try:
             from app.auth.routes import gsc_fetcher
             
@@ -248,12 +286,10 @@ async def fetch_real_metrics_for_analysis(current_user: str, website_url: str) -
                     'ctr': summary.get('avg_ctr', 0.0) * 100,  # Convert to percentage
                     'average_position': summary.get('avg_position', 0.0)
                 })
-                print(f"[DEBUG] GSC data fetched: {summary}")
         except Exception as gsc_error:
-            print(f"[DEBUG] GSC fetch failed: {gsc_error}")
+            pass
     
         # Try to fetch PageSpeed metrics
-        print("[DEBUG] Attempting to fetch PageSpeed metrics...")
         try:
             from app.auth.routes import pagespeed_fetcher
             
@@ -270,12 +306,10 @@ async def fetch_real_metrics_for_analysis(current_user: str, website_url: str) -
                     'time_to_interactive': psi_data.get('time_to_interactive', 5.0),
                     'total_blocking_time': psi_data.get('total_blocking_time', 300)
                 })
-                print(f"[DEBUG] PSI data fetched: {psi_data}")
         except Exception as psi_error:
-            print(f"[DEBUG] PSI fetch failed: {psi_error}")
+            pass
             
         # Try to fetch keyword metrics for additional context
-        print("[DEBUG] Attempting to fetch keyword metrics...")
         try:
             from app.auth.routes import gsc_fetcher
             
@@ -286,15 +320,11 @@ async def fetch_real_metrics_for_analysis(current_user: str, website_url: str) -
                     'total_keywords': keyword_data.get('total_keywords', 0),
                     'keyword_opportunities': keyword_data.get('opportunities', 0)
                 })
-                print(f"[DEBUG] Keyword data fetched: keywords={keyword_data.get('total_keywords', 0)}")
         except Exception as keyword_error:
-            print(f"[DEBUG] Keyword fetch failed: {keyword_error}")
+            pass
             
     except Exception as e:
-        print(f"[DEBUG] Error fetching real metrics: {e}")
-    
-    print(f"[DEBUG] Final metrics data: GSC={metrics_data['has_gsc_data']}, PSI={metrics_data['has_psi_data']}")
-    print(f"[DEBUG] Metrics summary: impressions={metrics_data['impressions']}, clicks={metrics_data['clicks']}, performance={metrics_data['performance_score']}")
+        pass
     
     return metrics_data
 
@@ -302,7 +332,6 @@ async def fetch_real_metrics_for_analysis(current_user: str, website_url: str) -
 async def get_latest_report(current_user: str = Depends(get_current_user)):
     """Get the most recent SEO report for the current user."""
     try:
-        print(f"[DEBUG] Getting latest report for user: {current_user}")
         
         reports = db.get_user_reports(current_user, limit=1)
         
@@ -334,7 +363,6 @@ async def get_latest_report(current_user: str = Depends(get_current_user)):
         }
         
     except Exception as e:
-        print(f"[ERROR] Error getting latest report: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve latest report: {str(e)}"
@@ -344,7 +372,6 @@ async def get_latest_report(current_user: str = Depends(get_current_user)):
 async def get_user_reports(current_user: str = Depends(get_current_user)):
     """Get all SEO reports for the current user."""
     try:
-        print(f"[DEBUG] Getting reports for user: {current_user}")
         
         reports = db.get_user_reports(current_user, limit=20)
         
@@ -374,7 +401,6 @@ async def get_user_reports(current_user: str = Depends(get_current_user)):
                 report_summaries.append(summary)
                 
             except (json.JSONDecodeError, KeyError) as e:
-                print(f"[WARNING] Error parsing report {report.get('report_id', 'unknown')}: {e}")
                 continue
         
         return {
@@ -384,7 +410,6 @@ async def get_user_reports(current_user: str = Depends(get_current_user)):
         }
         
     except Exception as e:
-        print(f"[ERROR] Error getting user reports: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve reports: {str(e)}"
@@ -394,7 +419,6 @@ async def get_user_reports(current_user: str = Depends(get_current_user)):
 async def get_report_by_id(report_id: str, current_user: str = Depends(get_current_user)):
     """Get a specific SEO report by ID."""
     try:
-        print(f"[DEBUG] Getting report {report_id} for user: {current_user}")
         
         report = db.get_report_by_id(report_id, current_user)
         
@@ -416,7 +440,6 @@ async def get_report_by_id(report_id: str, current_user: str = Depends(get_curre
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Error getting report by ID: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve report: {str(e)}"
@@ -426,7 +449,6 @@ async def get_report_by_id(report_id: str, current_user: str = Depends(get_curre
 async def delete_report(report_id: str, current_user: str = Depends(get_current_user)):
     """Delete a specific SEO report (mark as expired)."""
     try:
-        print(f"[DEBUG] Deleting report {report_id} for user: {current_user}")
         
         # For now, we'll just mark it as expired by setting expires_at to past
         # In a more sophisticated system, you might want to actually delete the row
@@ -448,7 +470,6 @@ async def delete_report(report_id: str, current_user: str = Depends(get_current_
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Error deleting report: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete report: {str(e)}"
@@ -473,6 +494,10 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "status_code": exc.status_code
         }
     )
+
+@app.get("/login")
+def serve_login():
+    return FileResponse("app/static/index.html")
 
 if __name__ == "__main__":
     import uvicorn
