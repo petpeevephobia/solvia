@@ -457,7 +457,6 @@ async def get_gsc_properties(current_user: str = Depends(get_current_user)):
     """Get user's Google Search Console properties."""
     
     try:
-        
         # Get GSC properties
         properties = await google_oauth.get_gsc_properties(current_user)
         
@@ -472,7 +471,6 @@ async def get_gsc_properties(current_user: str = Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching GSC properties: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch Google Search Console properties"
@@ -759,50 +757,46 @@ async def get_benchmark_insights(
     x_explicit_ai_request: str = Header(None),
     explicit_ai: str = Query(None)
 ):
-    # Safeguard: Only allow AI generation if header or query param is set
-    if not (x_explicit_ai_request == "true" or (explicit_ai and explicit_ai.lower() == "true")):
-        raise HTTPException(
-            status_code=403,
-            detail="AI insights generation is only allowed on explicit user request."
-        )
+    # Only allow AI generation if header or query param is set
+    explicit = (x_explicit_ai_request == "true" or (explicit_ai and explicit_ai.lower() == "true"))
     try:
+        print("[AI DEBUG] Starting AI Overall Analysis generation for user:", current_user)
         # Get the selected property for the user
         website_url = db.get_selected_gsc_property(current_user)
         if not website_url:
+            print("[AI DEBUG] No GSC property selected for user.")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No GSC property selected. Please select a property first."
             )
 
-        # Check for cached dashboard data with ai_insights
+        # Always get the most recent cache (regardless of date)
         cached_data = db.get_dashboard_cache(current_user, website_url)
-        if cached_data and 'ai_insights' in cached_data:
+        if cached_data and 'ai_insights' in cached_data and not explicit:
+            print("[AI DEBUG] Returning cached AI insights.")
             return cached_data['ai_insights']
 
+        if not explicit:
+            print("[AI DEBUG] No explicit request and no cache, returning 404.")
+            raise HTTPException(
+                status_code=404,
+                detail="No cached AI analysis available. Please generate AI analysis explicitly."
+            )
+
+        # If explicit, generate new AI insights
         from .benchmark_analyzer import benchmark_analyzer
         dashboard_metrics = {}
-        
         try:
+            print("[AI DEBUG] Step 1: Gathering latest SEO metrics...")
             gsc_metrics = await gsc_fetcher.fetch_metrics(current_user, website_url)
             if gsc_metrics:
                 dashboard_metrics['summary'] = gsc_metrics.get('summary', {})
                 dashboard_metrics['time_series'] = gsc_metrics.get('time_series', {})
+            print("[AI DEBUG] Step 1 complete.")
         except Exception as e:
-            print(f"Failed to fetch GSC metrics: {e}")
-        
+            print(f"[AI DEBUG] Failed to fetch GSC metrics: {e}")
         try:
-            psi_data = await pagespeed_fetcher.fetch_pagespeed_data(website_url)
-            if psi_data:
-                dashboard_metrics['ux'] = {
-                    'performance_score': psi_data.get('performance_score', 0),
-                    'lcp': psi_data.get('lcp', {}).get('value', 0),
-                    'fcp': psi_data.get('fcp', {}).get('value', 0),
-                    'cls': psi_data.get('cls', {}).get('value', 0)
-                }
-        except Exception as e:
-            print(f"Failed to fetch PageSpeed metrics: {e}")
-        
-        try:
+            print("[AI DEBUG] Step 2: Analyzing site metadata and content...")
             from .metadata_analyzer import MetadataAnalyzer
             metadata_analyzer = MetadataAnalyzer()
             metadata_result = await metadata_analyzer.analyze_website(website_url)
@@ -813,21 +807,35 @@ async def get_benchmark_insights(
                     'image_alt_text': metadata_result.get('image_alt_text', 0),
                     'h1_tags': metadata_result.get('h1_tags', 0)
                 }
+            print("[AI DEBUG] Step 2 complete.")
         except Exception as e:
-            print(f"Failed to fetch metadata metrics: {e}")
-        
-        # Generate AI insights
+            print(f"[AI DEBUG] Failed to fetch metadata metrics: {e}")
+        try:
+            print("[AI DEBUG] Step 3: Evaluating engagement & UX signals...")
+            psi_data = await pagespeed_fetcher.fetch_pagespeed_data(website_url)
+            if psi_data:
+                dashboard_metrics['ux'] = {
+                    'performance_score': psi_data.get('performance_score', 0),
+                    'lcp': psi_data.get('lcp', {}).get('value', 0),
+                    'fcp': psi_data.get('fcp', {}).get('value', 0),
+                    'cls': psi_data.get('cls', {}).get('value', 0)
+                }
+            print("[AI DEBUG] Step 3 complete.")
+        except Exception as e:
+            print(f"[AI DEBUG] Failed to fetch PageSpeed metrics: {e}")
+        print("[AI DEBUG] Step 4: Aggregating AI insights...")
         insights = benchmark_analyzer.generate_ai_insights(dashboard_metrics, business_type="general")
-        
-        # Cache the AI insights together with dashboard metrics
+        print("[AI DEBUG] Step 4 complete.")
+        print("[AI DEBUG] Step 5: Summarizing recommendations and caching results...")
         dashboard_data = {"metrics": dashboard_metrics}
         dashboard_data["ai_insights"] = insights
         db.store_dashboard_cache(current_user, website_url, dashboard_data)
+        print("[AI DEBUG] Step 5 complete. AI Overall Analysis generation finished.")
         return insights
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error generating benchmark insights: {e}")
+        print(f"[AI DEBUG] Error generating benchmark insights: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"

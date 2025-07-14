@@ -222,7 +222,7 @@ class BenchmarkAnalyzer:
             
             ai_response = response.choices[0].message.content
             
-            print(f"[DEBUG] OpenAI raw response:\t{ai_response}")
+            # print(f"[DEBUG] OpenAI raw response:\t{ai_response}")
             
             if not ai_response or ai_response.strip() == "":
                 print("[ERROR] OpenAI returned empty response")
@@ -237,7 +237,6 @@ class BenchmarkAnalyzer:
                     json_content = ai_response[json_start:json_end].strip()
                     try:
                         insights = json.loads(json_content)
-                        print("[DEBUG] Successfully extracted JSON from code block")
                     except json.JSONDecodeError as e:
                         print(f"[ERROR] Failed to parse JSON from code block: {e}")
                         print(f"[DEBUG] JSON content: {json_content[:200]}...")

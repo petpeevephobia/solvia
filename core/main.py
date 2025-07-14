@@ -11,54 +11,13 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-from pyairtable import Api
+
 import pickle
 from urllib.parse import urlparse, quote
 import requests
-from data_collector import (
-    get_gsc_metrics, 
-    get_psi_metrics, 
-    get_sitemaps_status, 
-    get_mobile_usability_from_psi,
-    get_keyword_performance,
-    get_url_inspection
-)
-from analysis_processor import generate_seo_analysis, get_business_analysis
+from core.analysis_processor import generate_seo_analysis
 import openai
 from core.auth_setup import get_gsc_credentials, check_gsc_access, get_gsc_service
-from core.data_collector import (
-    get_airtable_records,
-    get_site_info,
-    get_gsc_metrics,
-    get_psi_metrics,
-    get_sitemaps_status,
-    get_mobile_usability_from_psi,
-    get_keyword_performance,
-    get_url_inspection,
-    get_airtable_multi_tables,
-    update_airtable_organized
-)
-from core.data_mapper import (
-    map_ai_values_to_airtable_options,
-    find_best_semantic_match
-)
-from core.data_collector import (
-    get_airtable_multi_tables,
-    map_to_seo_reports,
-    update_seo_reports_table
-)
-from core.analysis_processor import (
-    classify_keyword_intent,
-    calculate_opportunity_score,
-    get_expected_ctr,
-    estimate_traffic_potential,
-    get_priority_level,
-    is_branded_keyword,
-    detect_cannibalization_risk,
-    get_business_analysis,
-    enhance_business_analysis_with_ai,
-    generate_seo_analysis
-)
 
 # Load environment variables
 load_dotenv()
@@ -71,31 +30,7 @@ SCOPES = [
 
 model = "gpt-4o-mini"
 
-def get_airtable_records():
-    """Fetch records from Airtable."""
-    try:
-        api_key = os.getenv('AIRTABLE_API_KEY')
-        base_id = os.getenv('AIRTABLE_BASE_ID')
-        table_name = os.getenv('AIRTABLE_TABLE_NAME')
-        
-        # If any keys are missing, raise an error
-        if not all([api_key, base_id, table_name]):
-            raise ValueError("Missing required Airtable configuration")
-            
-        airtable = Api(api_key)
-        # Get the table
-        table = airtable.table(base_id, table_name)
-        
-        # Test the connection by getting records
-        records = table.all()
-        return table, records
-        
-    except Exception as e:
-        print("\nError connecting to Airtable:")
-        print(f"Base ID: {base_id}")
-        print(f"Table name: {table_name}")
-        print(f"Error details: {str(e)}")
-        raise
+
 
 
 

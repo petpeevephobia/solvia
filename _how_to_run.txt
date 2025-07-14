@@ -5,7 +5,7 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     http://localhost:8000/ui
 
 # optional: access interactive api docs
-http://localhost:8000/docs
+http://localhost:8000/docs  
 
 -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -47,8 +47,15 @@ http://localhost:8000/docs
 7 jul 2025:
 - load ai insights
 
-8 jul 2025:
-- load ai insights
-
 9 jul 2025:
 + connect to gsc and select property with supabase
+
+13 jul 2025:
++++++ can select property now   
+++ load metadata metrics
+- generate ai insights in dashboard
+
+14 jul 2025:
++ new card: overall ai analaysis
++ explicit button to regenerate ai analysis only
++ ai analysis debug terminal prints

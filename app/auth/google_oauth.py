@@ -102,14 +102,14 @@ class GoogleOAuthHandler:
             'created_at': datetime.utcnow().isoformat(),
             'updated_at': datetime.utcnow().isoformat()
         }
-        
+
         # Use user-scoped Supabase client if jwt_token is provided
         if jwt_token:
             user_db = SupabaseAuthDB(access_token=jwt_token)
             response = user_db.supabase.table('gsc_connections').upsert(cred_data, on_conflict=['email']).execute()
         else:
             response = self.db.supabase.table('gsc_connections').upsert(cred_data, on_conflict=['email']).execute()
-        
+
         # Cache the credentials
         cache_key = f"creds_{user_email}"
         self._credentials_cache[cache_key] = {
@@ -159,7 +159,7 @@ class GoogleOAuthHandler:
                     self._store_credentials(user_email, credentials)
                 except Exception as refresh_error:
                     pass # No print statements here
-            
+        
         # Cache the credentials
         self._credentials_cache[cache_key] = {
             'credentials': credentials,
@@ -251,7 +251,7 @@ class GSCDataFetcher:
             current_summary['clicks_change'] = current_summary.get('total_clicks', 0) - comparison_summary.get('total_clicks', 0)
             current_summary['ctr_change'] = current_summary.get('avg_ctr', 0) - comparison_summary.get('avg_ctr', 0)
             current_summary['position_change'] = current_summary.get('avg_position', 0) - comparison_summary.get('avg_position', 0)
-
+            
             # Calculate SEO score change based on 30-day comparison
             current_seo_score = self._calculate_simplified_seo_score(current_summary)
             previous_seo_score = self._calculate_simplified_seo_score(comparison_summary)
@@ -553,7 +553,7 @@ class PageSpeedInsightsFetcher:
                     return current_metrics
                 else:
                     error_text = await response.text()
-                    raise Exception(f"PageSpeed API error: {response.status} - {error_text}")
+        raise Exception(f"PageSpeed API error: {response.status} - {error_text}")
     
     async def _get_final_url(self, url: str) -> str:
         """Follow redirects to get the final URL."""

@@ -37,7 +37,6 @@ class MetadataAnalyzer:
                 
                 for i, page_url in enumerate(pages_to_analyze[:self.max_pages]):
                     page_analysis = await self._analyze_page(session, page_url)
-                    print(f"[DEBUG] Page analysis result: {page_analysis}")
                     if page_analysis:
                         analysis_results.append(page_analysis)
             
@@ -167,7 +166,6 @@ class MetadataAnalyzer:
                     print(f"[DEBUG] Non-200 status for {page_url}, skipping.")
                     return None
                 content = await response.text()
-                print(f"[DEBUG] Content length for {page_url}: {len(content)}")
                 # Extract metadata
                 analysis = {
                     'url': page_url,
@@ -183,7 +181,6 @@ class MetadataAnalyzer:
                     'twitter_tags': self._extract_twitter_tags(content),
                     'schema_markup': self._extract_schema_markup(content)
                 }
-                print(f"[DEBUG] Extracted analysis for {page_url}: {analysis}")
                 return analysis
         except Exception as e:
             print(f"[DEBUG] Exception in _analyze_page for {page_url}: {e}")
@@ -245,7 +242,6 @@ class MetadataAnalyzer:
                 'issues': []
             }
             for result in analysis_results:
-                print(f"[DEBUG] Aggregating page result: {result}")
                 if result.get('title'):
                     aggregated['pages_with_titles'] += 1
                 if result.get('meta_description'):

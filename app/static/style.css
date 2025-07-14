@@ -1968,3 +1968,100 @@ body {
         padding-top: 12px;
     }
 }
+
+/* Remove borders and box-shadow from refresh buttons */
+.icon-btn,
+.btn-refresh,
+.refresh-metrics-btn {
+    background-color: #f3f4f6;
+    color: #6B7280;
+    border: none !important;
+    box-shadow: none !important;
+    transition: background 0.2s, color 0.2s;
+}
+
+.icon-btn svg,
+.btn-refresh svg,
+.refresh-metrics-btn svg {
+    stroke: #6B7280;
+    transition: stroke 0.2s;
+}
+
+.icon-btn:hover:not(:disabled),
+.btn-refresh:hover:not(:disabled),
+.refresh-metrics-btn:hover:not(:disabled) {
+    background-color: #f59e42;
+    color: #fff;
+}
+
+.icon-btn:hover:not(:disabled) svg,
+.btn-refresh:hover:not(:disabled) svg,
+.refresh-metrics-btn:hover:not(:disabled) svg {
+    stroke: #fff;
+}
+
+#regenerateAIButton {
+    background-color: transparent;
+    color: var(--color-text-light);
+    border: 1px solid var(--border-color);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 1rem;
+    min-width: unset;
+    min-height: unset;
+    box-shadow: none;
+    position: relative;
+}
+
+#regenerateAIButton .regen-btn-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    width: auto;
+}
+
+#regenerateAIButton .regen-btn-icon {
+    width: 18px;
+    height: 18px;
+    stroke: #6B7280;
+    transition: stroke 0.2s;
+}
+
+#regenerateAIButton:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background-color: var(--color-primary-light);
+}
+
+#regenerateAIButton:hover:not(:disabled) .regen-btn-icon {
+    stroke: var(--color-primary);
+}
+
+#regenerateAIButton:disabled {
+    cursor: not-allowed;
+    background-color: transparent !important;
+}
+
+#regenerateAIButton.loading .regen-btn-icon {
+    animation: spin 1s linear infinite;
+}
+
+@media (max-width: 600px) {
+    #regenerateAIButton {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+    }
+    #regenerateAIButton .regen-btn-content {
+        width: auto;
+        justify-content: center;
+    }
+}

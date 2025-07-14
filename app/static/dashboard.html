@@ -7,6 +7,170 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css?v=1.2">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+    .ai-analysis-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .ai-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .status-indicator {
+        display: inline-block;
+        padding: 0.15em 0.8em;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 999px;
+        background: #10b981;
+        color: #fff;
+        margin-right: 0.5rem;
+        min-width: 0;
+        width: auto;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .btn-refresh {
+        border-radius: 999px !important;
+        padding: 0.5em 1.5em !important;
+        font-size: 1rem;
+        border: none;
+        background: #fff;
+        color: #10b981;
+        font-weight: 600;
+        box-shadow: 0 0 0 1px #10b981 inset;
+        transition: background 0.2s, color 0.2s;
+        cursor: pointer;
+        margin: 0;
+    }
+    .btn-refresh:hover, .btn-refresh:focus {
+        background: #10b981;
+        color: #fff;
+    }
+    @media (max-width: 600px) {
+        .ai-analysis-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        .ai-header-actions {
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+            gap: 0.5rem;
+        }
+        .ai-header-actions .btn-refresh {
+            width: 100%;
+            font-size: 1rem;
+            padding: 0.5rem 0;
+        }
+        .ai-header-actions .status-indicator {
+            margin-bottom: 0.25rem;
+            margin-right: 0;
+        }
+    }
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .header-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .icon-btn {
+        background: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 0 0 1px #10b981 inset;
+        transition: background 0.2s;
+        padding: 0;
+    }
+    .icon-btn:hover, .icon-btn:focus {
+        background: #10b981;
+    }
+    .icon-btn svg {
+        stroke: #10b981;
+        transition: stroke 0.2s;
+    }
+    .icon-btn:hover svg, .icon-btn:focus svg {
+        stroke: #fff;
+    }
+    .refresh-metrics-btn {
+        background: #f3f4f6;
+        box-shadow: 0 0 0 1px #d1d5db inset;
+    }
+    .refresh-metrics-btn svg {
+        stroke: #6B7280;
+        transition: stroke 0.2s;
+    }
+    .refresh-metrics-btn:hover, .refresh-metrics-btn:focus {
+        background: #f59e42;
+    }
+    .refresh-metrics-btn:hover svg, .refresh-metrics-btn:focus svg {
+        stroke: #fff;
+    }
+    .four-col-header {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0 1rem;
+    }
+    .header-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .header-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin: 0;
+        white-space: nowrap;
+    }
+    .card-header {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0 1rem;
+        min-width: 0;
+    }
+    .header-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .header-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .status-indicator {
+        white-space: nowrap;
+        margin-left: auto;
+    }
+    </style>
 </head>
 <body class="dashboard-body">
     <nav class="navbar">
@@ -102,8 +266,8 @@
         <div class="dashboard-header">
             <div class="dashboard-title-row">
                 <h1>Your Dashboard</h1>
-                <button onclick="refreshMetrics()" class="btn-refresh" id="refreshBtn" title="Refresh Data">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rotate-cw"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                <button onclick="refreshMetrics()" class="icon-btn refresh-metrics-btn" id="refreshBtn" title="Refresh Data" aria-label="Refresh Data">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                 </button>
             </div>
             <div>
@@ -236,17 +400,12 @@
             <!-- Metadata & Image Alt Text Section -->
             <div class="analysis-card">
                 <div class="card-header">
-                    <div class="header-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14,2 14,8 20,8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10,9 9,9 8,9"></polyline>
-                        </svg>
-                    </div>
-                    <h2>Metadata & Image Alt Text</h2>
-                    <div class="status-indicator" id="metadataStatus">Good</div>
+                    <span class="header-icon">
+                        <!-- Metadata SVG icon -->
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
+                    </span>
+                    <h2 class="header-title">Metadata & Image Alt Text</h2>
+                    <div class="status-indicator" id="metadataStatus">NEEDS WORK</div>
                 </div>
                 <div class="card-body">
                     <div class="metrics-row">
@@ -286,24 +445,23 @@
             </div>
             
         <!-- AI Overall Analysis Section -->
-        <div class="analysis-card" id="aiOverallAnalysisCard" style="display: none;">
+        <div class="analysis-card" id="aiOverallAnalysisCard">
             <div class="card-header">
-                <div class="header-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 12l2 2 4-4"></path>
-                        <path d="M21 12c-1 0-2-1-2-2s1-2 2-2 2 1 2 2-1 2-2 2z"></path>
-                        <path d="M3 12c1 0 2-1 2-2s-1-2-2-2-2 1-2 2 1 2 2 2z"></path>
-                        <path d="M12 3c0 1-1 2-2 2s-2-1-2-2 1-2 2-2 2 1 2 2z"></path>
-                        <path d="M12 21c0-1 1-2 2-2s2 1 2 2-1 2-2 2-2-1-2-2z"></path>
-                    </svg>
-                </div>
-                <h2>AI Overall Analysis</h2>
-                <div class="status-indicator" id="aiOverallStatus">Analyzing</div>
+                <span class="header-icon">
+                    <!-- Simple robot/AI SVG icon -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="4"/><rect x="7" y="7" width="10" height="4" rx="2"/><circle cx="8.5" cy="16" r="1.5"/><circle cx="15.5" cy="16" r="1.5"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
+                </span>
+                <h2 class="header-title">AI Overall Analysis</h2>
+                <div class="status-indicator" id="aiOverallStatus">ANALYZING</div>
+                <button id="regenerateAIButton" class="icon-btn" title="Regenerate AI Analysis" aria-label="Regenerate AI Analysis">
+                    <span class="regen-btn-content">
+                        <svg class="regen-btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        <span class="regen-btn-spinner loading-spinner" style="display:none"></span>
+                    </span>
+                </button>
             </div>
             <div class="card-body">
-                <div class="ai-overall-summary" id="aiOverallSummary">
-                    <p>AI analysis will appear here after metrics are loaded</p>
-                </div>
+                <div class="ai-overall-summary" id="aiOverallSummary"></div>
             </div>
         </div>
 
@@ -320,6 +478,22 @@
     +               Loading dashboard cache...
     +           </div>
     +       </div>
+        </div>
+
+        <div id="aiAnalysisPopupContainer" style="display:none;">
+            <div class="ai-analysis-loading-inner" style="display:flex;flex-direction:column;align-items:center;gap:1.5rem;">
+                <span class="metric-loading-spinner"><svg width='36' height='36' viewBox='0 0 50 50'><circle cx='25' cy='25' r='20' fill='none' stroke='#D97706' stroke-width='5' stroke-linecap='round' stroke-dasharray='31.4 31.4' stroke-dashoffset='0'><animateTransform attributeName='transform' type='rotate' from='0 25 25' to='360 25 25' dur='0.8s' repeatCount='indefinite'/></circle></svg></span>
+                <div id="aiAnalysisLoadingList">
+                    <div style="font-weight:500;font-size:1.2rem;color:#D97706;margin-bottom:0.5em;">Generating AI Overall Analysis...</div>
+                    <ul style="margin:0;padding:0;list-style:none;text-align:left;font-size:1rem;max-width:400px;">
+                        <li>1. Gathering latest SEO metrics</li>
+                        <li>2. Analyzing site metadata and content</li>
+                        <li>3. Evaluating engagement & UX signals</li>
+                        <li>4. Aggregating AI insights</li>
+                        <li>5. Summarizing recommendations</li>
+                    </ul>
+                </div>
+            </div>
         </div>
 
         <script>
@@ -1154,14 +1328,38 @@
 
             async function fetchAIInsights() {
                 try {
+                    // Only fetch from cache, don't trigger explicit AI generation
                     const response = await apiCall('/auth/benchmark/insights');
                     if (response.ok) {
                         cachedAIInsights = await response.json();
                         return cachedAIInsights;
                     } else {
+                        console.log('[DEBUG] AI insights API returned error:', response.status);
+                        const errorText = await response.text();
+                        console.log('[DEBUG] Error details:', errorText);
                         return null;
                     }
                 } catch (error) {
+                    console.error('[DEBUG] Error fetching AI insights:', error);
+                    return null;
+                }
+            }
+
+            async function fetchExplicitAIInsights() {
+                try {
+                    // Explicitly generate fresh AI insights
+                    const response = await apiCall('/auth/benchmark/insights?explicit_ai=true');
+                    if (response.ok) {
+                        cachedAIInsights = await response.json();
+                        return cachedAIInsights;
+                    } else {
+                        console.log('[DEBUG] AI insights API returned error:', response.status);
+                        const errorText = await response.text();
+                        console.log('[DEBUG] Error details:', errorText);
+                        return null;
+                    }
+                } catch (error) {
+                    console.error('[DEBUG] Error fetching AI insights:', error);
                     return null;
                 }
             }
@@ -1295,40 +1493,31 @@
                     recommendations: psiData.recommendations || []
                 };
                 
-                // Update performance score with 30-day comparison
+                // Update UX metrics in the dashboard
                 const performanceScore = psiData.performance_score;
-                document.getElementById('performanceScore').textContent = (performanceScore !== undefined && performanceScore !== null) ? performanceScore : 'N/A';
-                
-                // Update LCP with 30-day comparison
                 const lcpValue = psiData.lcp?.value;
-                document.getElementById('lcpValue').textContent = (lcpValue !== undefined && lcpValue !== null) ? `${lcpValue.toFixed(1)}s` : 'N/A';
-                
-                // Update FCP with 30-day comparison
                 const fcpValue = psiData.fcp?.value;
-                document.getElementById('fcpValue').textContent = (fcpValue !== undefined && fcpValue !== null) ? `${fcpValue.toFixed(1)}s` : 'N/A';
-                
-                // Update CLS with 30-day comparison
                 const clsValue = psiData.cls?.value;
-                document.getElementById('clsValue').textContent = (clsValue !== undefined && clsValue !== null) ? clsValue.toFixed(3) : 'N/A';
                 
-                // Update status indicator
-                const statusIndicator = document.getElementById('uxStatus');
-                if (performanceScore >= 90) {
-                    statusIndicator.textContent = 'Excellent';
-                    statusIndicator.className = 'status-indicator good';
-                } else if (performanceScore >= 70) {
-                    statusIndicator.textContent = 'Good';
-                    statusIndicator.className = 'status-indicator good';
-                } else if (performanceScore >= 50) {
-                    statusIndicator.textContent = 'Needs Work';
-                    statusIndicator.className = 'status-indicator warning';
-                } else {
-                    statusIndicator.textContent = 'Poor';
-                    statusIndicator.className = 'status-indicator error';
-                }
+                // Safely update DOM elements
+                const elements = {
+                    'performanceScore': performanceScore !== undefined ? performanceScore : 'N/A',
+                    'lcpValue': lcpValue !== undefined ? `${lcpValue.toFixed(1)}s` : 'N/A',
+                    'fcpValue': fcpValue !== undefined ? `${fcpValue.toFixed(1)}s` : 'N/A',
+                    'clsValue': clsValue !== undefined ? clsValue.toFixed(3) : 'N/A'
+                };
                 
-                // Recalculate overall SEO score
-                recalculateOverallSEOScore();
+                Object.entries(elements).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    } else {
+                        console.warn(`[DEBUG] Element not found: ${id}`);
+                    }
+                });
+                
+                // Always use AI-generated insights for UX
+                generateUXInsights(window.metricsData);
             }
 
             function generateUXInsightsFromData(psiData) {
@@ -1692,6 +1881,7 @@
             // Property selector functions removed - now handled by property_selection.html
 
             async function refreshMetrics() {
+                console.log('[DEBUG] refreshMetrics() called - this should only happen when user clicks Refresh Data button');
                 const refreshBtn = document.getElementById('refreshBtn');
                 // Show loading state
                 refreshBtn.disabled = true;
@@ -1714,9 +1904,8 @@
                         setMetricLoadingState('impressions', 'loading');
                         
                         // Fetch new AI insights with explicit AI usage
-                        const aiResponse = await apiCall('/auth/benchmark/insights?explicit_ai=true');
-                        if (aiResponse && aiResponse.ok) {
-                            const aiData = await aiResponse.json();
+                        const aiData = await fetchExplicitAIInsights();
+                        if (aiData) {
                             window.cachedAIInsights = aiData;
                         } else {
                             console.warn('Failed to fetch new AI insights after refresh.');
@@ -1734,6 +1923,9 @@
                         setMetricLoadingState('impressions', 'done');
                         setMetricLoadingState('ux', 'done');
                         setMetricLoadingState('metadata', 'done');
+                        
+                        // Fetch new metadata metrics on explicit refresh
+                        await fetchMetadataData();
                         
                     } else {
                         const error = await response.json();
@@ -2196,8 +2388,8 @@
                         
                         // Fetch remaining core metrics in parallel
                         const additionalMetricsPromises = [
-                            fetchPageSpeedData().catch(e => console.error('[ERROR] PageSpeed data failed:', e)),
-                            fetchMetadataData().catch(e => console.error('[ERROR] Metadata data failed:', e))
+                            fetchPageSpeedData().catch(e => console.error('[ERROR] PageSpeed data failed:', e))
+                            // fetchMetadataData() is removed from here
                         ];
                         
                         await Promise.allSettled(additionalMetricsPromises);
@@ -2241,6 +2433,7 @@
             }
             
             async function fetchMetadataData() {
+                console.log('[DEBUG] fetchMetadataData() called - this should only happen when user clicks Refresh Data button');
                 setMetricLoadingState('metadata', 'loading');
                 
                 try {
@@ -2862,15 +3055,16 @@
 
             function renderAIOverallAnalysis(insights) {
                 const card = document.getElementById('aiOverallAnalysisCard');
-                if (!insights || !insights.analysis || Object.keys(insights.analysis).length === 0) {
-                    card.style.display = 'none';
-                    return;
-                }
-                
+                // Never hide the card, even if insights are missing
                 card.style.display = '';
                 const summaryElement = document.getElementById('aiOverallSummary');
                 const statusElement = document.getElementById('aiOverallStatus');
-                
+                if (!insights || !insights.analysis || Object.keys(insights.analysis).length === 0) {
+                    summaryElement.innerHTML = '<p>AI insights not available. Please try again later.</p>';
+                    statusElement.textContent = 'Unavailable';
+                    statusElement.className = 'status-indicator';
+                    return;
+                }
                 // Display summary if available
                 if (insights.analysis.summary) {
                     summaryElement.innerHTML = `<p><strong>Summary:</strong> ${insights.analysis.summary}</p>`;
@@ -2879,27 +3073,22 @@
                 } else {
                     summaryElement.innerHTML = '<p>AI analysis completed. Review the individual sections above for detailed insights.</p>';
                 }
-                
                 // Display status if available
                 if (insights.analysis.status) {
                     statusElement.textContent = insights.analysis.status;
-                    // Set status color based on score or status
                     if (insights.analysis.score) {
                         const score = insights.analysis.score;
                         if (score >= 80) {
                             statusElement.className = 'status-indicator good';
                         } else if (score >= 60) {
-                            statusElement.className = 'status-indicator warning';
+                            statusIndicator.className = 'status-indicator warning';
                         } else {
                             statusElement.className = 'status-indicator error';
                         }
                     }
-                } else {
                     statusElement.textContent = 'Analysis Complete';
                     statusElement.className = 'status-indicator good';
                 }
-                
-                console.log('[DEBUG] AI Overall Analysis rendered:', insights.analysis);
             }
 
             async function generateVisibilityInsights(summary) {
@@ -2963,6 +3152,49 @@
                     updateMetricsLoadingList();
                 }
             }
+
+            function showAIAnalysisPopup() {
+                document.getElementById('aiAnalysisPopupContainer').style.display = 'flex';
+            }
+            function hideAIAnalysisPopup() {
+                document.getElementById('aiAnalysisPopupContainer').style.display = 'none';
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                const regenerateBtn = document.getElementById('regenerateAIButton');
+                if (regenerateBtn) {
+                    const regenBtnText = regenerateBtn.querySelector('.regen-btn-text');
+                    const regenBtnSpinner = regenerateBtn.querySelector('.regen-btn-spinner');
+                    const regenBtnIcon = regenerateBtn.querySelector('.regen-btn-icon');
+                    regenerateBtn.addEventListener('click', async function() {
+                        if (!confirm('Regenerating AI analysis will overwrite your previous insights and may disrupt your current SEO implementation progress. Are you sure you want to continue?')) {
+                            return;
+                        }
+                        showAIAnalysisPopup();
+                        regenerateBtn.disabled = true;
+                        regenerateBtn.classList.add('loading');
+                        regenBtnText.textContent = 'Regenerating...';
+                        regenBtnSpinner.style.display = 'inline-block';
+                        regenBtnIcon.style.display = 'none';
+                        try {
+                            const aiData = await fetchExplicitAIInsights();
+                            if (aiData) {
+                                window.cachedAIInsights = aiData;
+                                renderAIOverallAnalysis(aiData);
+                            } else {
+                                alert('Failed to regenerate AI analysis. Please try again later.');
+                            }
+                        } finally {
+                            hideAIAnalysisPopup();
+                            regenerateBtn.disabled = false;
+                            regenerateBtn.classList.remove('loading');
+                            regenBtnText.textContent = 'Regenerate AI Analysis';
+                            regenBtnSpinner.style.display = 'none';
+                            regenBtnIcon.style.display = '';
+                        }
+                    });
+                }
+            });
         </script>
     </body>
 </html> 
