@@ -59,3 +59,8 @@ http://localhost:8000/docs
 + new card: overall ai analaysis
 + explicit button to regenerate ai analysis only
 + ai analysis debug terminal prints
+
+15 jul 2025:
+- add fix cards design
+- cache overall ai analysis
++ only kep visibility performance

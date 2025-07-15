@@ -136,62 +136,11 @@ class BenchmarkAnalyzer:
                 }
             }
         
-        # Performance Metrics
-        if 'ux' in dashboard_metrics:
-            ux = dashboard_metrics['ux']
-            analysis_data["calculated_metrics"]["performance_metrics"] = {
-                "performance_score": {
-                    "value": ux.get('performance_score', 0),
-                    "level": self.get_benchmark_level("performance_score", ux.get('performance_score', 0), "performance_metrics"),
-                    "score": self.calculate_metric_score("performance_score", ux.get('performance_score', 0), "performance_metrics")
-                },
-                "lcp_seconds": {
-                    "value": ux.get('lcp', 0),
-                    "level": self.get_benchmark_level("lcp_seconds", ux.get('lcp', 0), "performance_metrics"),
-                    "score": self.calculate_metric_score("lcp_seconds", ux.get('lcp', 0), "performance_metrics")
-                },
-                "fcp_seconds": {
-                    "value": ux.get('fcp', 0),
-                    "level": self.get_benchmark_level("fcp_seconds", ux.get('fcp', 0), "performance_metrics"),
-                    "score": self.calculate_metric_score("fcp_seconds", ux.get('fcp', 0), "performance_metrics")
-                },
-                "cls_score": {
-                    "value": ux.get('cls', 0),
-                    "level": self.get_benchmark_level("cls_score", ux.get('cls', 0), "performance_metrics"),
-                    "score": self.calculate_metric_score("cls_score", ux.get('cls', 0), "performance_metrics")
-                }
-            }
-        
-        # Metadata Optimization
-        if 'metadata' in dashboard_metrics:
-            metadata = dashboard_metrics['metadata']
-            analysis_data["calculated_metrics"]["metadata_optimization"] = {
-                "meta_titles": {
-                    "value": metadata.get('meta_titles', 0),
-                    "level": self.get_benchmark_level("meta_titles", metadata.get('meta_titles', 0), "metadata_optimization"),
-                    "score": self.calculate_metric_score("meta_titles", metadata.get('meta_titles', 0), "metadata_optimization")
-                },
-                "meta_descriptions": {
-                    "value": metadata.get('meta_descriptions', 0),
-                    "level": self.get_benchmark_level("meta_descriptions", metadata.get('meta_descriptions', 0), "metadata_optimization"),
-                    "score": self.calculate_metric_score("meta_descriptions", metadata.get('meta_descriptions', 0), "metadata_optimization")
-                },
-                "h1_tags": {
-                    "value": metadata.get('h1_tags', 0),
-                    "level": self.get_benchmark_level("h1_tags", metadata.get('h1_tags', 0), "metadata_optimization"),
-                    "score": self.calculate_metric_score("h1_tags", metadata.get('h1_tags', 0), "metadata_optimization")
-                },
-                "image_alt_text": {
-                    "value": metadata.get('image_alt_text', 0),
-                    "level": self.get_benchmark_level("image_alt_text", metadata.get('image_alt_text', 0), "metadata_optimization"),
-                    "score": self.calculate_metric_score("image_alt_text", metadata.get('image_alt_text', 0), "metadata_optimization")
-                }
-            }
+
         
         return analysis_data
     
     def generate_ai_insights(self, dashboard_metrics: Dict[str, Any], business_type: str = "general") -> Dict[str, Any]:
-        caller = inspect.stack()[1]
         """Generate AI-powered insights using OpenAI API."""
         if not self.openai_client:
             raise Exception("OpenAI client not available. Cannot generate AI insights.")
@@ -205,6 +154,8 @@ class BenchmarkAnalyzer:
         analysis_data = self.prepare_analysis_data(dashboard_metrics)
         prompt = self._create_analysis_prompt(analysis_data, business_type)
         
+        print(f"[AI DEBUG] Starting AI analysis generation...")
+        print(f"[AI DEBUG] Dashboard metrics keys: {list(dashboard_metrics.keys())}")
         
         try:
             # Use the new OpenAI client format
@@ -222,7 +173,8 @@ class BenchmarkAnalyzer:
             
             ai_response = response.choices[0].message.content
             
-            # print(f"[DEBUG] OpenAI raw response:\t{ai_response}")
+            print(f"[AI DEBUG] OpenAI raw response length: {len(ai_response)} characters")
+            print(f"[AI DEBUG] OpenAI response preview: {ai_response[:500]}...")
             
             if not ai_response or ai_response.strip() == "":
                 print("[ERROR] OpenAI returned empty response")
@@ -237,6 +189,7 @@ class BenchmarkAnalyzer:
                     json_content = ai_response[json_start:json_end].strip()
                     try:
                         insights = json.loads(json_content)
+                        print(f"[AI DEBUG] Successfully parsed JSON from code block")
                     except json.JSONDecodeError as e:
                         print(f"[ERROR] Failed to parse JSON from code block: {e}")
                         print(f"[DEBUG] JSON content: {json_content[:200]}...")
@@ -245,60 +198,96 @@ class BenchmarkAnalyzer:
             if insights is None:
                 try:
                     insights = json.loads(ai_response)
+                    print(f"[AI DEBUG] Successfully parsed raw JSON response")
                 except json.JSONDecodeError as e:
                     print(f"[ERROR] Failed to parse raw JSON response: {e}")
                     print(f"[DEBUG] Raw response: {ai_response[:200]}...")
                     return self._get_fallback_insights()
             
+            print(f"[AI DEBUG] Parsed insights keys: {list(insights.keys())}")
+            
             # Ensure all expected keys are present
             required_keys = [
                 "overall_seo_health",
                 "visibility_performance",
-                "performance_metrics",
-                "metadata_optimization",
                 "action_plan",
                 "competitive_context"
             ]
             for key in required_keys:
                 if key not in insights:
                     insights[key] = {}
+                    print(f"[AI DEBUG] Added missing key: {key}")
             
             # Handle the actual response structure - check if insights are nested under "insights" key
             if "insights" in insights:
                 insights_data = insights["insights"]
+                print(f"[AI DEBUG] Using nested 'insights' structure")
             elif "analysis" in insights:
                 insights_data = insights["analysis"]
+                print(f"[AI DEBUG] Using nested 'analysis' structure")
             else:
                 insights_data = insights
+                print(f"[AI DEBUG] Using top-level structure")
 
-            def extract_section(section):
-                sec = insights_data.get(section, {})
+            def extract_section(section_name):
+                print(f"[AI DEBUG] Extracting section: {section_name}")
+                sec = insights_data.get(section_name, {})
+                print(f"[AI DEBUG] Section {section_name} keys: {list(sec.keys()) if isinstance(sec, dict) else 'not a dict'}")
+                
                 # If the section is already in the expected format, use it
-                if "metrics" in sec and "overall_assessment" in sec:
+                if isinstance(sec, dict) and "metrics" in sec and "overall_assessment" in sec:
+                    print(f"[AI DEBUG] Section {section_name} has expected structure")
                     overall = sec.get("overall_assessment", "Analysis not available")
                     metrics = sec.get("metrics", {})
-                    # Patch: If overall_assessment is missing or 'Analysis not available', aggregate per-metric analyses
+                    
+                    # If overall_assessment is missing or 'Analysis not available', try to aggregate per-metric analyses
                     if not overall or overall == "Analysis not available":
                         analyses = [v.get("analysis") for v in metrics.values() if isinstance(v, dict) and v.get("analysis")]
                         if analyses:
                             overall = " ".join(analyses)
+                            print(f"[AI DEBUG] Generated overall assessment from {len(analyses)} metric analyses")
+                    
                     return {
                         "overall_assessment": overall,
                         "metrics": metrics
                     }
+                
                 # If the section is a flat dict of metrics, wrap it in 'metrics'
                 if isinstance(sec, dict) and not ("metrics" in sec and "overall_assessment" in sec):
+                    print(f"[AI DEBUG] Section {section_name} is flat dict, wrapping in metrics")
                     metrics = sec
                     overall = "Analysis not available"
-                    # Patch: Aggregate per-metric analyses if possible
+                    
+                    # Try to aggregate per-metric analyses if possible
                     analyses = [v.get("analysis") for v in metrics.values() if isinstance(v, dict) and v.get("analysis")]
                     if analyses:
                         overall = " ".join(analyses)
+                        print(f"[AI DEBUG] Generated overall assessment from {len(analyses)} metric analyses")
+                    
                     return {
                         "overall_assessment": overall,
                         "metrics": metrics
                     }
-                # Otherwise, just return the whole section as metrics
+                
+                # If the section has analysis but no metrics structure, create one
+                if isinstance(sec, dict) and "analysis" in sec:
+                    print(f"[AI DEBUG] Section {section_name} has analysis but no metrics structure")
+                    overall = sec.get("analysis", "Analysis not available")
+                    return {
+                        "overall_assessment": overall,
+                        "metrics": {}
+                    }
+                
+                # If the section is a string, treat it as overall assessment
+                if isinstance(sec, str):
+                    print(f"[AI DEBUG] Section {section_name} is a string, treating as overall assessment")
+                    return {
+                        "overall_assessment": sec,
+                        "metrics": {}
+                    }
+                
+                # Otherwise, just return the whole section as metrics with a default overall
+                print(f"[AI DEBUG] Section {section_name} using fallback structure")
                 return {
                     "overall_assessment": "Analysis not available",
                     "metrics": sec
@@ -306,11 +295,11 @@ class BenchmarkAnalyzer:
 
             ai_insights = {
                 "visibility_performance": extract_section("visibility_performance"),
-                "performance_metrics": extract_section("performance_metrics"),
-                "metadata_optimization": extract_section("metadata_optimization"),
                 "analysis": insights_data.get("overall_seo_health", {}),
                 "recommendations": insights_data.get("action_plan", {})
             }
+            
+            print(f"[AI DEBUG] Final AI insights structure created")
             return ai_insights
             
         except Exception as e:
@@ -330,16 +319,6 @@ class BenchmarkAnalyzer:
                 "score": 0,
                 "status": "Unable to analyze",
                 "summary": "Visibility analysis temporarily unavailable"
-            },
-            "performance_metrics": {
-                "score": 0,
-                "status": "Unable to analyze",
-                "summary": "Performance analysis temporarily unavailable"
-            },
-            "metadata_optimization": {
-                "score": 0,
-                "status": "Unable to analyze",
-                "summary": "Metadata analysis temporarily unavailable"
             },
             "action_plan": {
                 "priority_actions": [],
@@ -382,7 +361,19 @@ Benchmark Data: {json.dumps(analysis_data['benchmark_data'], indent=2)}
 Calculated Metrics: {json.dumps(analysis_data['calculated_metrics'], indent=2)}
 Business Type: {business_type}
 
+IMPORTANT: You must respond with a valid JSON object that includes ALL of these sections:
+- overall_seo_health (with score, grade, summary)
+- visibility_performance (with overall_assessment and metrics)
+- action_plan (with immediate_actions, short_term_goals, long_term_strategy)
+
+Each metrics section should contain individual metric analyses with 'analysis' fields.
+
 Please analyze the above data and respond with a JSON object following the required format."""
+        
+        print(f"[AI DEBUG] Prompt length: {len(complete_prompt)} characters")
+        print(f"[AI DEBUG] Business type: {business_type}")
+        print(f"[AI DEBUG] Dashboard metrics available: {list(analysis_data['dashboard_metrics'].keys())}")
+        print(f"[AI DEBUG] Calculated metrics available: {list(analysis_data['calculated_metrics'].keys())}")
         
         return complete_prompt
     

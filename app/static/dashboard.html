@@ -333,11 +333,13 @@
                             <span class="metric-label">Impressions</span>
                             <span class="metric-value" id="impressionsValue">0</span>
                             <span class="metric-change" id="impressionsChange">+0</span>
+                            <div class="metric-ai-analysis" id="impressionsAnalysis" style="display: none; margin-top: 8px; font-size: 0.875rem; color: #6B7280; line-height: 1.4;"></div>
                         </div>
                         <div class="metric">
                             <span class="metric-label">Clicks</span>
                             <span class="metric-value" id="clicksValue">0</span>
                             <span class="metric-change" id="clicksChange">+0</span>
+                            <div class="metric-ai-analysis" id="clicksAnalysis" style="display: none; margin-top: 8px; font-size: 0.875rem; color: #6B7280; line-height: 1.4;"></div>
                         </div>
                     </div>
                     <div class="metrics-row">
@@ -345,94 +347,21 @@
                             <span class="metric-label">CTR</span>
                             <span class="metric-value" id="ctrValue">0%</span>
                             <span class="metric-change" id="ctrChange">+0%</span>
+                            <div class="metric-ai-analysis" id="ctrAnalysis" style="display: none; margin-top: 8px; font-size: 0.875rem; color: #6B7280; line-height: 1.4;"></div>
                         </div>
                         <div class="metric">
                             <span class="metric-label">Avg Position</span>
                             <span class="metric-value" id="avgPositionValue">N/A</span>
                             <span class="metric-change" id="avgPositionChange">+0.0</span>
+                            <div class="metric-ai-analysis" id="avgPositionAnalysis" style="display: none; margin-top: 8px; font-size: 0.875rem; color: #6B7280; line-height: 1.4;"></div>
                         </div>
                     </div>
-                    <div class="insights" id="visibilityInsights">
-                        <p>Connect Google Search Console to see visibility insights</p>
-                    </div>
+                    <!-- Individual metric AI analyses are now displayed below each metric -->
             </div>
         </div>
 
 
-            <!-- Engagement & UX Performance Section -->
-            <div class="analysis-card">
-                <div class="card-header">
-                    <div class="header-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"></polygon>
-                        </svg>
-                    </div>
-                    <h2>Engagement & UX</h2>
-                    <div class="status-indicator" id="uxStatus">Good</div>
-                </div>
-                <div class="card-body">
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Performance Score</span>
-                            <span class="metric-value" id="performanceScore">N/A</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">LCP</span>
-                            <span class="metric-value" id="lcpValue">N/A</span>
-                        </div>
-                    </div>
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">FCP</span>
-                            <span class="metric-value" id="fcpValue">N/A</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">CLS</span>
-                            <span class="metric-value" id="clsValue">N/A</span>
-                        </div>
-                    </div>
-                    <div class="insights" id="uxInsights">
-                        <p>Performance data will appear when connected</p>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Metadata & Image Alt Text Section -->
-            <div class="analysis-card">
-                <div class="card-header">
-                    <span class="header-icon">
-                        <!-- Metadata SVG icon -->
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
-                    </span>
-                    <h2 class="header-title">Metadata & Image Alt Text</h2>
-                    <div class="status-indicator" id="metadataStatus">NEEDS WORK</div>
-                </div>
-                <div class="card-body">
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Meta Titles</span>
-                            <span class="metric-value" id="metaTitles">N/A</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Meta Descriptions</span>
-                            <span class="metric-value" id="metaDescriptions">N/A</span>
-                        </div>
-                    </div>
-                    <div class="metrics-row">
-                        <div class="metric">
-                            <span class="metric-label">Images with Alt Text</span>
-                            <span class="metric-value" id="imageAltText">N/A</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">H1 Tags</span>
-                            <span class="metric-value" id="h1Tags">N/A</span>
-                        </div>
-                    </div>
-                    <div class="insights" id="metadataInsights">
-                        <p>Metadata analysis will appear here</p>
-                    </div>
-                </div>
-            </div>
 
 
 
@@ -472,25 +401,24 @@
             <div id="metricsLoadingPopup">
                 <div id="metricsLoadingList"></div>
             </div>
-    +       <div id="cacheLoadingPopup" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(255,255,255,0.85);z-index:9999;align-items:center;justify-content:center;font-size:1.5rem;color:#D97706;font-weight:500;">
-    +           <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;">
-    +               <span class="metric-loading-spinner"><svg width='36' height='36' viewBox='0 0 50 50'><circle cx='25' cy='25' r='20' fill='none' stroke='#D97706' stroke-width='5' stroke-linecap='round' stroke-dasharray='31.4 31.4' stroke-dashoffset='0'><animateTransform attributeName='transform' type='rotate' from='0 25 25' to='360 25 25' dur='0.8s' repeatCount='indefinite'/></circle></svg></span>
-    +               Loading dashboard cache...
-    +           </div>
-    +       </div>
+        <div id="cacheLoadingPopup" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(255,255,255,0.85);z-index:9999;align-items:center;justify-content:center;font-size:1.5rem;color:#F97316;font-weight:500;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;">
+                <span class="metric-loading-spinner"><svg width='36' height='36' viewBox='0 0 50 50'><circle cx='25' cy='25' r='20' fill='none' stroke='#F97316' stroke-width='5' stroke-linecap='round' stroke-dasharray='31.4 31.4' stroke-dashoffset='0'><animateTransform attributeName='transform' type='rotate' from='0 25 25' to='360 25 25' dur='0.8s' repeatCount='indefinite'/></circle></svg></span>
+                Loading dashboard cache...
+            </div>
+        </div>
         </div>
 
-        <div id="aiAnalysisPopupContainer" style="display:none;">
-            <div class="ai-analysis-loading-inner" style="display:flex;flex-direction:column;align-items:center;gap:1.5rem;">
-                <span class="metric-loading-spinner"><svg width='36' height='36' viewBox='0 0 50 50'><circle cx='25' cy='25' r='20' fill='none' stroke='#D97706' stroke-width='5' stroke-linecap='round' stroke-dasharray='31.4 31.4' stroke-dashoffset='0'><animateTransform attributeName='transform' type='rotate' from='0 25 25' to='360 25 25' dur='0.8s' repeatCount='indefinite'/></circle></svg></span>
+        <div id="aiAnalysisPopupContainer" style="display:none;position:fixed;right:24px;bottom:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:12px;">
+            <div id="aiAnalysisLoadingPopup" style="transition:transform 0.5s cubic-bezier(0.4,0,0.2,1),opacity 0.5s cubic-bezier(0.4,0,0.2,1);transform:translateX(120%);opacity:0;min-width:260px;max-width:320px;background:#FFF7ED;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:1.25rem 1.5rem;display:none;flex-direction:column;gap:0.75rem;margin:0;position:static;border:1px solid #FED7AA;">
                 <div id="aiAnalysisLoadingList">
-                    <div style="font-weight:500;font-size:1.2rem;color:#D97706;margin-bottom:0.5em;">Generating AI Overall Analysis...</div>
-                    <ul style="margin:0;padding:0;list-style:none;text-align:left;font-size:1rem;max-width:400px;">
-                        <li>1. Gathering latest SEO metrics</li>
-                        <li>2. Analyzing site metadata and content</li>
-                        <li>3. Evaluating engagement & UX signals</li>
-                        <li>4. Aggregating AI insights</li>
-                        <li>5. Summarizing recommendations</li>
+                    <div style="color:#F97316;font-weight:500;font-size:1.2rem;margin-bottom:0.5em;">Generating AI Analysis...</div>
+                    <ul style="margin:0;padding:0;list-style:none;text-align:left;font-size:1rem;max-width:400px;color:#F97316;">
+                        <li>1. Using existing dashboard data</li>
+                        <li>2. Analyzing performance metrics</li>
+                        <li>3. Generating AI insights</li>
+                        <li>4. Creating analysis summary</li>
+                        <li>5. Updating dashboard</li>
                     </ul>
                 </div>
             </div>
@@ -504,9 +432,7 @@
             
             // Global variables for metric data
             window.metricsData = {
-                summary: {},
-                ux: {},
-                metadata: {}
+                summary: {}
             };
             let refreshAttempts = 0; // Track refresh attempts to prevent infinite loops
             const MAX_REFRESH_ATTEMPTS = 3; // Maximum number of refresh attempts
@@ -517,8 +443,6 @@
             const METRIC_GROUPS = [
               { key: 'organic_impressions', label: 'Organic Traffic & Impressions' },
               { key: 'visibility', label: 'Visibility Performance' },
-              { key: 'ux', label: 'Engagement & UX' },
-              { key: 'metadata', label: 'Metadata & Image Alt Text' },
               { key: 'ai', label: 'AI Analysis' }
             ];
             let metricsLoadingState = {};
@@ -1022,19 +946,7 @@
                     document.getElementById('avgPositionChange').className = 'metric-change positive';
                     document.getElementById('visibilityInsights').innerHTML = '<p>Visiblity metrics will appear when connected</p>';
 
-                    // Update engagement & UX
-                    document.getElementById('performanceScore').textContent = 'N/A';
-                    document.getElementById('lcpValue').textContent = '0.0s';
-                    document.getElementById('fcpValue').textContent = '0.0s';
-                    document.getElementById('clsValue').textContent = '0.00';
-                    document.getElementById('uxInsights').innerHTML = '<p>Performance data will appear when connected</p>';
 
-                    // Update metadata & image alt text
-                    document.getElementById('metaTitles').textContent = '0 out of 100';
-                    document.getElementById('metaDescriptions').textContent = '0 out of 100';
-                    document.getElementById('imageAltText').textContent = '0 out of 100';
-                    document.getElementById('h1Tags').textContent = '0 out of 100';
-                    document.getElementById('metadataInsights').innerHTML = '<p>Metadata analysis will appear when connected</p>';
 
                 } else {
                     // Reset all metrics to empty state
@@ -1050,19 +962,7 @@
                     document.getElementById('avgPositionChange').textContent = '+0.0';
                     document.getElementById('visibilityInsights').innerHTML = '<p>Connect Google Search Console to see visibility insights</p>';
 
-                    // Reset engagement & UX
-                    document.getElementById('performanceScore').textContent = 'N/A';
-                    document.getElementById('lcpValue').textContent = 'N/A';
-                    document.getElementById('fcpValue').textContent = 'N/A';
-                    document.getElementById('clsValue').textContent = 'N/A';
-                    document.getElementById('uxInsights').innerHTML = '<p>Performance data will appear when connected</p>';
 
-                    // Reset metadata & image alt text
-                    document.getElementById('metaTitles').textContent = 'N/A';
-                    document.getElementById('metaDescriptions').textContent = 'N/A';
-                    document.getElementById('imageAltText').textContent = 'N/A';
-                    document.getElementById('h1Tags').textContent = 'N/A';
-                    document.getElementById('metadataInsights').innerHTML = '<p>Metadata analysis will appear here</p>';
 
                 }
             }
@@ -1205,7 +1105,6 @@
                 // Generate insights based on real data
                 try {
                     await generateVisibilityInsights(summary);
-                    await generateUXInsights(metrics);
                     setMetricLoadingState('ai', 'done');
                 } catch (error) {
                     console.error('[ERROR] Failed to generate insights:', error);
@@ -1371,185 +1270,71 @@
                     window.lastInsights = insights;
                     
                     if (insights && insights.visibility_performance && insights.visibility_performance.metrics) {
-                        const insightsHtml = [];
-                        
-                        // Overall assessment
-                        if (insights.visibility_performance.overall_assessment) {
-                            insightsHtml.push(`<p><strong>Overall:</strong> ${insights.visibility_performance.overall_assessment}</p>`);
-                        }
-                        
-                        // Individual metric insights
+                        // Update individual metric analyses
+                        console.log('[DEBUG] AI insights structure:', insights.visibility_performance);
                         Object.entries(insights.visibility_performance.metrics).forEach(([metric, data]) => {
-                            if (data.analysis) {
-                                insightsHtml.push(`<p><strong>${metric.charAt(0).toUpperCase() + metric.slice(1)}:</strong> ${data.analysis}</p>`);
+                            console.log(`[DEBUG] Metric ${metric}:`, data);
+                            console.log(`[DEBUG] Metric ${metric} analysis:`, data.analysis);
+                            
+                            let analysis = '';
+                            // Handle different possible data structures
+                            if (typeof data === 'string') {
+                                analysis = data;
+                            } else if (data && typeof data === 'object') {
+                                // Check if analysis is an object with text content
+                                if (data.analysis && typeof data.analysis === 'object') {
+                                    // Create a meaningful summary from the analysis object
+                                    const analysisObj = data.analysis;
+                                    const parts = [];
+                                    
+                                    if (analysisObj.current_performance) {
+                                        parts.push(`${analysisObj.current_performance} performance`);
+                                    }
+                                    if (analysisObj.root_cause) {
+                                        parts.push(analysisObj.root_cause);
+                                    }
+                                    if (analysisObj.industry_context) {
+                                        parts.push(analysisObj.industry_context);
+                                    }
+                                    
+                                    // Clean up any double periods and ensure proper formatting
+                                    analysis = parts.join('. ').replace(/\.\.+/g, '.').replace(/\.\s*\./g, '. ').trim();
+                                } else {
+                                    // Try different possible field names
+                                    analysis = data.analysis || data.summary || data.assessment || data.description || data.value || JSON.stringify(data);
+                                }
                             }
-                            if (data.recommendations && data.recommendations.length > 0) {
-                                const recs = data.recommendations.map(r => typeof r === 'string' ? r : r.action || JSON.stringify(r));
-                                insightsHtml.push(`<p><strong>Recommendations:</strong> ${recs.join('<br>')}</p>`);
+                            
+                            // Map metric names to element IDs
+                            const metricElementMap = {
+                                'impressions': 'impressionsAnalysis',
+                                'clicks': 'clicksAnalysis',
+                                'ctr': 'ctrAnalysis',
+                                'average_position': 'avgPositionAnalysis'
+                            };
+                            
+                            const elementId = metricElementMap[metric];
+                            if (elementId && analysis) {
+                                const element = document.getElementById(elementId);
+                                if (element) {
+                                    element.textContent = analysis;
+                                    element.style.display = 'block';
+                                }
                             }
                         });
                         
-                        document.getElementById('visibilityInsights').innerHTML = insightsHtml.join('');
                         renderAIOverallAnalysis(insights);
                     } else {
                         console.log('[ERROR] No visibility insights available');
-                        document.getElementById('visibilityInsights').innerHTML = '<p>AI insights not available. Please try again later.</p>';
                     }
                 } catch (error) {
                     console.error('Error generating visibility insights:', error);
-                    document.getElementById('visibilityInsights').innerHTML = '<p>AI insights not available. Please try again later.</p>';
                 }
             }
 
-            async function generateUXInsights(metrics) {
-                try {
-                    // Use cached insights if available, otherwise fetch
-                    const insights = cachedAIInsights || await fetchAIInsights();
-                    window.lastInsights = insights;
-                    
-                    if (insights && insights.performance_metrics && insights.performance_metrics.metrics) {
-                        const insightsHtml = [];
-                        // Show overall assessment if present and not 'Analysis not available'
-                        if (insights.performance_metrics.overall_assessment && insights.performance_metrics.overall_assessment !== 'Analysis not available') {
-                            insightsHtml.push(`<p><strong>Overall:</strong> ${insights.performance_metrics.overall_assessment}</p>`);
-                        } else {
-                            // Aggregate per-metric analyses as overall if overall_assessment is missing or not available
-                            const analyses = Object.entries(insights.performance_metrics.metrics)
-                                .map(([metric, data]) => data.analysis)
-                                .filter(Boolean);
-                            if (analyses.length > 0) {
-                                insightsHtml.push(`<p><strong>Overall:</strong> ${analyses.join(' ')}</p>`);
-                            }
-                        }
-                        // Loop through each metric for analysis and recommendations
-                        Object.entries(insights.performance_metrics.metrics).forEach(([metric, data]) => {
-                            if (data.analysis) {
-                                insightsHtml.push(`<p><strong>${metric.charAt(0).toUpperCase() + metric.slice(1)}:</strong> ${data.analysis}</p>`);
-                            }
-                            if (data.recommendations && data.recommendations.length > 0) {
-                                const recs = data.recommendations.map(r => typeof r === 'string' ? r : r.action || JSON.stringify(r));
-                                insightsHtml.push(`<p><strong>Recommendations:</strong> ${recs.join('<br>')}</p>`);
-                            }
-                        });
-                        document.getElementById('uxInsights').innerHTML = insightsHtml.join('');
-                    } else {
-                        console.log('[ERROR] No UX insights available');
-                        document.getElementById('uxInsights').innerHTML = '<p>AI insights not available. Please try again later.</p>';
-                    }
-                } catch (error) {
-                    console.error('Error generating UX insights:', error);
-                    document.getElementById('uxInsights').innerHTML = '<p>AI insights not available. Please try again later.</p>';
-                }
-            }
 
-            async function fetchPageSpeedData() {
-                setMetricLoadingState('ux', 'loading');
-                try {
-                    const response = await apiCall('/auth/pagespeed/metrics');
-                    
-                    if (response.ok) {
-                        const psiData = await response.json();
-                        updateUXMetrics(psiData);
-                        setMetricLoadingState('ux', 'done');
-                    } else {
-                        setMetricLoadingState('ux', 'done');
-                        const errorText = await response.text();
-                        console.log('[DEBUG] Failed to load PageSpeed data:', errorText);
-                        // Provide fallback data for UX metrics
-                        const fallbackData = {
-                            performance_score: 0,
-                            lcp: { value: 0 },
-                            fcp: { value: 0 },
-                            cls: { value: 0 },
-                            insights: ['PageSpeed data will be available once configured.']
-                        };
-                        updateUXMetrics(fallbackData);
-                    }
-                } catch (error) {
-                    setMetricLoadingState('ux', 'done');
-                    console.error('Error loading PageSpeed data:', error);
-                    // Provide fallback data for UX metrics
-                    const fallbackData = {
-                        performance_score: 0,
-                        lcp: { value: 0 },
-                        fcp: { value: 0 },
-                        cls: { value: 0 },
-                        insights: ['PageSpeed data is currently unavailable. Please check your connection and try refreshing.']
-                    };
-                    updateUXMetrics(fallbackData);
-                }
-            }
 
-            function updateUXMetrics(psiData) {
-                
-                // Store UX data globally
-                window.metricsData = window.metricsData || {};
-                window.metricsData.ux = {
-                    performance_score: psiData.performance_score,
-                    lcp: psiData.lcp?.value,
-                    fcp: psiData.fcp?.value,
-                    cls: psiData.cls?.value,
-                    insights: psiData.insights || [],
-                    recommendations: psiData.recommendations || []
-                };
-                
-                // Update UX metrics in the dashboard
-                const performanceScore = psiData.performance_score;
-                const lcpValue = psiData.lcp?.value;
-                const fcpValue = psiData.fcp?.value;
-                const clsValue = psiData.cls?.value;
-                
-                // Safely update DOM elements
-                const elements = {
-                    'performanceScore': performanceScore !== undefined ? performanceScore : 'N/A',
-                    'lcpValue': lcpValue !== undefined ? `${lcpValue.toFixed(1)}s` : 'N/A',
-                    'fcpValue': fcpValue !== undefined ? `${fcpValue.toFixed(1)}s` : 'N/A',
-                    'clsValue': clsValue !== undefined ? clsValue.toFixed(3) : 'N/A'
-                };
-                
-                Object.entries(elements).forEach(([id, value]) => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.textContent = value;
-                    } else {
-                        console.warn(`[DEBUG] Element not found: ${id}`);
-                    }
-                });
-                
-                // Always use AI-generated insights for UX
-                generateUXInsights(window.metricsData);
-            }
 
-            function generateUXInsightsFromData(psiData) {
-                let insight = '';
-                const performanceScore = psiData.performance_score;
-                const lcp = psiData.lcp?.value;
-                const fcp = psiData.fcp?.value;
-                const cls = psiData.cls?.value;
-                
-                if (performanceScore >= 90) {
-                    insight = 'Excellent performance! Your site loads quickly and provides a great user experience.';
-                } else if (performanceScore >= 70) {
-                    insight = 'Good performance with room for improvement. Consider optimizing images and reducing server response time.';
-                } else if (performanceScore >= 50) {
-                    insight = 'Performance needs improvement. Focus on Core Web Vitals optimization for better user experience.';
-                } else {
-                    insight = 'Performance requires immediate attention. Prioritize speed optimizations to improve user experience and SEO.';
-                }
-                
-                // Add specific recommendations based on Core Web Vitals
-                if (lcp && lcp > 2.5) {
-                    insight += ' LCP is slow - optimize images and reduce server response time.';
-                }
-                if (fcp && fcp > 1.8) {
-                    insight += ' FCP needs improvement - optimize critical rendering path.';
-                }
-                if (cls && cls > 0.1) {
-                    insight += ' CLS issues detected - prevent layout shifts during page load.';
-                }
-                
-                document.getElementById('uxInsights').innerHTML = `<p>${insight}</p>`;
-            }
 
 
 
@@ -1882,14 +1667,15 @@
 
             async function refreshMetrics() {
                 console.log('[DEBUG] refreshMetrics() called - this should only happen when user clicks Refresh Data button');
+                
+                // IMMEDIATE POPUP - Show metrics loading popup instantly
+                showMetricsLoadingPopup();
+                resetMetricsLoadingState();
+                
                 const refreshBtn = document.getElementById('refreshBtn');
                 // Show loading state
                 refreshBtn.disabled = true;
                 refreshBtn.classList.add('loading');
-                
-                // IMMEDIATE LOADING INDICATOR - Show metrics loading popup
-                showMetricsLoadingPopup();
-                resetMetricsLoadingState();
                 
                 try {
                     const response = await apiCall('/auth/gsc/refresh', {
@@ -1900,8 +1686,7 @@
                         
                         // Set initial loading states
                         setMetricLoadingState('visibility', 'loading');
-                        setMetricLoadingState('organic', 'loading');
-                        setMetricLoadingState('impressions', 'loading');
+                        setMetricLoadingState('organic_impressions', 'loading');
                         
                         // Fetch new AI insights with explicit AI usage
                         const aiData = await fetchExplicitAIInsights();
@@ -1914,18 +1699,15 @@
                         // Reload the dashboard with fresh data
                         await loadRealMetrics();
                         
+
+                        
                         // Cache the dashboard data after successful refresh
                         await cacheDashboardData();
                         
-                        // Mark all metrics as done
+                        // Mark all metrics as done after everything is complete
                         setMetricLoadingState('visibility', 'done');
-                        setMetricLoadingState('organic', 'done');
-                        setMetricLoadingState('impressions', 'done');
-                        setMetricLoadingState('ux', 'done');
-                        setMetricLoadingState('metadata', 'done');
-                        
-                        // Fetch new metadata metrics on explicit refresh
-                        await fetchMetadataData();
+                        setMetricLoadingState('organic_impressions', 'done');
+                        setMetricLoadingState('ai', 'done');
                         
                     } else {
                         const error = await response.json();
@@ -1936,10 +1718,8 @@
                     
                     // Mark all metrics as done even on error
                     setMetricLoadingState('visibility', 'done');
-                    setMetricLoadingState('organic', 'done');
-                    setMetricLoadingState('impressions', 'done');
-                    setMetricLoadingState('ux', 'done');
-                    setMetricLoadingState('metadata', 'done');
+                    setMetricLoadingState('organic_impressions', 'done');
+                    setMetricLoadingState('ai', 'done');
                     
                     // Force the banner to show with a helpful message
                     const banner = document.getElementById('gscBanner');
@@ -2031,25 +1811,7 @@
                                     showDateRange(metricsObject);
                                 }
                                 
-                                // Update other core metric sections if available
-                                if (result.data.metrics.ux) {
-                                    // Transform cached UX data back to API format
-                                    const cachedUx = result.data.metrics.ux;
-                                    const uxApiFormat = {
-                                        performance_score: cachedUx.performance_score,
-                                        lcp: { value: cachedUx.lcp },
-                                        fcp: { value: cachedUx.fcp },
-                                        cls: { value: cachedUx.cls },
-                                        insights: cachedUx.insights || [],
-                                        recommendations: cachedUx.recommendations || []
-                                    };
-                                    updateUXMetrics(uxApiFormat);
-                                    generateUXInsightsFromData(uxApiFormat);
-                                }
-                                if (result.data.metrics.metadata) {
-                                    updateMetadataMetrics(result.data.metrics.metadata);
-                                    await generateMetadataInsights(result.data.metrics.metadata);
-                                }
+
                                 
                                 // Recalculate overall SEO score
                                 recalculateOverallSEOScore();
@@ -2119,11 +1881,7 @@
             }
 
             function recalculateOverallSEOScore() {
-                const seoScore = calculateSEOScore(
-                    window.metricsData.summary,
-                    window.metricsData.ux,
-                    window.metricsData.metadata
-                );
+                const seoScore = calculateSEOScore(window.metricsData.summary);
                 
                 // Calculate and update SEO score change (use backend data if available, otherwise fallback to session-based)
                 const seoScoreChange = window.metricsData.summary?.seo_score_change !== undefined ? 
@@ -2134,24 +1892,14 @@
                 updateSEOScoreChange(seoScoreChange);
             }
 
-            function calculateSEOScore(summary, ux = {}, metadata = {}) {
+            function calculateSEOScore(summary) {
                 // Define core metrics, their weights, and normalization functions
                 const metrics = [
-                    // Visibility Performance (40% weight)
-                    { key: 'avg_ctr', value: summary.avg_ctr, weight: 15, norm: v => Math.min(v / 0.10, 1) },
-                    { key: 'avg_position', value: summary.avg_position, weight: 15, norm: v => Math.max((10 - v) / 10, 0) },
-                    { key: 'total_impressions', value: summary.total_impressions, weight: 5, norm: v => Math.min(Math.log10(v + 1) / 6, 1) },
-                    { key: 'total_clicks', value: summary.total_clicks, weight: 5, norm: v => Math.min(Math.log10(v + 1) / 5, 1) },
-                    // Engagement & UX (35% weight)
-                    { key: 'performance_score', value: ux.performance_score, weight: 15, norm: v => (v / 100) },
-                    { key: 'lcp', value: ux.lcp, weight: 7, norm: v => 1 - Math.min(v, 4) / 4 },
-                    { key: 'fcp', value: ux.fcp, weight: 6, norm: v => 1 - Math.min(v, 3) / 3 },
-                    { key: 'cls', value: ux.cls, weight: 7, norm: v => 1 - Math.min(v, 0.25) / 0.25 },
-                    // Metadata & Image Alt Text (25% weight)
-                    { key: 'meta_titles', value: metadata.meta_titles, weight: 7, norm: v => Math.min(v / 100, 1) },
-                    { key: 'meta_descriptions', value: metadata.meta_descriptions, weight: 7, norm: v => Math.min(v / 100, 1) },
-                    { key: 'image_alt_text', value: metadata.image_alt_text, weight: 6, norm: v => Math.min(v / 100, 1) },
-                    { key: 'h1_tags', value: metadata.h1_tags, weight: 5, norm: v => Math.min(v / 100, 1) }
+                    // Visibility Performance (100% weight - only remaining metrics)
+                    { key: 'avg_ctr', value: summary.avg_ctr, weight: 25, norm: v => Math.min(v / 0.10, 1) },
+                    { key: 'avg_position', value: summary.avg_position, weight: 25, norm: v => Math.max((10 - v) / 10, 0) },
+                    { key: 'total_impressions', value: summary.total_impressions, weight: 25, norm: v => Math.min(Math.log10(v + 1) / 6, 1) },
+                    { key: 'total_clicks', value: summary.total_clicks, weight: 25, norm: v => Math.min(Math.log10(v + 1) / 5, 1) }
                 ];
 
                 // Filter out missing metrics
@@ -2232,44 +1980,40 @@
             
             function showMetricsLoadingPopup() {
                 const popup = document.getElementById('metricsLoadingPopup');
-                popup.style.display = 'flex';
-                // Force reflow for transition
-                void popup.offsetWidth;
-                popup.classList.remove('metrics-loading-hide');
-                popup.classList.add('metrics-loading-visible');
-                updateMetricsLoadingList();
+                if (popup) {
+                    console.log('[DEBUG] Showing metrics loading popup');
+                    popup.style.display = 'flex';
+                    popup.classList.remove('metrics-loading-hide');
+                    popup.classList.add('metrics-loading-visible');
+                    updateMetricsLoadingList();
+                }
             }
             function hideMetricsLoadingPopup() {
                 const popup = document.getElementById('metricsLoadingPopup');
-                popup.classList.remove('metrics-loading-visible');
-                popup.classList.add('metrics-loading-hide');
-                function onTransitionEnd(e) {
-                    if (e.propertyName === 'transform') {
-                        popup.style.display = 'none';
-                        popup.removeEventListener('transitionend', onTransitionEnd);
-                    }
+                if (popup) {
+                    console.log('[DEBUG] Hiding metrics loading popup');
+                    popup.style.display = 'none';
+                    popup.classList.remove('metrics-loading-visible');
+                    popup.classList.add('metrics-loading-hide');
                 }
-                popup.addEventListener('transitionend', onTransitionEnd);
             }
             function showMetricsSuccessPopup() {
                 const popup = document.getElementById('metricsSuccessPopup');
-                popup.style.display = 'flex';
-                // Force reflow for transition
-                void popup.offsetWidth;
-                popup.classList.remove('metrics-success-hide');
-                popup.classList.add('metrics-success-visible');
+                if (popup) {
+                    console.log('[DEBUG] Showing metrics success popup');
+                    popup.style.display = 'flex';
+                    popup.classList.remove('metrics-success-hide');
+                    popup.classList.add('metrics-success-visible');
+                }
             }
             function hideMetricsSuccessPopup() {
                 const popup = document.getElementById('metricsSuccessPopup');
-                popup.classList.remove('metrics-success-visible');
-                popup.classList.add('metrics-success-hide');
-                function onTransitionEnd(e) {
-                    if (e.propertyName === 'transform') {
-                        popup.style.display = 'none';
-                        popup.removeEventListener('transitionend', onTransitionEnd);
-                    }
+                if (popup) {
+                    console.log('[DEBUG] Hiding metrics success popup');
+                    popup.style.display = 'none';
+                    popup.classList.remove('metrics-success-visible');
+                    popup.classList.add('metrics-success-hide');
                 }
-                popup.addEventListener('transitionend', onTransitionEnd);
             }
             function updateMetricsLoadingList() {
                 const orange = '#F97316';
@@ -2289,11 +2033,7 @@
                 }).join('');
             }
             function setMetricLoadingState(key, state) {
-                if (key === 'organic' || key === 'impressions') {
-                    metricsLoadingState['organic_impressions'] = state;
-                } else {
-                    metricsLoadingState[key] = state;
-                }
+                metricsLoadingState[key] = state;
                 updateMetricsLoadingList();
                 
                 // Set loading state for growth indicators
@@ -2303,11 +2043,12 @@
                 
                 // If all done, show success popup and hide both after 5s with countdown
                 if (METRIC_GROUPS.every(m => metricsLoadingState[m.key] === 'done')) {
-                    const loadingPopup = document.getElementById('metricsLoadingPopup');
-                    const successPopup = document.getElementById('metricsSuccessPopup');
-                    loadingPopup.style.display = 'flex';
-                    successPopup.style.display = 'flex';
+                    console.log('[DEBUG] All metrics done, showing success popup');
+                    console.log('[DEBUG] Current loading states:', metricsLoadingState);
+                    
+                    // Show success popup
                     showMetricsSuccessPopup();
+                    
                     let secondsLeft = 5;
                     const timerSpan = document.getElementById('metricsSuccessTimer');
                     timerSpan.textContent = `(${secondsLeft}s)`;
@@ -2317,10 +2058,24 @@
                         timerSpan.textContent = `(${secondsLeft}s)`;
                         if (secondsLeft <= 0) {
                             clearInterval(interval);
+                            console.log('[DEBUG] 5-second countdown finished - hiding all popups');
+                            // Hide both popups together
                             hideMetricsSuccessPopup();
                             hideMetricsLoadingPopup();
                         }
                     }, 1000);
+                    
+                    // Global fallback timer to ensure popups are hidden after 5 seconds
+                    setTimeout(() => {
+                        console.log('[DEBUG] Global fallback timer - forcing hide all popups');
+                        const loadingPopup = document.getElementById('metricsLoadingPopup');
+                        const successPopup = document.getElementById('metricsSuccessPopup');
+                        if (loadingPopup) loadingPopup.style.display = 'none';
+                        if (successPopup) successPopup.style.display = 'none';
+                    }, 5000);
+                } else {
+                    console.log('[DEBUG] Not all metrics done yet. Current states:', metricsLoadingState);
+                    console.log('[DEBUG] Expected keys:', METRIC_GROUPS.map(m => m.key));
                 }
             }
 
@@ -2355,7 +2110,6 @@
             }
             
             async function loadRealMetrics() {
-                showMetricsLoadingPopup();
                 resetMetricsLoadingState();
                 
                 try {
@@ -2383,16 +2137,13 @@
                         
                         // Mark core metrics as loaded
                         setMetricLoadingState('visibility', 'done');
-                        setMetricLoadingState('organic', 'done');
-                        setMetricLoadingState('impressions', 'done');
+                        setMetricLoadingState('organic_impressions', 'done');
                         
-                        // Fetch remaining core metrics in parallel
-                        const additionalMetricsPromises = [
-                            fetchPageSpeedData().catch(e => console.error('[ERROR] PageSpeed data failed:', e))
-                            // fetchMetadataData() is removed from here
-                        ];
+                        // Set AI to loading since insights will be generated
+                        setMetricLoadingState('ai', 'loading');
                         
-                        await Promise.allSettled(additionalMetricsPromises);
+                        // All core metrics are now loaded
+                        console.log('[DEBUG] Core metrics loaded successfully');
                         
                     } else {
                         const errorText = await response.text();
@@ -2400,10 +2151,8 @@
                         
                         // Set all states to done since we can't fetch data
                         setMetricLoadingState('visibility', 'done');
-                        setMetricLoadingState('organic', 'done');
-                        setMetricLoadingState('impressions', 'done');
-                        setMetricLoadingState('ux', 'done');
-                        setMetricLoadingState('metadata', 'done');
+                        setMetricLoadingState('organic_impressions', 'done');
+                        setMetricLoadingState('ai', 'done');
                         
                         // Show empty state
                         updateDashboardMetrics(false);
@@ -2416,10 +2165,8 @@
                     
                     // Set all states to done
                     setMetricLoadingState('visibility', 'done');
-                    setMetricLoadingState('organic', 'done');
-                    setMetricLoadingState('impressions', 'done');
-                    setMetricLoadingState('ux', 'done');
-                    setMetricLoadingState('metadata', 'done');
+                    setMetricLoadingState('organic_impressions', 'done');
+                    setMetricLoadingState('ai', 'done');
                     
                     // Show empty state
                     updateDashboardMetrics(false);
@@ -2432,144 +2179,7 @@
                 }
             }
             
-            async function fetchMetadataData() {
-                console.log('[DEBUG] fetchMetadataData() called - this should only happen when user clicks Refresh Data button');
-                setMetricLoadingState('metadata', 'loading');
-                
-                try {
-                    const response = await apiCall('/auth/metadata/analysis');
-                    
-                    if (response.ok) {
-                        const metadataData = await response.json();
-                        
-                        // Update metadata metrics
-                        updateMetadataMetrics(metadataData);
-                        await generateMetadataInsights(metadataData);
-                        setMetricLoadingState('metadata', 'done');
-                    } else {
-                        const errorText = await response.text();
-                        console.error('[ERROR] Failed to load metadata analysis:', response.status, errorText);
-                        
-                        // Use fallback data
-                        const fallbackData = {
-                            meta_titles: 0,
-                            meta_descriptions: 0,
-                            image_alt_text: 0,
-                            h1_tags: 0,
-                            insights: 'Metadata analysis will be available when connected to Google Search Console.'
-                        };
-                        updateMetadataMetrics(fallbackData);
-                        setMetricLoadingState('metadata', 'done');
-                    }
-                } catch (error) {
-                    console.error('[ERROR] Exception in fetchMetadataData:', error);
-                    
-                    // Use fallback data
-                    const fallbackData = {
-                        meta_titles: 0,
-                        meta_descriptions: 0,
-                        image_alt_text: 0,
-                        h1_tags: 0,
-                        insights: 'Metadata analysis will be available when connected to Google Search Console.'
-                    };
-                    updateMetadataMetrics(fallbackData);
-                    setMetricLoadingState('metadata', 'done');
-                }
-            }
 
-            function updateMetadataMetrics(metadataData) {
-                
-                // Store metadata data globally
-                window.metricsData = window.metricsData || {};
-                window.metricsData.metadata = {
-                    meta_titles: metadataData.meta_titles,
-                    meta_descriptions: metadataData.meta_descriptions,
-                    image_alt_text: metadataData.image_alt_text,
-                    h1_tags: metadataData.h1_tags,
-                    insights: metadataData.insights || []
-                };
-                
-                // Helper function to format metadata counts as "optimized out of total"
-                function formatMetadataCount(optimized, total) {
-                    if (optimized === undefined || total === undefined) return 'N/A';
-                    return `${optimized} out of ${total}`;
-                }
-                
-                // Update metadata metrics in the dashboard using "optimized out of total" format
-                const elements = {
-                    'metaTitles': (metadataData.meta_titles !== undefined) ? metadataData.meta_titles + '%' : 'N/A',
-                    'metaDescriptions': (metadataData.meta_descriptions !== undefined) ? metadataData.meta_descriptions + '%' : 'N/A',
-                    'imageAltText': (metadataData.image_alt_text !== undefined) ? metadataData.image_alt_text + '%' : 'N/A',
-                    'h1Tags': (metadataData.h1_tags !== undefined) ? metadataData.h1_tags + '%' : 'N/A'
-                };
-                
-                Object.entries(elements).forEach(([id, value]) => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.textContent = value;
-                    } else {
-                        console.warn(`[DEBUG] Element not found: ${id}`);
-                    }
-                });
-                
-                // Update status indicator based on overall metadata health
-                const statusIndicator = document.getElementById('metadataStatus');
-                if (statusIndicator) {
-                    const avgScore = (metadataData.meta_titles + metadataData.meta_descriptions + metadataData.image_alt_text + metadataData.h1_tags) / 4;
-                    if (avgScore >= 90) {
-                        statusIndicator.textContent = 'Excellent';
-                        statusIndicator.className = 'status-indicator good';
-                    } else if (avgScore >= 70) {
-                        statusIndicator.textContent = 'Good';
-                        statusIndicator.className = 'status-indicator good';
-                    } else if (avgScore >= 50) {
-                        statusIndicator.textContent = 'Needs Work';
-                        statusIndicator.className = 'status-indicator warning';
-                    } else {
-                        statusIndicator.textContent = 'Poor';
-                        statusIndicator.className = 'status-indicator error';
-                    }
-                }
-                
-                // Recalculate overall SEO score
-                recalculateOverallSEOScore();
-            }
-
-            async function generateMetadataInsights(metadataData) {
-                try {
-                    // Use cached insights if available, otherwise fetch
-                    const insights = cachedAIInsights || await fetchAIInsights();
-                    window.lastInsights = insights;
-                    
-                    if (insights && insights.metadata_optimization && insights.metadata_optimization.metrics) {
-                        const insightsHtml = [];
-                        
-                        // Overall assessment
-                        if (insights.metadata_optimization.overall_assessment) {
-                            insightsHtml.push(`<p><strong>Overall:</strong> ${insights.metadata_optimization.overall_assessment}</p>`);
-                        }
-                        
-                        // Individual metric insights
-                        Object.entries(insights.metadata_optimization.metrics).forEach(([metric, data]) => {
-                            if (data.analysis) {
-                                insightsHtml.push(`<p><strong>${metric.charAt(0).toUpperCase() + metric.slice(1)}:</strong> ${data.analysis}</p>`);
-                            }
-                            if (data.recommendations && data.recommendations.length > 0) {
-                                const recs = data.recommendations.map(r => typeof r === 'string' ? r : r.action || JSON.stringify(r));
-                                insightsHtml.push(`<p><strong>Recommendations:</strong> ${recs.join('<br>')}</p>`);
-                            }
-                        });
-                        
-                        document.getElementById('metadataInsights').innerHTML = insightsHtml.join('');
-                    } else {
-                        console.log('[ERROR] No metadata insights available');
-                        document.getElementById('metadataInsights').innerHTML = '<p>AI insights not available. Please try again later.</p>';
-                    }
-                } catch (error) {
-                    console.error('Error generating metadata insights:', error);
-                    document.getElementById('metadataInsights').innerHTML = '<p>AI insights not available. Please try again later.</p>';
-                }
-            }
             
             document.addEventListener('DOMContentLoaded', initDashboard);
 
@@ -2588,149 +2198,7 @@
 
 
 
-            async function fetchPageSpeedData() {
-                setMetricLoadingState('ux', 'loading');
-                try {
-                    const response = await apiCall('/auth/pagespeed/metrics');
-                    
-                    if (response.ok) {
-                        const psiData = await response.json();
-                        updateUXMetrics(psiData);
-                        setMetricLoadingState('ux', 'done');
-                    } else {
-                        setMetricLoadingState('ux', 'done');
-                    }
-                } catch (error) {
-                    setMetricLoadingState('ux', 'done');
-                }
-            }
 
-            function updateUXMetrics(psiData) {
-                
-                // Store UX data globally
-                window.metricsData = window.metricsData || {};
-                window.metricsData.ux = {
-                    performance_score: psiData.performance_score,
-                    lcp: psiData.lcp?.value,
-                    fcp: psiData.fcp?.value,
-                    cls: psiData.cls?.value,
-                    insights: psiData.insights || [],
-                    recommendations: psiData.recommendations || []
-                };
-                
-                // Update UX metrics in the dashboard
-                const performanceScore = psiData.performance_score;
-                const lcpValue = psiData.lcp?.value;
-                const fcpValue = psiData.fcp?.value;
-                const clsValue = psiData.cls?.value;
-                
-                // Safely update DOM elements
-                const elements = {
-                    'performanceScore': performanceScore !== undefined ? performanceScore : 'N/A',
-                    'lcpValue': lcpValue !== undefined ? `${lcpValue.toFixed(1)}s` : 'N/A',
-                    'fcpValue': fcpValue !== undefined ? `${fcpValue.toFixed(1)}s` : 'N/A',
-                    'clsValue': clsValue !== undefined ? clsValue.toFixed(3) : 'N/A'
-                };
-                
-                Object.entries(elements).forEach(([id, value]) => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.textContent = value;
-                    } else {
-                        console.warn(`[DEBUG] Element not found: ${id}`);
-                    }
-                });
-                
-                // Generate and update performance insights
-                generatePerformanceInsights(psiData);
-            }
-
-            function generatePerformanceInsights(psiData) {
-                const insights = [];
-                const performanceScore = psiData.performance_score;
-                const lcpValue = psiData.lcp?.value;
-                const fcpValue = psiData.fcp?.value;
-                const clsValue = psiData.cls?.value;
-                
-                // Generate insights based on performance metrics
-                if (performanceScore !== undefined) {
-                    if (performanceScore >= 90) {
-                        insights.push("Excellent performance score! Your website loads quickly and provides a great user experience.");
-                    } else if (performanceScore >= 70) {
-                        insights.push("Good performance score. Consider optimizing further to reach excellent performance.");
-                    } else if (performanceScore >= 50) {
-                        insights.push("Moderate performance score. There are opportunities to improve loading speed and user experience.");
-                    } else {
-                        insights.push("Poor performance score. Immediate optimization is needed to improve user experience and SEO rankings.");
-                    }
-                }
-                
-                // LCP insights
-                if (lcpValue !== undefined) {
-                    if (lcpValue <= 2.5) {
-                        insights.push("Largest Contentful Paint is excellent - users see your main content quickly.");
-                    } else if (lcpValue <= 4.0) {
-                        insights.push("Largest Contentful Paint needs improvement - consider optimizing images and server response times.");
-                    } else {
-                        insights.push("Largest Contentful Paint is poor - users wait too long to see your main content. Optimize images, reduce server response time, and eliminate render-blocking resources.");
-                    }
-                }
-                
-                // FCP insights
-                if (fcpValue !== undefined) {
-                    if (fcpValue <= 1.8) {
-                        insights.push("First Contentful Paint is excellent - users see content appear quickly.");
-                    } else if (fcpValue <= 3.0) {
-                        insights.push("First Contentful Paint needs improvement - optimize critical rendering path and reduce server response time.");
-                    } else {
-                        insights.push("First Contentful Paint is poor - users experience significant delays. Optimize server response time and eliminate render-blocking resources.");
-                    }
-                }
-                
-                // CLS insights
-                if (clsValue !== undefined) {
-                    if (clsValue <= 0.1) {
-                        insights.push("Cumulative Layout Shift is excellent - your page layout is stable and doesn't shift unexpectedly.");
-                    } else if (clsValue <= 0.25) {
-                        insights.push("Cumulative Layout Shift needs improvement - some elements may shift during loading, affecting user experience.");
-                    } else {
-                        insights.push("Cumulative Layout Shift is poor - page elements shift significantly during loading. Add dimensions to images and reserve space for ads.");
-                    }
-                }
-                
-                // Use API insights if available, otherwise use generated insights
-                let finalInsights = [];
-                if (psiData.insights && Array.isArray(psiData.insights) && psiData.insights.length > 0) {
-                    finalInsights = psiData.insights;
-                } else if (psiData.insights && typeof psiData.insights === 'string') {
-                    finalInsights = [psiData.insights];
-                } else {
-                    finalInsights = insights;
-                }
-                
-                // Add recommendations if available
-                if (psiData.recommendations) {
-                    if (Array.isArray(psiData.recommendations)) {
-                        finalInsights.push(...psiData.recommendations);
-                    } else if (typeof psiData.recommendations === 'string') {
-                        finalInsights.push(psiData.recommendations);
-                    }
-                }
-                
-                // Update the insights container
-                const uxInsightsElement = document.getElementById('uxInsights');
-                if (uxInsightsElement) {
-                    if (finalInsights.length > 0) {
-                        const insightsHtml = finalInsights.map(insight => `<p>${insight}</p>`).join('');
-                        uxInsightsElement.innerHTML = insightsHtml;
-                    } else {
-                        uxInsightsElement.innerHTML = '<p>Performance analysis completed. No specific insights available.</p>';
-                        console.log('[DEBUG] No UX insights available, showing default message');
-                    }
-                } else {
-                    console.warn('[DEBUG] UX insights element not found');
-                }
-            }
 
             // Duplicate fetchMobileData function removed - using the comprehensive version above
             // Duplicate fetchBusinessData function removed - using the enhanced version above with debugging
@@ -3098,33 +2566,65 @@
                     window.lastInsights = insights;
                     
                     if (insights && insights.visibility_performance && insights.visibility_performance.metrics) {
-                        const insightsHtml = [];
-                        
-                        // Overall assessment
-                        if (insights.visibility_performance.overall_assessment) {
-                            insightsHtml.push(`<p><strong>Overall:</strong> ${insights.visibility_performance.overall_assessment}</p>`);
-                        }
-                        
-                        // Individual metric insights
+                        // Update individual metric analyses
+                        console.log('[DEBUG] AI insights structure:', insights.visibility_performance);
                         Object.entries(insights.visibility_performance.metrics).forEach(([metric, data]) => {
-                            if (data.analysis) {
-                                insightsHtml.push(`<p><strong>${metric.charAt(0).toUpperCase() + metric.slice(1)}:</strong> ${data.analysis}</p>`);
+                            console.log(`[DEBUG] Metric ${metric}:`, data);
+                            console.log(`[DEBUG] Metric ${metric} analysis:`, data.analysis);
+                            
+                            let analysis = '';
+                            // Handle different possible data structures
+                            if (typeof data === 'string') {
+                                analysis = data;
+                            } else if (data && typeof data === 'object') {
+                                // Check if analysis is an object with text content
+                                if (data.analysis && typeof data.analysis === 'object') {
+                                    // Create a meaningful summary from the analysis object
+                                    const analysisObj = data.analysis;
+                                    const parts = [];
+                                    
+                                    if (analysisObj.current_performance) {
+                                        parts.push(`${analysisObj.current_performance} performance`);
+                                    }
+                                    if (analysisObj.root_cause) {
+                                        parts.push(analysisObj.root_cause);
+                                    }
+                                    if (analysisObj.industry_context) {
+                                        parts.push(analysisObj.industry_context);
+                                    }
+                                    
+                                    // Clean up any double periods and ensure proper formatting
+                                    analysis = parts.join('. ').replace(/\.\.+/g, '.').replace(/\.\s*\./g, '. ').trim();
+                                } else {
+                                    // Try different possible field names
+                                    analysis = data.analysis || data.summary || data.assessment || data.description || data.value || JSON.stringify(data);
+                                }
                             }
-                            if (data.recommendations && data.recommendations.length > 0) {
-                                const recs = data.recommendations.map(r => typeof r === 'string' ? r : r.action || JSON.stringify(r));
-                                insightsHtml.push(`<p><strong>Recommendations:</strong> ${recs.join('<br>')}</p>`);
+                            
+                            // Map metric names to element IDs
+                            const metricElementMap = {
+                                'impressions': 'impressionsAnalysis',
+                                'clicks': 'clicksAnalysis',
+                                'ctr': 'ctrAnalysis',
+                                'average_position': 'avgPositionAnalysis'
+                            };
+                            
+                            const elementId = metricElementMap[metric];
+                            if (elementId && analysis) {
+                                const element = document.getElementById(elementId);
+                                if (element) {
+                                    element.textContent = analysis;
+                                    element.style.display = 'block';
+                                }
                             }
                         });
                         
-                        document.getElementById('visibilityInsights').innerHTML = insightsHtml.join('');
                         renderAIOverallAnalysis(insights);
                     } else {
                         console.log('[ERROR] No visibility insights available');
-                        document.getElementById('visibilityInsights').innerHTML = '<p>AI insights not available. Please try again later.</p>';
                     }
                 } catch (error) {
                     console.error('Error generating visibility insights:', error);
-                    document.getElementById('visibilityInsights').innerHTML = '<p>AI insights not available. Please try again later.</p>';
                 }
             }
 
@@ -3154,18 +2654,41 @@
             }
 
             function showAIAnalysisPopup() {
-                document.getElementById('aiAnalysisPopupContainer').style.display = 'flex';
+                const popup = document.getElementById('aiAnalysisLoadingPopup');
+                if (popup) {
+                    popup.style.display = 'flex';
+                    // Add the visible class after a small delay to trigger the animation
+                    setTimeout(() => {
+                        popup.classList.add('metrics-loading-visible');
+                        popup.classList.remove('metrics-loading-hide');
+                    }, 10);
+                }
             }
             function hideAIAnalysisPopup() {
-                document.getElementById('aiAnalysisPopupContainer').style.display = 'none';
+                const popup = document.getElementById('aiAnalysisLoadingPopup');
+                if (popup) {
+                    popup.classList.add('metrics-loading-hide');
+                    popup.classList.remove('metrics-loading-visible');
+                    // Hide after animation completes
+                    setTimeout(() => {
+                        popup.style.display = 'none';
+                        popup.classList.remove('metrics-loading-hide');
+                    }, 500);
+                }
             }
 
             document.addEventListener('DOMContentLoaded', function() {
                 const regenerateBtn = document.getElementById('regenerateAIButton');
                 if (regenerateBtn) {
-                    const regenBtnText = regenerateBtn.querySelector('.regen-btn-text');
-                    const regenBtnSpinner = regenerateBtn.querySelector('.regen-btn-spinner');
+                    const regenBtnContent = regenerateBtn.querySelector('.regen-btn-content');
                     const regenBtnIcon = regenerateBtn.querySelector('.regen-btn-icon');
+                    const regenBtnSpinner = regenerateBtn.querySelector('.regen-btn-spinner');
+                    
+                    if (!regenBtnContent || !regenBtnIcon || !regenBtnSpinner) {
+                        console.error('[ERROR] Regenerate button elements not found');
+                        return;
+                    }
+                    
                     regenerateBtn.addEventListener('click', async function() {
                         if (!confirm('Regenerating AI analysis will overwrite your previous insights and may disrupt your current SEO implementation progress. Are you sure you want to continue?')) {
                             return;
@@ -3173,9 +2696,8 @@
                         showAIAnalysisPopup();
                         regenerateBtn.disabled = true;
                         regenerateBtn.classList.add('loading');
-                        regenBtnText.textContent = 'Regenerating...';
-                        regenBtnSpinner.style.display = 'inline-block';
                         regenBtnIcon.style.display = 'none';
+                        regenBtnSpinner.style.display = 'inline-block';
                         try {
                             const aiData = await fetchExplicitAIInsights();
                             if (aiData) {
@@ -3188,9 +2710,8 @@
                             hideAIAnalysisPopup();
                             regenerateBtn.disabled = false;
                             regenerateBtn.classList.remove('loading');
-                            regenBtnText.textContent = 'Regenerate AI Analysis';
-                            regenBtnSpinner.style.display = 'none';
                             regenBtnIcon.style.display = '';
+                            regenBtnSpinner.style.display = 'none';
                         }
                     });
                 }

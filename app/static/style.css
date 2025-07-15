@@ -1168,9 +1168,8 @@ body {
 }
 
 #metricsLoadingPopup, #metricsSuccessPopup {
-    transition: transform 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.5s cubic-bezier(0.4,0,0.2,1);
-    transform: translateX(120%);
-    opacity: 0;
+    transform: translateX(0);
+    opacity: 1;
     min-width: 260px;
     max-width: 320px;
     background: #FFF7ED;
@@ -1186,31 +1185,28 @@ body {
 }
 
 #metricsSuccessPopup {
-    color: #D97706;
+    color: #F97316;
     font-weight: 600;
     text-align: left;
 }
 
 #metricsSuccessPopup .timer {
     font-weight: 400;
-    color: #D97706;
+    color: #F97316;
 }
 
 #metricsLoadingPopup.metrics-loading-visible,
 #metricsSuccessPopup.metrics-success-visible {
-    transform: translateX(0);
-    opacity: 1;
     display: flex;
 }
 
 #metricsLoadingPopup.metrics-loading-hide,
 #metricsSuccessPopup.metrics-success-hide {
-    transform: translateX(120%);
-    opacity: 0;
+    display: none;
 }
 
 #metricsLoadingList div {
-    color: #D97706 !important;
+    color: #F97316 !important;
 }
 
 /* === Mobile Menu === */

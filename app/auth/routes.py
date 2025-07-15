@@ -17,7 +17,7 @@ from app.auth.utils import (
 )
 from app.database.supabase_db import SupabaseAuthDB
 from app.config import settings
-from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher, PageSpeedInsightsFetcher
+from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher
 import uuid
 import json
 from app.database.supabase_db import SupabaseAuthDB
@@ -62,7 +62,6 @@ security = HTTPBearer()
 db = SupabaseAuthDB()
 google_oauth = GoogleOAuthHandler(db)
 gsc_fetcher = GSCDataFetcher(google_oauth, db)
-pagespeed_fetcher = PageSpeedInsightsFetcher(db)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """Get current user from JWT token."""
@@ -673,82 +672,7 @@ async def clear_gsc_credentials(current_user: str = Depends(get_current_user)):
         )
 
 
-@router.get("/pagespeed/metrics")
-async def get_pagespeed_metrics(current_user: str = Depends(get_current_user)):
-    """Fetch PageSpeed Insights data for the user's website."""
-    try:
-        # Get the selected property for the user
-        website_url = db.get_selected_gsc_property(current_user)
-        if not website_url:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No GSC property selected. Please select a property first."
-            )
 
-        psi_data = await pagespeed_fetcher.fetch_pagespeed_data(website_url)
-        
-        if not psi_data:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch PageSpeed data."
-            )
-
-        return psi_data
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error fetching PageSpeed metrics: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}"
-        )
-
-
-@router.get("/metadata/analysis")
-async def get_metadata_analysis(current_user: str = Depends(get_current_user)):
-    """Fetch metadata and image alt text analysis for the user's website."""
-    try:
-        # Get the selected property for the user
-        website_url = db.get_selected_gsc_property(current_user)
-        if not website_url:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No GSC property selected. Please select a property first."
-            )
-
-        from .metadata_analyzer import MetadataAnalyzer
-        analyzer = MetadataAnalyzer()
-        
-        # Analyze the website
-        analysis_result = await analyzer.analyze_website(website_url)
-        
-        if not analysis_result:
-            # Fallback to demo data if analysis fails
-            return {
-                "meta_titles_optimized": 0,
-                "meta_titles_total": 0,
-                "meta_descriptions_optimized": 0,
-                "meta_descriptions_total": 0,
-                "image_alt_text_optimized": 0,
-                "image_alt_text_total": 0,
-                "h1_tags_optimized": 0,
-                "h1_tags_total": 0,
-                "meta_titles": 0,
-                "meta_descriptions": 0,
-                "image_alt_text": 0,
-                "h1_tags": 0,
-                "insights": ["Metadata analysis is currently unavailable. Please try again later."]
-            }
-        
-        return analysis_result
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error fetching metadata analysis: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}"
-        )
 
 
 @router.get("/benchmark/insights")
@@ -795,42 +719,39 @@ async def get_benchmark_insights(
             print("[AI DEBUG] Step 1 complete.")
         except Exception as e:
             print(f"[AI DEBUG] Failed to fetch GSC metrics: {e}")
-        try:
-            print("[AI DEBUG] Step 2: Analyzing site metadata and content...")
-            from .metadata_analyzer import MetadataAnalyzer
-            metadata_analyzer = MetadataAnalyzer()
-            metadata_result = await metadata_analyzer.analyze_website(website_url)
-            if metadata_result:
-                dashboard_metrics['metadata'] = {
-                    'meta_titles': metadata_result.get('meta_titles', 0),
-                    'meta_descriptions': metadata_result.get('meta_descriptions', 0),
-                    'image_alt_text': metadata_result.get('image_alt_text', 0),
-                    'h1_tags': metadata_result.get('h1_tags', 0)
-                }
-            print("[AI DEBUG] Step 2 complete.")
-        except Exception as e:
-            print(f"[AI DEBUG] Failed to fetch metadata metrics: {e}")
-        try:
-            print("[AI DEBUG] Step 3: Evaluating engagement & UX signals...")
-            psi_data = await pagespeed_fetcher.fetch_pagespeed_data(website_url)
-            if psi_data:
-                dashboard_metrics['ux'] = {
-                    'performance_score': psi_data.get('performance_score', 0),
-                    'lcp': psi_data.get('lcp', {}).get('value', 0),
-                    'fcp': psi_data.get('fcp', {}).get('value', 0),
-                    'cls': psi_data.get('cls', {}).get('value', 0)
-                }
-            print("[AI DEBUG] Step 3 complete.")
-        except Exception as e:
-            print(f"[AI DEBUG] Failed to fetch PageSpeed metrics: {e}")
-        print("[AI DEBUG] Step 4: Aggregating AI insights...")
+        
+        print("[AI DEBUG] Step 2: Aggregating AI insights...")
+        print(f"[AI DEBUG] Dashboard metrics before AI call: {json.dumps(dashboard_metrics, indent=2)}")
+        
+        # Check if we have enough data for meaningful analysis
+        has_gsc_data = 'summary' in dashboard_metrics and dashboard_metrics['summary']
+        
+        print(f"[AI DEBUG] Data availability - GSC: {has_gsc_data}")
+        
+        if not has_gsc_data:
+            print("[AI DEBUG] Insufficient data for AI analysis, returning fallback")
+            fallback_insights = {
+                "visibility_performance": {
+                    "overall_assessment": "Insufficient data available for analysis. Please ensure Google Search Console is connected and data is available.",
+                    "metrics": {}
+                },
+                "analysis": {
+                    "summary": "Unable to generate comprehensive analysis due to insufficient data. Please connect Google Search Console and ensure data is available."
+                },
+                "recommendations": {}
+            }
+            dashboard_data = {"metrics": dashboard_metrics}
+            dashboard_data["ai_insights"] = fallback_insights
+            db.store_dashboard_cache(current_user, website_url, dashboard_data)
+            return fallback_insights
+        
         insights = benchmark_analyzer.generate_ai_insights(dashboard_metrics, business_type="general")
-        print("[AI DEBUG] Step 4 complete.")
-        print("[AI DEBUG] Step 5: Summarizing recommendations and caching results...")
+        print("[AI DEBUG] Step 2 complete.")
+        print("[AI DEBUG] Step 3: Summarizing recommendations and caching results...")
         dashboard_data = {"metrics": dashboard_metrics}
         dashboard_data["ai_insights"] = insights
         db.store_dashboard_cache(current_user, website_url, dashboard_data)
-        print("[AI DEBUG] Step 5 complete. AI Overall Analysis generation finished.")
+        print("[AI DEBUG] Step 3 complete. AI Overall Analysis generation finished.")
         return insights
     except HTTPException:
         raise

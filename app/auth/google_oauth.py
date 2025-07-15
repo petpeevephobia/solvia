@@ -507,63 +507,7 @@ class GSCDataFetcher:
 
     # REMOVED: All keyword analysis functions - not displayed on dashboard
 
-class PageSpeedInsightsFetcher:
-    """Handles fetching PageSpeed Insights data."""
-    
-    def __init__(self, db):
-        self.db = db
-        self.api_key = settings.PAGESPEED_API_KEY
-        self.base_url = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
-        self.storage_key_prefix = "psi_metrics_"
-    
-    async def fetch_pagespeed_data(self, url: str, strategy: str = "mobile", raw: bool = False) -> Dict:
-        """Fetch PageSpeed Insights data for a given URL (no 30-day comparison)."""
-        if not self.api_key:
-            raise Exception("PageSpeed API key required. Cannot fetch performance data without proper configuration.")
-        # Handle domain properties (convert sc-domain:domain.com to https://domain.com)
-        if url.startswith('sc-domain:'):
-            domain = url.replace('sc-domain:', '')
-            url = f"https://{domain}"
-        # Follow redirects to get the final URL
-        final_url = await self._get_final_url(url)
-        params = {
-            'url': final_url,
-            'key': self.api_key,
-            'strategy': strategy,
-            'category': 'performance'
-        }
-        import aiohttp
-        async with aiohttp.ClientSession() as session:
-            async with session.get(self.base_url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if raw:
-                        return data
-                    # Process current data - only the 4 metrics displayed on dashboard
-                    lh = data.get("lighthouseResult", {})
-                    audits = lh.get("audits", {})
-                    categories = lh.get("categories", {})
-                    performance = categories.get("performance", {})
-                    current_metrics = {
-                        "performance_score": round(performance.get("score", 0) * 100),
-                        "lcp": {"value": audits.get("largest-contentful-paint", {}).get("numericValue", 0) / 1000},
-                        "fcp": {"value": audits.get("first-contentful-paint", {}).get("numericValue", 0) / 1000},
-                        "cls": {"value": audits.get("cumulative-layout-shift", {}).get("numericValue", 0)},
-                    }
-                    return current_metrics
-                else:
-                    error_text = await response.text()
-        raise Exception(f"PageSpeed API error: {response.status} - {error_text}")
-    
-    async def _get_final_url(self, url: str) -> str:
-        """Follow redirects to get the final URL."""
-        try:
-            import aiohttp
-            async with aiohttp.ClientSession() as session:
-                async with session.head(url, allow_redirects=True) as response:
-                    return str(response.url)
-        except Exception as e:
-            return url
+# REMOVED: PageSpeedInsightsFetcher class and all its methods - no longer used in Solvia
 
 # REMOVED: MobileUsabilityFetcher class and all its methods - mobile metrics not displayed on dashboard
 # REMOVED: IndexingCrawlabilityFetcher class - indexing metrics not displayed on dashboard  
