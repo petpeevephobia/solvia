@@ -63,4 +63,4 @@ http://localhost:8000/docs
 15 jul 2025:
 - add fix cards design
 - cache overall ai analysis
-+ only kep visibility performance
++ only keep visibility performance

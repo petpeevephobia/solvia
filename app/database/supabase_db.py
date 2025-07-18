@@ -174,14 +174,15 @@ class SupabaseAuthDB:
 
     def get_dashboard_cache(self, email: str, website_url: str) -> Optional[Dict[str, Any]]:
         """
-        Get the most recent cached dashboard data for the user/property, regardless of date.
+        Get cached dashboard data for today's date only. If no cache exists for today, return None to trigger fresh data fetch.
         """
         try:
+            today = datetime.utcnow().date().isoformat()
             response = self.supabase.table('dashboard_cache') \
                 .select('*') \
                 .eq('email', email) \
                 .eq('website_url', website_url) \
-                .order('cache_date', desc=True) \
+                .eq('cache_date', today) \
                 .limit(1) \
                 .execute()
             if response.data and len(response.data) > 0:

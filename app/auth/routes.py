@@ -737,8 +737,7 @@ async def get_benchmark_insights(
                 },
                 "analysis": {
                     "summary": "Unable to generate comprehensive analysis due to insufficient data. Please connect Google Search Console and ensure data is available."
-                },
-                "recommendations": {}
+                }
             }
             dashboard_data = {"metrics": dashboard_metrics}
             dashboard_data["ai_insights"] = fallback_insights
@@ -747,7 +746,7 @@ async def get_benchmark_insights(
         
         insights = benchmark_analyzer.generate_ai_insights(dashboard_metrics, business_type="general")
         print("[AI DEBUG] Step 2 complete.")
-        print("[AI DEBUG] Step 3: Summarizing recommendations and caching results...")
+        print("[AI DEBUG] Step 3: Caching results...")
         dashboard_data = {"metrics": dashboard_metrics}
         dashboard_data["ai_insights"] = insights
         db.store_dashboard_cache(current_user, website_url, dashboard_data)

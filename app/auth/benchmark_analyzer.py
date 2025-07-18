@@ -164,7 +164,7 @@ class BenchmarkAnalyzer:
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are an expert SEO analyst specializing in data-driven insights and actionable recommendations. You must respond with valid JSON only, no markdown formatting."},
+                    {"role": "system", "content": "You are an expert SEO analyst specializing in data-driven insights. You must respond with valid JSON only, no markdown formatting."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
@@ -210,7 +210,6 @@ class BenchmarkAnalyzer:
             required_keys = [
                 "overall_seo_health",
                 "visibility_performance",
-                "action_plan",
                 "competitive_context"
             ]
             for key in required_keys:
@@ -295,8 +294,7 @@ class BenchmarkAnalyzer:
 
             ai_insights = {
                 "visibility_performance": extract_section("visibility_performance"),
-                "analysis": insights_data.get("overall_seo_health", {}),
-                "recommendations": insights_data.get("action_plan", {})
+                "analysis": insights_data.get("overall_seo_health", {})
             }
             
             print(f"[AI DEBUG] Final AI insights structure created")
@@ -319,11 +317,6 @@ class BenchmarkAnalyzer:
                 "score": 0,
                 "status": "Unable to analyze",
                 "summary": "Visibility analysis temporarily unavailable"
-            },
-            "action_plan": {
-                "priority_actions": [],
-                "quick_wins": [],
-                "long_term_strategy": []
             },
             "competitive_context": {
                 "industry_benchmarks": {},
@@ -364,7 +357,6 @@ Business Type: {business_type}
 IMPORTANT: You must respond with a valid JSON object that includes ALL of these sections:
 - overall_seo_health (with score, grade, summary)
 - visibility_performance (with overall_assessment and metrics)
-- action_plan (with immediate_actions, short_term_goals, long_term_strategy)
 
 Each metrics section should contain individual metric analyses with 'analysis' fields.
 

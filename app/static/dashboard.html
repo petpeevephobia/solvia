@@ -290,10 +290,10 @@
         </div>
 
         <div class="stats-grid">
-            <!-- Overall SEO Score Card -->
+            <!-- Score Card -->
             <div class="stat-card overall-score">
                 <div class="score-header">
-                    <h3>Overall SEO Score</h3>
+                    <h3>Score</h3>
                     <div class="score-badge" id="seoScore">0</div>
             </div>
                 <div class="score-change" id="seoScoreChange">+0%</div>
@@ -1227,16 +1227,30 @@
 
             async function fetchAIInsights() {
                 try {
-                    // Only fetch from cache, don't trigger explicit AI generation
+                    // First try to get cached AI insights
                     const response = await apiCall('/auth/benchmark/insights');
                     if (response.ok) {
-                        cachedAIInsights = await response.json();
-                        return cachedAIInsights;
+                        const insights = await response.json();
+                        // Update both local and global cache
+                        cachedAIInsights = insights;
+                        window.cachedAIInsights = insights;
+                        console.log('[DEBUG] Cached AI insights loaded successfully');
+                        return insights;
                     } else {
-                        console.log('[DEBUG] AI insights API returned error:', response.status);
-                        const errorText = await response.text();
-                        console.log('[DEBUG] Error details:', errorText);
-                        return null;
+                        console.log('[DEBUG] No cached AI insights found, generating fresh insights...');
+                        // No cache found - automatically generate fresh AI insights
+                        const freshResponse = await apiCall('/auth/benchmark/insights?explicit_ai=true');
+                        if (freshResponse.ok) {
+                            const insights = await freshResponse.json();
+                            // Update both local and global cache
+                            cachedAIInsights = insights;
+                            window.cachedAIInsights = insights;
+                            console.log('[DEBUG] Fresh AI insights generated and cached successfully');
+                            return insights;
+                        } else {
+                            console.log('[DEBUG] Failed to generate fresh AI insights:', freshResponse.status);
+                            return null;
+                        }
                     }
                 } catch (error) {
                     console.error('[DEBUG] Error fetching AI insights:', error);
@@ -1249,8 +1263,12 @@
                     // Explicitly generate fresh AI insights
                     const response = await apiCall('/auth/benchmark/insights?explicit_ai=true');
                     if (response.ok) {
-                        cachedAIInsights = await response.json();
-                        return cachedAIInsights;
+                        const insights = await response.json();
+                        // Update both local and global cache
+                        cachedAIInsights = insights;
+                        window.cachedAIInsights = insights;
+                        console.log('[DEBUG] AI insights cached successfully');
+                        return insights;
                     } else {
                         console.log('[DEBUG] AI insights API returned error:', response.status);
                         const errorText = await response.text();
@@ -1271,7 +1289,6 @@
                     
                     if (insights && insights.visibility_performance && insights.visibility_performance.metrics) {
                         // Update individual metric analyses
-                        console.log('[DEBUG] AI insights structure:', insights.visibility_performance);
                         Object.entries(insights.visibility_performance.metrics).forEach(([metric, data]) => {
                             console.log(`[DEBUG] Metric ${metric}:`, data);
                             console.log(`[DEBUG] Metric ${metric} analysis:`, data.analysis);
@@ -1397,14 +1414,34 @@
                 // Check GSC connection status
                 await checkGSCConnection();
 
-                // Only try to load cached data for today
+                // Try to load cached data for today
                 const hasCachedData = await loadCachedDashboardData();
 
                 if (!hasCachedData) {
-                    // Show empty state or message
-                    updateDashboardMetrics(false);
-                    createMergedTrendsChart({});
-                    showCacheStatus('No cached data available for today', 'warning');
+                    // No cache for today - automatically refresh metrics and AI insights
+                    console.log('[DEBUG] No cache found for today, automatically refreshing metrics and AI insights...');
+                    showCacheStatus('No cached data for today - refreshing metrics and AI insights...', 'info');
+                    
+                    try {
+                        // Load fresh metrics
+                        await loadRealMetrics();
+                        
+                        // Generate fresh AI insights
+                        console.log('[DEBUG] Generating fresh AI insights...');
+                        const aiInsights = await fetchAIInsights();
+                        
+                        // Cache the fresh data including AI insights
+                        await cacheDashboardData();
+                        
+                        showCacheStatus('Fresh data and AI insights loaded and cached!', 'success');
+                    } catch (error) {
+                        console.error('[ERROR] Failed to load fresh data:', error);
+                        showCacheStatus('Failed to load fresh data', 'warning');
+                        
+                        // Show empty state as fallback
+                        updateDashboardMetrics(false);
+                        createMergedTrendsChart({});
+                    }
                 }
             }
 
@@ -1746,6 +1783,8 @@
                         metrics: window.metricsData || {},
                         // Store original API response data if available
                         originalApiData: window.originalApiResponse || null,
+                        // Include AI insights in cache
+                        ai_insights: window.cachedAIInsights || cachedAIInsights || null,
                         timestamp: new Date().toISOString(),
                         cached_from: 'dashboard_refresh'
                     };
@@ -1760,7 +1799,7 @@
 
                     if (response.ok) {
                         const result = await response.json();
-                        // Cache success message removed per user request
+                        console.log('[DEBUG] Dashboard data cached successfully including AI insights');
                     } else {
                         console.warn('[CACHE] Failed to cache dashboard data:', response.status);
                     }
@@ -1787,7 +1826,7 @@
                                 if (result.data.originalApiData) {
                                     metricsObject = result.data.originalApiData;
                                     window.originalApiResponse = result.data.originalApiData;
-                } else {
+                                } else {
                                     metricsObject = { 
                                         summary: result.data.metrics.summary || {},
                                         time_series: result.data.metrics.time_series || {},
@@ -1811,12 +1850,22 @@
                                     showDateRange(metricsObject);
                                 }
                                 
-
+                                // Load cached AI insights if available
+                                if (result.data.ai_insights) {
+                                    cachedAIInsights = result.data.ai_insights;
+                                    window.cachedAIInsights = result.data.ai_insights;
+                                    console.log('[DEBUG] Cached AI insights loaded from dashboard cache');
+                                    
+                                    // Generate visibility insights with cached AI data
+                                    if (result.data.metrics.summary) {
+                                        generateVisibilityInsights(result.data.metrics.summary);
+                                    }
+                                }
                                 
-                                // Recalculate overall SEO score
+                                // Recalculate score
                                 recalculateOverallSEOScore();
                                 
-                                showCacheStatus('Loaded cached data from today', 'info');
+                                showCacheStatus('Loaded cached data from today', 'success');
                                 hideCacheLoadingPopup();
                                 // Hide any previous warning message
                                 const cacheStatus = document.getElementById('cacheStatus');
@@ -1825,11 +1874,12 @@
                                 }
                                 return true; // Successfully loaded cached data
                             }
-                    } else {
-                            showCacheStatus('No cached data available for today', 'warning');
+                        } else {
+                            // No cache found - this will trigger automatic refresh in initDashboard
+                            console.log('[DEBUG] No cached data found for today');
                             hideCacheLoadingPopup();
                             return false;
-                    }
+                        }
                 } else {
                         console.warn('[CACHE] Failed to check for cached data:', response.status);
                         hideCacheLoadingPopup();
@@ -2535,7 +2585,7 @@
                 }
                 // Display summary if available
                 if (insights.analysis.summary) {
-                    summaryElement.innerHTML = `<p><strong>Summary:</strong> ${insights.analysis.summary}</p>`;
+                    summaryElement.innerHTML = `<p>${insights.analysis.summary}</p>`;
                 } else if (insights.analysis.overall_assessment) {
                     summaryElement.innerHTML = `<p><strong>Overall Assessment:</strong> ${insights.analysis.overall_assessment}</p>`;
                 } else {
@@ -2567,7 +2617,6 @@
                     
                     if (insights && insights.visibility_performance && insights.visibility_performance.metrics) {
                         // Update individual metric analyses
-                        console.log('[DEBUG] AI insights structure:', insights.visibility_performance);
                         Object.entries(insights.visibility_performance.metrics).forEach(([metric, data]) => {
                             console.log(`[DEBUG] Metric ${metric}:`, data);
                             console.log(`[DEBUG] Metric ${metric} analysis:`, data.analysis);

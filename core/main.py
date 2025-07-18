@@ -15,7 +15,7 @@ from googleapiclient.discovery import build
 import pickle
 from urllib.parse import urlparse, quote
 import requests
-from core.analysis_processor import generate_seo_analysis
+
 import openai
 from core.auth_setup import get_gsc_credentials, check_gsc_access, get_gsc_service
 
@@ -700,11 +700,8 @@ def main():
                 'page_fetch_state': get_url_inspection(service, url).get('page_fetch_state', ''),
             }
             
-            # Generate OpenAI analysis (using enhanced business data)
-            openai_analysis = generate_seo_analysis(combined_metrics, {})
-            
             # Map data to SEO_Reports format and update table
-            seo_report_data = map_to_seo_reports(combined_metrics, openai_analysis, {}, tables)
+            seo_report_data = map_to_seo_reports(combined_metrics, {}, {}, tables)
             if seo_report_data:  # Only update if we got valid data
                 update_seo_reports_table(tables, seo_report_data)
             
