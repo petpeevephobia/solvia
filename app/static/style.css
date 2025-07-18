@@ -2390,6 +2390,40 @@ body {
         color: #6b7280;
     }
     
+    /* AI Analysis Card Header Layout */
+    #aiOverallAnalysisCard .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .ai-header-left {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        flex: 1;
+    }
+    
+    .ai-header-top {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .ai-header-top .header-title {
+        margin: 0;
+    }
+    
+    .ai-last-updated {
+        margin: 0;
+    }
+    
+    #aiOverallAnalysisCard .card-header #regenerateAIButton {
+        flex-shrink: 0;
+        align-self: center;
+    }
+    
     .content-summary {
         color: #374151;
         line-height: 1.5;

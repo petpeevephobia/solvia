@@ -140,14 +140,18 @@
         <!-- AI Overall Analysis Section -->
         <div class="analysis-card" id="aiOverallAnalysisCard">
             <div class="card-header">
-                <span class="header-icon">
-                    <!-- Simple robot/AI SVG icon -->
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="4"/><rect x="7" y="7" width="10" height="4" rx="2"/><circle cx="8.5" cy="16" r="1.5"/><circle cx="15.5" cy="16" r="1.5"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
-                </span>
-                <h2 class="header-title">AI Summary</h2>
-                <div class="ai-last-updated" id="aiLastUpdated">
-                    <span class="fetch-label">Last updated:</span>
-                    <span class="fetch-date" id="aiLastUpdatedValue">Never</span>
+                <div class="ai-header-left">
+                    <div class="ai-header-top">
+                        <span class="header-icon">
+                            <!-- Simple robot/AI SVG icon -->
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="4"/><rect x="7" y="7" width="10" height="4" rx="2"/><circle cx="8.5" cy="16" r="1.5"/><circle cx="15.5" cy="16" r="1.5"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
+                        </span>
+                        <h2 class="header-title">AI Summary</h2>
+                    </div>
+                    <div class="ai-last-updated" id="aiLastUpdated">
+                        <span class="fetch-label">Last updated:</span>
+                        <span class="fetch-date" id="aiLastUpdatedValue">Never</span>
+                    </div>
                 </div>
                 <button id="regenerateAIButton" class="icon-btn" title="Regenerate AI Analysis" aria-label="Regenerate AI Analysis">
                     <span class="regen-btn-content">
@@ -231,7 +235,7 @@
                 </div>
             </div>
             <div class="keywords-legend">
-                🔥 High Potential (Position 11-20)<br>⚠️ Underperforming (Position 50+ or Low CTR)<br>✅ Performing Well (Top 10, Good CTR)
+                ✅ Performing Well (Top 10, Good CTR)<br>🔥 High Potential (Position 11-20)<br>⚠️ Underperforming (Position 50+ or Low CTR)
             </div>
         </div>
 
