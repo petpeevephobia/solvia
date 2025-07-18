@@ -11,7 +11,7 @@ from datetime import datetime
 # Add project root to the Python path
 # This is the directory that contains `app` and `core`
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))   
+sys.path.insert(0, str(project_root))
 
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles 

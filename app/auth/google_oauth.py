@@ -288,6 +288,66 @@ class GSCDataFetcher:
         except Exception as e:
             return {}
     
+    async def fetch_keywords(self, user_email: str, property_url: str, days: int = 30) -> List[Dict]:
+        """Fetch keywords from GSC for the last 30 days."""
+        try:
+            credentials = self.oauth_handler.get_credentials(user_email)
+            if not credentials or not credentials.valid:
+                raise Exception("Invalid or missing Google credentials")
+
+            # Calculate 30-day date range
+            today = datetime.utcnow().date()
+            end_date = today - timedelta(days=3)  # Data is usually delayed by 3-4 days
+            start_date = end_date - timedelta(days=days - 1)  # 30 days total
+            
+            # Build the Search Console API service
+            service = build('webmasters', 'v3', credentials=credentials)
+            
+            # Request keywords data
+            request = {
+                'startDate': start_date.strftime('%Y-%m-%d'),
+                'endDate': end_date.strftime('%Y-%m-%d'),
+                'dimensions': ['query'],
+                'rowLimit': 1000  # Get up to 1000 keywords
+            }
+            
+            response = service.searchanalytics().query(
+                siteUrl=property_url, body=request
+            ).execute()
+            
+            keywords = []
+            if 'rows' in response:
+                for row in response['rows']:
+                    # Handle null/undefined values with defaults
+                    ctr = row.get('ctr', 0)
+                    if ctr is None:
+                        ctr = 0
+                    
+                    keywords.append({
+                        'query': row['keys'][0],
+                        'clicks': row.get('clicks', 0),
+                        'impressions': row.get('impressions', 0),
+                        'ctr': ctr,
+                        'position': row.get('position', 0)
+                    })
+            
+            # Sort by position (best first)
+            keywords.sort(key=lambda x: x['position'])
+            
+            return keywords
+            
+        except HttpError as e:
+            print(f"HTTP Error fetching keywords: {e}")
+            if e.resp.status == 403:
+                raise Exception("Access denied to Google Search Console. Please check your permissions.")
+            elif e.resp.status == 404:
+                raise Exception("Property not found in Google Search Console.")
+            else:
+                raise Exception(f"Google Search Console API error: {e}")
+        except Exception as e:
+            print(f"Error fetching keywords: {e}")
+            raise Exception(f"Failed to fetch keywords: {str(e)}")
+    
     def _calculate_simplified_seo_score(self, summary: Dict) -> float:
         """Calculate a simplified SEO score based on GSC data only."""
         try:

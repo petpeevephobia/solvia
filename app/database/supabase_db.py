@@ -191,4 +191,71 @@ class SupabaseAuthDB:
             return None
         except Exception as e:
             print(f"[SupabaseAuth] Error getting dashboard cache: {e}")
+            return None
+
+    def store_website_content(self, email: str, website_url: str, content_data: Dict[str, Any]) -> bool:
+        """
+        Store website content data including meta descriptions, title tags, and content.
+        """
+        try:
+            # Check if content entry already exists for this user and website
+            existing = self.supabase.table('website_content').select('id').eq('email', email).eq('website_url', website_url).execute()
+            
+            content_data_to_store = {
+                'email': email,
+                'website_url': website_url,
+                'title_tags': content_data.get('title_tags', {}),
+                'meta_descriptions': content_data.get('meta_descriptions', {}),
+                'page_content': content_data.get('page_content', {}),
+                'fetched_at': datetime.utcnow().isoformat(),
+                'created_at': datetime.utcnow().isoformat()
+            }
+            
+            if existing.data and len(existing.data) > 0:
+                # Update existing content entry
+                row_id = existing.data[0]['id']
+                response = self.supabase.table('website_content').update(content_data_to_store).eq('id', row_id).execute()
+            else:
+                # Insert new content entry
+                response = self.supabase.table('website_content').insert(content_data_to_store).execute()
+            
+            return True if response.data else False
+            
+        except Exception as e:
+            print(f"[SupabaseAuth] Error storing website content: {e}")
+            return False
+
+    def get_website_content(self, email: str, website_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the most recent stored website content data for a user's website.
+        """
+        try:
+            # Convert GSC domain format to regular URL format for matching
+            search_url = website_url
+            if website_url.startswith('sc-domain:'):
+                domain = website_url.replace('sc-domain:', '')
+                search_url = f"https://{domain}"
+            
+            # Get the most recent content regardless of date
+            response = self.supabase.table('website_content') \
+                .select('*') \
+                .eq('email', email) \
+                .eq('website_url', search_url) \
+                .order('fetched_at', desc=True) \
+                .limit(1) \
+                .execute()
+            
+            if response.data and len(response.data) > 0:
+                content_entry = response.data[0]
+                return {
+                    'title_tags': content_entry.get('title_tags', {}),
+                    'meta_descriptions': content_entry.get('meta_descriptions', {}),
+                    'page_content': content_entry.get('page_content', {}),
+                    'fetched_at': content_entry.get('fetched_at'),
+                    'created_at': content_entry.get('created_at')
+                }
+            return None
+            
+        except Exception as e:
+            print(f"[SupabaseAuth] Error getting website content: {e}")
             return None 

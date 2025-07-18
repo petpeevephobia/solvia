@@ -454,7 +454,7 @@ async def google_callback_test():
 @router.get("/gsc/properties", response_model=list[GSCPropertyResponse])
 async def get_gsc_properties(current_user: str = Depends(get_current_user)):
     """Get user's Google Search Console properties."""
-    
+        
     try:
         # Get GSC properties
         properties = await google_oauth.get_gsc_properties(current_user)
@@ -580,6 +580,34 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
             detail=f"An unexpected error occurred: {e}"
         )
 
+@router.get("/gsc/keywords")
+async def get_gsc_keywords(current_user: str = Depends(get_current_user)):
+    """Fetch GSC keywords for the selected property."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        keywords = await gsc_fetcher.fetch_keywords(current_user, website_url)
+        
+        # Return empty keywords list if no data (don't treat as error)
+        if keywords is None:
+            keywords = []
+        
+        return {"keywords": keywords}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching keywords for {current_user}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch keywords: {str(e)}"
+        )
+
 
 @router.post("/gsc/refresh")
 async def refresh_gsc_metrics(current_user: str = Depends(get_current_user)):
@@ -636,21 +664,34 @@ async def get_dashboard_cache_route(request: Request, current_user: str = Depend
 
 
 @router.post("/dashboard/cache")
-async def cache_dashboard_data(request: Request, dashboard_data: dict, ai_insights: dict = None, current_user: str = Depends(get_current_user)):
+async def cache_dashboard_data(request: Request, current_user: str = Depends(get_current_user)):
     email = current_user
     user_jwt = request.headers.get("authorization", "").replace("Bearer ", "")
     db = SupabaseAuthDB(access_token=user_jwt)
     website_url = db.get_selected_gsc_property(email)
     if not website_url:
         return {"success": False, "message": "No website property selected for user."}
-    # Optionally merge ai_insights into dashboard_data if provided
-    if ai_insights:
-        dashboard_data["ai_insights"] = ai_insights
-    success = db.store_dashboard_cache(email, website_url, dashboard_data)
-    if success:
-        return {"success": True, "message": "Dashboard data cached successfully!"}
-    else:
-        return {"success": False, "message": "Failed to cache dashboard data"}
+    
+    # Parse the JSON body
+    try:
+        body = await request.json()
+        dashboard_data = body.get("dashboard_data", {})
+        ai_insights = body.get("ai_insights")
+        keywords = body.get("keywords")
+        
+        # Optionally merge ai_insights and keywords into dashboard_data if provided
+        if ai_insights:
+            dashboard_data["ai_insights"] = ai_insights
+        if keywords:
+            dashboard_data["keywords"] = keywords
+            
+        success = db.store_dashboard_cache(email, website_url, dashboard_data)
+        if success:
+            return {"success": True, "message": "Dashboard data cached successfully!"}
+        else:
+            return {"success": False, "message": "Failed to cache dashboard data"}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to parse request: {str(e)}"}
 
 
 @router.post("/gsc/clear-credentials")
@@ -759,6 +800,250 @@ async def get_benchmark_insights(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"
+        )
+
+
+@router.post("/website/content/fetch")
+async def fetch_website_content(current_user: str = Depends(get_current_user)):
+    """Fetch website content including meta descriptions, title tags, and page content."""
+    try:
+        import aiohttp
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin, urlparse
+        
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No website property selected. Please select a property first."
+            )
+        
+        # Convert sc-domain format to actual URL if needed
+        if website_url.startswith('sc-domain:'):
+            domain = website_url.replace('sc-domain:', '')
+            website_url = f"https://{domain}"
+        
+        print(f"[WEBSITE CONTENT] Fetching content from: {website_url}")
+        
+        # Fetch website content
+        try:
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.get(website_url, timeout=30) as response:
+                        if response.status != 200:
+                            raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=f"Failed to fetch website content. Status: {response.status}"
+                            )
+                        
+                        html_content = await response.text()
+                        soup = BeautifulSoup(html_content, 'html.parser')
+                        
+                        # Extract title tags
+                        title_tags = {}
+                        for title in soup.find_all('title'):
+                            title_tags[title.get('id', 'default')] = title.get_text(strip=True)
+                        
+                        # Extract meta descriptions
+                        meta_descriptions = {}
+                        for meta in soup.find_all('meta', attrs={'name': 'description'}):
+                            meta_descriptions[meta.get('id', 'default')] = meta.get('content', '')
+                        
+                        # Extract page content (main content areas)
+                        page_content = {}
+                        
+                        # Get main content from multiple possible locations
+                        main_content = None
+                        content_selectors = [
+                            'main', 'article', 'div.content', 'div#content', 'div.main', 
+                            'div.container', 'div.wrapper', 'div#main', 'div#container',
+                            'section', 'div[role="main"]', 'div.main-content'
+                        ]
+                        
+                        for selector in content_selectors:
+                            main_content = soup.select_one(selector)
+                            if main_content:
+                                break
+                        
+                        # If no main content found, try to get content from body
+                        if not main_content:
+                            body = soup.find('body')
+                            if body:
+                                # Remove script and style elements
+                                for script in body(["script", "style", "nav", "header", "footer"]):
+                                    script.decompose()
+                                main_content = body
+                        
+                        if main_content:
+                            # Clean up the text
+                            text = main_content.get_text(separator=' ', strip=True)
+                            # Remove extra whitespace
+                            text = ' '.join(text.split())
+                            page_content['main'] = text[:2000]  # Limit to first 2000 chars
+                        
+                        # Get header content
+                        header = soup.find('header') or soup.find('nav') or soup.select_one('div.header, div.nav, div.navigation')
+                        if header:
+                            page_content['header'] = header.get_text(strip=True)[:500]
+                        
+                        # Get footer content
+                        footer = soup.find('footer') or soup.select_one('div.footer, div.foot')
+                        if footer:
+                            page_content['footer'] = footer.get_text(strip=True)[:500]
+                        
+                        # Get all headings with more comprehensive search
+                        headings = []
+                        heading_elements = soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+                        
+                        for heading in heading_elements:
+                            text = heading.get_text(strip=True)
+                            if text and len(text) > 2:  # Only include headings with meaningful text
+                                headings.append({
+                                    'tag': heading.name,
+                                    'text': text
+                                })
+                        
+                        page_content['headings'] = headings[:15]  # Limit to first 15 headings
+                        
+                        # Get all links with better filtering
+                        links = []
+                        for link in soup.find_all('a', href=True):
+                            href = link.get('href')
+                            text = link.get_text(strip=True)
+                            if text and href and len(text) > 1:  # Only include links with meaningful text
+                                # Skip common navigation/footer links
+                                if not any(skip in text.lower() for skip in ['privacy', 'terms', 'cookie', 'login', 'sign up']):
+                                    links.append({
+                                        'text': text[:100],  # Limit text length
+                                        'href': urljoin(website_url, href)
+                                    })
+                        
+                        page_content['links'] = links[:25]  # Limit to first 25 links
+                        
+                        # Add page title and meta description to content
+                        page_title = soup.find('title')
+                        if page_title:
+                            page_content['page_title'] = page_title.get_text(strip=True)
+                        
+                        meta_desc = soup.find('meta', attrs={'name': 'description'})
+                        if meta_desc:
+                            page_content['meta_description'] = meta_desc.get('content', '')
+                        
+                        # Store content data
+                        content_data = {
+                            'title_tags': title_tags,
+                            'meta_descriptions': meta_descriptions,
+                            'page_content': page_content
+                        }
+                        
+                        # Store in database
+                        success = db.store_website_content(current_user, website_url, content_data)
+                        
+                        if not success:
+                            raise HTTPException(
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail="Failed to store website content"
+                            )
+                        
+                        # Print content to terminal
+                        print(f"\n[WEBSITE CONTENT] Content fetched successfully for {website_url}")
+                        print(f"[WEBSITE CONTENT] Title tags: {title_tags}")
+                        print(f"[WEBSITE CONTENT] Meta descriptions: {meta_descriptions}")
+                        
+                        # More detailed content analysis
+                        main_content = page_content.get('main', '')
+                        if main_content:
+                            print(f"[WEBSITE CONTENT] Main content preview: {main_content[:300]}...")
+                            print(f"[WEBSITE CONTENT] Main content length: {len(main_content)} characters")
+                        else:
+                            print(f"[WEBSITE CONTENT] No main content found")
+                        
+                        headings = page_content.get('headings', [])
+                        print(f"[WEBSITE CONTENT] Number of headings: {len(headings)}")
+                        if headings:
+                            print(f"[WEBSITE CONTENT] First 3 headings:")
+                            for i, heading in enumerate(headings[:3]):
+                                print(f"  {i+1}. {heading['tag'].upper()}: {heading['text']}")
+                        
+                        links = page_content.get('links', [])
+                        print(f"[WEBSITE CONTENT] Number of links: {len(links)}")
+                        if links:
+                            print(f"[WEBSITE CONTENT] First 3 links:")
+                            for i, link in enumerate(links[:3]):
+                                print(f"  {i+1}. {link['text']} -> {link['href']}")
+                        
+                        # Show page title and meta description
+                        if page_content.get('page_title'):
+                            print(f"[WEBSITE CONTENT] Page title: {page_content['page_title']}")
+                        if page_content.get('meta_description'):
+                            print(f"[WEBSITE CONTENT] Meta description: {page_content['meta_description'][:200]}...")
+                        
+                        return {
+                            "success": True,
+                            "message": "Website content fetched and stored successfully!",
+                            "content": content_data
+                        }
+                        
+                except aiohttp.ClientError as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Failed to fetch website content: {str(e)}"
+                    )
+        except Exception as e:
+            print(f"Error fetching website content: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch website content"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching website content: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch website content"
+        )
+
+
+@router.get("/website/content")
+async def get_website_content(current_user: str = Depends(get_current_user)):
+    """Get stored website content for the user's website."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No website property selected. Please select a property first."
+            )
+        
+        # Get stored content
+        content_data = db.get_website_content(current_user, website_url)
+        
+        if not content_data:
+            return {
+                "success": False,
+                "message": "No website content found. Please fetch content first.",
+                "content": None,
+                "fetched_at": None
+            }
+        
+        return {
+            "success": True,
+            "message": "Website content retrieved successfully!",
+            "content": content_data,
+            "fetched_at": content_data.get('fetched_at')
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting website content: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get website content"
         )
 
 

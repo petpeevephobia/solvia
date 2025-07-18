@@ -1974,6 +1974,17 @@ body {
     border: none !important;
     box-shadow: none !important;
     transition: background 0.2s, color 0.2s;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 1rem;
+    min-width: unset;
+    min-height: unset;
 }
 
 .icon-btn svg,
@@ -1993,6 +2004,48 @@ body {
 .icon-btn:hover:not(:disabled) svg,
 .btn-refresh:hover:not(:disabled) svg,
 .refresh-metrics-btn:hover:not(:disabled) svg {
+    stroke: #fff;
+}
+
+.icon-btn:disabled,
+.btn-refresh:disabled,
+.refresh-metrics-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f3f4f6 !important;
+    color: #9ca3af !important;
+}
+
+.icon-btn:disabled svg,
+.btn-refresh:disabled svg,
+.refresh-metrics-btn:disabled svg {
+    stroke: #9ca3af !important;
+}
+
+.icon-btn.loading,
+.btn-refresh.loading,
+.refresh-metrics-btn.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.icon-btn.loading svg,
+.btn-refresh.loading svg,
+.refresh-metrics-btn.loading svg {
+    animation: spin 1s linear infinite;
+}
+
+/* Ensure hover states work correctly when not disabled or loading */
+.icon-btn:not(:disabled):not(.loading):hover,
+.btn-refresh:not(:disabled):not(.loading):hover,
+.refresh-metrics-btn:not(:disabled):not(.loading):hover {
+    background-color: #f59e42;
+    color: #fff;
+}
+
+.icon-btn:not(:disabled):not(.loading):hover svg,
+.btn-refresh:not(:disabled):not(.loading):hover svg,
+.refresh-metrics-btn:not(:disabled):not(.loading):hover svg {
     stroke: #fff;
 }
 
@@ -2061,3 +2114,339 @@ body {
         justify-content: center;
     }
 }
+
+    /* === Dashboard Inline Styles === */
+    
+    /* AI Analysis Header Styles */
+    .ai-analysis-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    
+    .ai-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .four-col-header {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0 1rem;
+    }
+    
+    .header-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Card Header Styles */
+    .card-header {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0 1rem;
+        min-width: 0;
+    }
+    
+    /* Keywords Section Styles */
+    .keywords-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .keywords-summary {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+    }
+    
+    .keywords-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 0;
+    }
+    
+    .keyword-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        transition: background-color 0.2s;
+    }
+    
+    .keyword-item:last-child {
+        border-bottom: none;
+    }
+    
+    .keyword-number {
+        min-width: 40px;
+        text-align: center;
+        font-weight: 600;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .keyword-text {
+        font-weight: 500;
+        color: #111827;
+        flex: 1;
+        margin-right: 1rem;
+    }
+    
+    .keyword-stats {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .keyword-position {
+        min-width: 60px;
+        text-align: center;
+    }
+    
+    .keyword-clicks {
+        min-width: 60px;
+        text-align: center;
+    }
+    
+    .keyword-impressions {
+        min-width: 80px;
+        text-align: center;
+    }
+    
+    .keyword-ctr {
+        min-width: 60px;
+        text-align: center;
+    }
+    
+    /* Keyword performance indicators */
+    .keyword-indicator {
+        min-width: 40px;
+        text-align: center;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    
+    .keyword-indicator-header {
+        min-width: 40px;
+        text-align: center;
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.875rem;
+    }
+    
+    /* Keyword status styles */
+    .keyword-item.high-potential {
+        /* Left border removed */
+    }
+    
+    .keyword-item.underperforming {
+        /* Left border removed */
+    }
+    
+    .keyword-item.performing-well {
+        /* Left border removed */
+    }
+    
+    .keyword-item.high-potential:hover {
+        /* Background color removed */
+    }
+    
+    .keyword-item.underperforming:hover {
+        /* Background color removed */
+    }
+    
+    .keyword-item.performing-well:hover {
+        /* Background color removed */
+    }
+    
+    .keywords-loading {
+        padding: 2rem;
+        text-align: center;
+        color: #6b7280;
+        font-style: italic;
+    }
+    
+    /* Keywords Table Container Styles */
+    .keywords-table-container {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 0.5rem;
+        overflow: hidden;
+    }
+    
+    .keywords-table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .keywords-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background-color: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+    
+    .keywords-header .keyword-text {
+        font-weight: 600;
+        color: #374151;
+        margin-right: 1rem;
+    }
+    
+    .keywords-header .keyword-stats {
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .keywords-header .keyword-number {
+        min-width: 40px;
+        text-align: center;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .keywords-legend {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 0.5rem 1.5rem;
+        background: #f8fafc;
+        border-top: 1px solid #e5e7eb;
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-align: left;
+        line-height: 1.4;
+        width: 100%;
+    }
+    
+    /* Website Content Section Styles */
+    .content-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .content-fetch-date {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .fetch-label {
+        font-weight: 500;
+    }
+    
+    .fetch-date {
+        color: #6b7280;
+        font-weight: 400;
+    }
+    
+    .ai-last-updated {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .content-summary {
+        color: #374151;
+        line-height: 1.5;
+    }
+    
+    .content-summary p {
+        margin: 0;
+    }
+    
+    /* Responsive Styles */
+    @media (max-width: 600px) {
+        .ai-analysis-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .ai-header-actions {
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+            gap: 0.5rem;
+        }
+        
+        .ai-header-actions .btn-refresh {
+            width: 100%;
+            font-size: 1rem;
+            padding: 0.5rem 0;
+        }
+        
+        .ai-header-actions .status-indicator {
+            margin-bottom: 0.25rem;
+            margin-right: 0;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .keywords-summary {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .keyword-stats {
+            gap: 0.5rem;
+        }
+        
+        .keyword-position,
+        .keyword-clicks,
+        .keyword-impressions,
+        .keyword-ctr {
+            min-width: 50px;
+            font-size: 0.75rem;
+        }
+        
+        .keyword-indicator,
+        .keyword-indicator-header {
+            min-width: 30px;
+            font-size: 0.75rem;
+        }
+    }
