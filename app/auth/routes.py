@@ -49,7 +49,6 @@ async def logout(current_user: str = Depends(get_current_user)):
             "success": True
         }
     except Exception as e:
-        print(f"Error during logout: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to logout"
@@ -66,7 +65,7 @@ async def get_current_user(current_user: str = Depends(get_current_user)):
         if user_session:
             # Update last login timestamp
             await db.update_last_login(current_user)
-            
+        
             return {
                 "email": user_session.get("email"),
                 "name": user_session.get("name"),
@@ -79,7 +78,6 @@ async def get_current_user(current_user: str = Depends(get_current_user)):
                 detail="User session not found"
             )
     except Exception as e:
-        print(f"Error getting current user: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get user information"
@@ -95,7 +93,6 @@ async def google_authorize(request: Request):
         auth_url = google_oauth.get_auth_url(state="user_email")
         return {"auth_url": auth_url}
     except Exception as e:
-        print(f"Error generating auth URL: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate authorization URL"
@@ -124,12 +121,8 @@ async def google_callback(
         )
     
     try:
-        print(f"OAuth callback received - code: {code[:20]}..., state: {state}")
-        
         # Handle the OAuth callback
         result = await google_oauth.handle_callback(code, "user_email")
-        
-        print(f"OAuth callback result: {result}")
         
         if result.get("success"):
             # Get user info from the result
@@ -138,8 +131,8 @@ async def google_callback(
             # Use a session-based email since we don't have userinfo scope
             user_email = f"user_{int(time.time())}@solvia.com"
             
-            # Temporarily skip database operations to test OAuth flow
-            print(f"Would store session for: {user_email}")
+            # Store user session in database
+            await db.store_user_session(user_email, user_info)
             
             # Create a JWT token for the user
             jwt_token = create_access_token(
@@ -147,23 +140,17 @@ async def google_callback(
                 expires_delta=timedelta(minutes=30)
             )
             
-            print(f"Created JWT token: {jwt_token[:20]}...")
-            
-            # Redirect to welcome page with the JWT token
-            welcome_url = f"/welcome?access_token={jwt_token}"
-            return RedirectResponse(url=welcome_url, status_code=302)
+            # Redirect to dashboard page with the JWT token
+            dashboard_url = f"/dashboard?access_token={jwt_token}"
+            return RedirectResponse(url=dashboard_url, status_code=302)
         else:
             error_msg = result.get("error", "Unknown error")
-            print(f"OAuth callback failed: {error_msg}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to complete OAuth process: {error_msg}"
             )
         
     except Exception as e:
-        print(f"Error in OAuth callback: {e}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to complete OAuth process"

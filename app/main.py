@@ -71,15 +71,24 @@ async def health_check():
 
 @app.get("/ui")
 def serve_ui():
-    return FileResponse(os.path.join(os.path.dirname(__file__), "static", "index.html"))
+    file_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="UI file not found")
+    return FileResponse(file_path)
 
-@app.get("/welcome")
-def serve_welcome():
-    return FileResponse(os.path.join(os.path.dirname(__file__), "static", "welcome.html"))
+@app.get("/dashboard")
+def serve_dashboard():
+    file_path = os.path.join(os.path.dirname(__file__), "static", "dashboard.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Dashboard file not found")
+    return FileResponse(file_path)
 
 @app.get("/login")
 def serve_login():
-    return FileResponse(os.path.join(os.path.dirname(__file__), "static", "index.html"))
+    file_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Login file not found")
+    return FileResponse(file_path)
 
 @app.get("/api/health")
 async def api_health():

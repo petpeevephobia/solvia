@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solvia Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header Section -->
+        <div class="header">
+            <h1 class="greeting">
+                Hey, <span class="user-name">Nadra</span>! We're tracking 
+                <span class="domain">thenadraagency.com</span>
+            </h1>
+        </div>
+
+        <!-- Overview Section -->
+        <div class="overview-section">
+            <h2 class="overview-title">Overview</h2>
+            
+            <!-- Metrics Cards -->
+            <div class="metrics-grid">
+                <!-- SEO Score Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3 class="metric-title">SEO Score</h3>
+                        <div class="metric-icon seo-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect x="4" y="8" width="3" height="8" fill="#FF6B35"/>
+                                <rect x="9" y="6" width="3" height="10" fill="#FF6B35"/>
+                                <rect x="14" y="4" width="3" height="12" fill="#FF6B35"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-value">78/100</div>
+                    <div class="metric-change positive">
+                        <span class="change-arrow">↑</span>
+                        <span class="change-text">5% from last month</span>
+                    </div>
+                </div>
+
+                <!-- Organic Traffic Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3 class="metric-title">Organic Traffic</h3>
+                        <div class="metric-icon traffic-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 18L9 12L15 18L21 12" stroke="#FF6B35" stroke-width="2" fill="none"/>
+                                <path d="M3 12L9 6L15 12L21 6" stroke="#FF6B35" stroke-width="2" fill="none"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-value">8,742</div>
+                    <div class="metric-change positive">
+                        <span class="change-arrow">↑</span>
+                        <span class="change-text">12% from last month</span>
+                    </div>
+                </div>
+
+                <!-- Avg Keyword Position Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3 class="metric-title">Avg. Keyword Position</h3>
+                        <div class="metric-icon keyword-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <circle cx="11" cy="11" r="8" stroke="#FF6B35" stroke-width="2"/>
+                                <path d="M21 21L16.65 16.65" stroke="#FF6B35" stroke-width="2"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-value">16.7</div>
+                    <div class="metric-change positive">
+                        <span class="change-arrow">↑</span>
+                        <span class="change-text">1.6 positions</span>
+                    </div>
+                </div>
+
+                <!-- Backlinks Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3 class="metric-title">Backlinks</h3>
+                        <div class="metric-icon backlinks-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="#FF6B35" stroke-width="2"/>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="#FF6B35" stroke-width="2"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-value">342</div>
+                    <div class="metric-change positive">
+                        <span class="change-arrow">↑</span>
+                        <span class="change-text">8 new this month</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <div class="chat-header">
+                <h2 class="chat-title">Solvia</h2>
+                <p class="chat-description">I oversee your entire SEO team. Ask me anything about your SEO performance.</p>
+            </div>
+            
+            <div class="chat-messages">
+                <div class="message ai-message">
+                    <div class="message-content">
+                        <div class="message-sender">Solvia</div>
+                        <div class="message-text">Hello! I'm Solvia, your SEO agent. How can I help you today?</div>
+                    </div>
+                </div>
+                
+                <div class="message user-message">
+                    <div class="message-content">
+                        <div class="message-text">How was my SEO last week?</div>
+                    </div>
+                </div>
+                
+                <div class="message ai-message">
+                    <div class="message-content">
+                        <div class="message-sender">Solvia</div>
+                        <div class="message-text">Your SEO performance improved by 12% last week. Organic traffic is up 8%, and your average keyword position improved from 18.3 to 16.7. Your most successful page was "10 Tips for Digital Marketing" which gained 5 new backlinks.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input-section">
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" class="chat-input" placeholder="Type a message ...">
+                    <button id="sendButton" class="send-button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="quick-replies">
+                    <button class="quick-reply-btn">How was my SEO last week?</button>
+                    <button class="quick-reply-btn">Any pressing issues this month?</button>
+                    <button class="quick-reply-btn">What can you do?</button>
+                    <button class="quick-reply-btn">Suggest keywords for my blog</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Agents Section -->
+        <div class="ai-agents-section">
+            <h2 class="ai-agents-title">Meet Your AI Agents</h2>
+            
+            <div class="agents-grid">
+                <!-- Kenji - Keyword Agent -->
+                <div class="agent-card">
+                    <div class="agent-header">
+                        <div class="agent-icon kenji-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <circle cx="11" cy="11" r="8" stroke="white" stroke-width="2"/>
+                                <path d="M21 21L16.65 16.65" stroke="white" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div class="agent-info">
+                            <h3 class="agent-name">Kenji</h3>
+                            <p class="agent-type">Keyword Agent</p>
+                        </div>
+                    </div>
+                    <div class="agent-description">
+                        I'll find untapped keyword opportunities and help you rank higher. I analyze search trends and competitive gaps.
+                    </div>
+                    <div class="agent-status">Last run: Just now.</div>
+                    <button class="agent-btn kenji-btn">Chat with me</button>
+                </div>
+
+                <!-- Myer - Metadata Agent -->
+                <div class="agent-card">
+                    <div class="agent-header">
+                        <div class="agent-icon myer-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="white" stroke-width="2"/>
+                                <polyline points="14,2 14,8 20,8" stroke="white" stroke-width="2"/>
+                                <line x1="16" y1="13" x2="8" y2="13" stroke="white" stroke-width="2"/>
+                                <line x1="16" y1="17" x2="8" y2="17" stroke="white" stroke-width="2"/>
+                                <polyline points="10,9 9,9 8,9" stroke="white" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div class="agent-info">
+                            <h3 class="agent-name">Myer</h3>
+                            <p class="agent-type">Metadata Agent</p>
+                        </div>
+                    </div>
+                    <div class="agent-description">
+                        I craft compelling titles & descriptions that boost click-through rates while maintaining SEO best practices.
+                    </div>
+                    <div class="agent-status">Last run: 19 hours ago.</div>
+                    <button class="agent-btn myer-btn" disabled>Coming soon</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logout Button -->
+        <div class="logout-section">
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        // Get user info from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+        
+        if (!accessToken) {
+            window.location.href = '/ui';
+        }
+
+        // Fetch user data
+        async function fetchUserData() {
+            try {
+                const response = await fetch('/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const userData = await response.json();
+                    // Update user name if available
+                    if (userData.name) {
+                        document.querySelector('.user-name').textContent = userData.name;
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+        }
+
+        // Logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', async function() {
+            try {
+                await fetch('/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                window.location.href = '/ui';
+            } catch (error) {
+                console.error('Error logging out:', error);
+                window.location.href = '/ui';
+            }
+        });
+
+        // Load user data on page load
+        fetchUserData();
+
+        // Chat Functionality
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const chatMessages = document.querySelector('.chat-messages');
+        const quickReplyButtons = document.querySelectorAll('.quick-reply-btn');
+
+        // Send message function
+        async function sendMessage(message) {
+            if (!message.trim()) return;
+
+            // Add user message to chat
+            addMessageToChat('user', message);
+
+            // Clear input
+            chatInput.value = '';
+
+            // Show typing indicator
+            showTypingIndicator();
+
+            try {
+                // Send message to backend
+                const response = await fetch('/auth/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    hideTypingIndicator();
+                    addMessageToChat('ai', data.response, 'Solvia');
+                } else {
+                    hideTypingIndicator();
+                    addMessageToChat('ai', 'Sorry, I encountered an error. Please try again.', 'Solvia');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                hideTypingIndicator();
+                addMessageToChat('ai', 'Sorry, I encountered an error. Please try again.', 'Solvia');
+            }
+        }
+
+        // Add message to chat
+        function addMessageToChat(type, text, sender = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (sender) {
+                const senderDiv = document.createElement('div');
+                senderDiv.className = 'message-sender';
+                senderDiv.textContent = sender;
+                contentDiv.appendChild(senderDiv);
+            }
+            
+            const textDiv = document.createElement('div');
+            textDiv.className = 'message-text';
+            textDiv.textContent = text;
+            contentDiv.appendChild(textDiv);
+            
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message ai-message typing-indicator';
+            typingDiv.id = 'typing-indicator';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            const senderDiv = document.createElement('div');
+            senderDiv.className = 'message-sender';
+            senderDiv.textContent = 'Solvia';
+            contentDiv.appendChild(senderDiv);
+            
+            const textDiv = document.createElement('div');
+            textDiv.className = 'message-text';
+            textDiv.textContent = 'Typing...';
+            contentDiv.appendChild(textDiv);
+            
+            typingDiv.appendChild(contentDiv);
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Hide typing indicator
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // Send button click
+        sendButton.addEventListener('click', () => {
+            sendMessage(chatInput.value);
+        });
+
+        // Enter key press
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage(chatInput.value);
+            }
+        });
+
+        // Quick reply button clicks
+        quickReplyButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const message = button.textContent;
+                sendMessage(message);
+            });
+        });
+
+        // Focus input on page load
+        chatInput.focus();
+    </script>
+</body>
+</html> 

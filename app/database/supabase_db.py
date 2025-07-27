@@ -20,17 +20,15 @@ class SupabaseAuthDB:
                 'email': user_email,
                 'name': user_info.get('name'),
                 'picture': user_info.get('picture'),
-                'last_login': datetime.utcnow().isoformat(),
-                'is_active': True
+                'last_login': datetime.utcnow().isoformat()
             }
             
             # Upsert session data (create or update)
             response = self.supabase.table('user_sessions').upsert(session_data).execute()
             return True
         except Exception as e:
-            print(f"Error storing user session: {e}")
             return False
-    
+
     async def get_user_session(self, user_email: str) -> Optional[Dict]:
         """Get user session by email."""
         try:
@@ -39,9 +37,8 @@ class SupabaseAuthDB:
                 return response.data[0]
             return None
         except Exception as e:
-            print(f"Error getting user session: {e}")
             return None
-    
+
     async def update_last_login(self, user_email: str) -> bool:
         """Update last login timestamp."""
         try:
@@ -50,16 +47,13 @@ class SupabaseAuthDB:
             }).eq('email', user_email).execute()
             return True
         except Exception as e:
-            print(f"Error updating last login: {e}")
             return False
-    
+
     async def deactivate_session(self, user_email: str) -> bool:
         """Deactivate user session (logout)."""
         try:
-            response = self.supabase.table('user_sessions').update({
-                'is_active': False
-            }).eq('email', user_email).execute()
+            # For now, just return True since we don't have is_active column
+            # You can add this column later if needed
             return True
         except Exception as e:
-            print(f"Error deactivating session: {e}")
             return False 

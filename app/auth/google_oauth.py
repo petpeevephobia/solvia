@@ -16,7 +16,7 @@ class GoogleOAuthHandler:
         
         # Check if we have valid Google credentials
         if not (self.client_id and self.client_secret and 
-                             self.client_id != 'your_google_client_id_here' and 
+                self.client_id != 'your_google_client_id_here' and 
                 self.client_secret != 'your_google_client_secret_here'):
             raise Exception("Google OAuth credentials required. Cannot start Solvia without proper configuration.")
     
@@ -71,7 +71,7 @@ class GoogleOAuthHandler:
                 scopes=scopes
             )
             flow.redirect_uri = self.redirect_uri
-            
+                
             # Exchange code for tokens
             flow.fetch_token(code=code)
             credentials = flow.credentials
@@ -84,7 +84,7 @@ class GoogleOAuthHandler:
                 'given_name': None,
                 'family_name': None
             }
-            
+        
             result = {
                 "success": True,
                 "access_token": credentials.token,
@@ -94,7 +94,6 @@ class GoogleOAuthHandler:
             }
             return result
         except Exception as e:
-            print(f"Error in handle_callback: {e}")
             return {
                 "success": False,
                 "error": str(e)
