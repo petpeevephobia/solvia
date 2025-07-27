@@ -402,12 +402,20 @@ body {
 }
 
 .kenji-btn {
-    background: #d1fae5;
-    color: #065f46;
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
 .kenji-btn:hover {
-    background: #a7f3d0;
+    background: #f3f4f6;
+    cursor: not-allowed;
+}
+
+.kenji-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .myer-btn {
@@ -646,27 +654,7 @@ body {
     font-style: italic;
 }
 
-/* Logout Section */
-.logout-section {
-    text-align: center;
-    margin-top: 3rem;
-}
 
-.logout-btn {
-    background: #FF6B35;
-    color: white;
-    border: none;
-    padding: 0.75rem 2rem;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.logout-btn:hover {
-    background: #e55a2b;
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {

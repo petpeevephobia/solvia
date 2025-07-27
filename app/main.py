@@ -90,6 +90,14 @@ def serve_login():
         raise HTTPException(status_code=404, detail="Login file not found")
     return FileResponse(file_path)
 
+@app.get("/settings")
+async def serve_settings():
+    """Serve the settings page."""
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static", "settings.html"),
+        media_type="text/html"
+    )
+
 @app.get("/api/health")
 async def api_health():
     """API health check."""

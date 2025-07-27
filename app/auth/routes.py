@@ -100,7 +100,6 @@ async def get_current_user_info(current_user: str = Depends(get_current_user)):
                 detail="User session not found"
             )
     except Exception as e:
-        print(f"Error getting current user: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get user information"
@@ -130,8 +129,6 @@ async def google_callback(
 ):
     """Handle Google OAuth callback."""
     try:
-        print(f"Google OAuth callback - Code: {code[:20]}..., State: {state}")
-        
         # Get OAuth handler
         oauth_handler = GoogleOAuthHandler()
         
@@ -149,10 +146,13 @@ async def google_callback(
                     detail="No email address received from Google"
                 )
             
-            print(f"Google OAuth - User email: {user_email}")
-            
-            # Store user session in database
-            await db.store_user_session(user_email, user_info)
+            # Store user session in database with tokens
+            await db.store_user_session(
+                user_email, 
+                user_info, 
+                oauth_result.get("access_token"),
+                oauth_result.get("refresh_token")
+            )
             
             # Create JWT token
             access_token_expires = timedelta(minutes=30)
@@ -166,14 +166,14 @@ async def google_callback(
             return RedirectResponse(url=redirect_url, status_code=302)
         else:
             error_msg = oauth_result.get('error', 'Unknown OAuth error')
-            print(f"OAuth failed: {error_msg}")
+
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to complete OAuth process: {error_msg}"
             )
             
     except Exception as e:
-        print(f"OAuth callback error: {e}")
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to complete OAuth process"
@@ -195,8 +195,7 @@ async def send_message(
     """Send a chat message and get AI response."""
     try:
         # Debug logging
-        print(f"Processing message for user: {current_user}")
-        print(f"Message content: {message.message_content}")
+
         
         # Store user message
         user_message_id = await db.store_chat_message(
@@ -210,15 +209,13 @@ async def send_message(
         ai_response = await generate_ai_response(message.message_content, current_user)
         
         # Split response into paragraphs
-        # Handle different paragraph separators: double line breaks, single line breaks with proper spacing, etc.
         paragraphs = []
         
         # First try to split by double line breaks (most common)
         if '\n\n' in ai_response:
             paragraphs = [p.strip() for p in ai_response.split('\n\n') if p.strip()]
-            print(f"Split by double line breaks: {len(paragraphs)} paragraphs")
         else:
-            # If no double line breaks, try to split by single line breaks that create natural paragraphs
+            # If no double line breaks, try to split by single line breaks
             lines = ai_response.split('\n')
             current_paragraph = ""
             
@@ -237,76 +234,6 @@ async def send_message(
             # Add the last paragraph if there is one
             if current_paragraph:
                 paragraphs.append(current_paragraph)
-            
-            print(f"Split by single line breaks: {len(paragraphs)} paragraphs")
-        
-        # If still only one paragraph, try to split by sentence patterns that indicate new topics
-        if len(paragraphs) <= 1 and len(ai_response) > 200:  # Only for longer responses
-            # Look for patterns that indicate new sections
-            import re
-            # Split by sentences that start with common transition words or are standalone
-            sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', ai_response)
-            
-            # Group sentences into logical paragraphs
-            current_group = []
-            paragraphs = []
-            
-            for sentence in sentences:
-                sentence = sentence.strip()
-                if sentence:
-                    current_group.append(sentence)
-                    
-                    # Start a new paragraph if this sentence seems like a new topic
-                    # (starts with common transition words or is a standalone statement)
-                    transition_words = ['for example', 'however', 'additionally', 'furthermore', 'moreover', 'in addition', 'also', 'besides', 'meanwhile', 'conversely', 'on the other hand', 'if you', 'when you', 'let me know', 'i can help']
-                    
-                    if any(sentence.lower().startswith(word) for word in transition_words) and len(current_group) > 1:
-                        paragraphs.append(' '.join(current_group[:-1]))
-                        current_group = [current_group[-1]]
-            
-            # Add the last group
-            if current_group:
-                paragraphs.append(' '.join(current_group))
-            
-            print(f"Split by sentence patterns: {len(paragraphs)} paragraphs")
-        
-        # Debug logging
-        print(f"Original response length: {len(ai_response)}")
-        print(f"Number of paragraphs detected: {len(paragraphs)}")
-        for i, p in enumerate(paragraphs):
-            print(f"Paragraph {i+1}: {p[:50]}...")
-        
-        # Fallback: If we still have only one paragraph but the response is long and contains multiple sentences,
-        # force split it into logical chunks
-        if len(paragraphs) <= 1 and len(ai_response) > 150:
-            import re
-            # Count sentences
-            sentences = re.split(r'(?<=[.!?])\s+', ai_response)
-            sentences = [s.strip() for s in sentences if s.strip()]
-            
-            if len(sentences) >= 3:  # If we have 3+ sentences, split them
-                # Group sentences into chunks of 2-3 sentences each
-                chunks = []
-                current_chunk = []
-                
-                for sentence in sentences:
-                    current_chunk.append(sentence)
-                    
-                    # Start a new chunk after 2-3 sentences
-                    if len(current_chunk) >= 2 and len(chunks) < 2:  # Max 3 chunks
-                        chunks.append(' '.join(current_chunk))
-                        current_chunk = []
-                
-                # Add remaining sentences to the last chunk
-                if current_chunk:
-                    if chunks:
-                        chunks[-1] += ' ' + ' '.join(current_chunk)
-                    else:
-                        chunks.append(' '.join(current_chunk))
-                
-                if len(chunks) > 1:
-                    paragraphs = chunks
-                    print(f"Force split into {len(paragraphs)} chunks")
         
         # If only one paragraph, send as single message
         if len(paragraphs) <= 1:
@@ -384,7 +311,7 @@ async def get_chat_history(
 
 
 async def generate_ai_response(user_message: str, user_email: str) -> str:
-    """Generate Solvia's response using OpenAI GPT-4o-mini with conversation context."""
+    """Generate Solvia's response using OpenAI GPT-4o-mini with conversation context and GSC data."""
     
     # Get Solvia's custom instructions
     agent_instructions = get_agent_instructions("solvia")
@@ -393,12 +320,59 @@ async def generate_ai_response(user_message: str, user_email: str) -> str:
         # Get recent conversation history (last 10 messages)
         recent_messages = await db.get_chat_messages(user_email, 10)
         
-        # Debug logging
-        print(f"User email: {user_email}")
-        print(f"Number of recent messages found: {len(recent_messages)}")
+        # Always include GSC metrics context for Solvia
+        # Detect date range in user message
+        date_range = detect_date_range(user_message)
+        
+        # Get GSC metrics for every response
+        gsc_context = ""
+        try:
+            # Get user's selected website
+            selected_website = await db.get_user_website(user_email)
+            if selected_website:
+                # Get OAuth handler
+                oauth_handler = GoogleOAuthHandler()
+                
+                # Get GSC metrics with custom date range if specified
+                gsc_metrics = await oauth_handler.get_gsc_metrics(user_email, selected_website, date_range)
+                
+                if gsc_metrics:
+                    # Calculate clicks from impressions and CTR
+                    clicks = int(gsc_metrics.get('organic_traffic', 0) * (gsc_metrics.get('ctr', 0) / 100))
+                    
+                    # Format date range description
+                    date_description = get_date_range_description(date_range)
+                    
+                    # Add note about default range if not custom
+                    range_note = ""
+                    if not date_range.get('is_custom_range', False):
+                        range_note = "\nNote: I'm showing you the last 30 days of data by default. You can ask for specific time periods like 'last week', 'this month', or 'last 3 months'."
+                    
+                    gsc_context = f"""
+IMPORTANT: You MUST use ONLY the following real Google Search Console data. Do NOT make up or hallucinate any metrics.
+
+Current Google Search Console Data ({date_description}):
+- Impressions: {gsc_metrics.get('organic_traffic', 0):,}
+- Clicks: {clicks:,}
+- CTR: {gsc_metrics.get('ctr', 0):.2f}%
+- Average Position: {gsc_metrics.get('avg_position', 0):.1f}
+- SEO Score: {gsc_metrics.get('seo_score', 0):.1f}/100
+- Website: {selected_website}{range_note}
+
+CRITICAL INSTRUCTIONS:
+1. ALWAYS reference these exact numbers when discussing SEO metrics
+2. NEVER invent or estimate different values
+3. If asked about CTR, say exactly {gsc_metrics.get('ctr', 0):.2f}%
+4. If asked about SEO score, say exactly {gsc_metrics.get('seo_score', 0):.1f}/100
+5. If asked about impressions, say exactly {gsc_metrics.get('organic_traffic', 0):,}
+6. If asked about average position, say exactly {gsc_metrics.get('avg_position', 0):.1f}
+"""
+        except Exception as e:
+            print(f"Error getting GSC data for context: {e}")
+            gsc_context = ""
         
         # Build conversation context
-        messages = [{"role": "system", "content": agent_instructions}]
+        messages = [{"role": "system", "content": agent_instructions + gsc_context}]
         
         # Add recent conversation history
         for msg in recent_messages:
@@ -409,12 +383,6 @@ async def generate_ai_response(user_message: str, user_email: str) -> str:
         
         # Add current user message
         messages.append({"role": "user", "content": user_message})
-        
-        # Debug logging
-        print(f"Total messages being sent to AI: {len(messages)}")
-        print(f"Conversation context:")
-        for i, msg in enumerate(messages):
-            print(f"  {i}: {msg['role']} - {msg['content'][:100]}...")
         
         # Set OpenAI API key
         openai.api_key = settings.OPENAI_API_KEY
@@ -432,13 +400,239 @@ async def generate_ai_response(user_message: str, user_email: str) -> str:
         processed_response = markdown.markdown(ai_response_text, extensions=['extra'])
         
         return processed_response
-        
+            
     except Exception as e:
-        print(f"OpenAI API Error: {str(e)}")
-        print(f"API Key: {settings.OPENAI_API_KEY[:10]}..." if settings.OPENAI_API_KEY else "No API key")
+        print(f"Error in generate_ai_response: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"OpenAI API error: {str(e)}"
+        )
+
+def detect_date_range(user_message: str) -> dict:
+    """Detect date range from user message and return start/end dates."""
+    import re
+    from datetime import datetime, timedelta
+    
+    message_lower = user_message.lower()
+    
+    # Default to last 30 days
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=30)
+    is_custom_range = False
+    
+    # Detect specific time periods
+    if any(word in message_lower for word in ['last week', 'past week', 'this week']):
+        start_date = end_date - timedelta(days=7)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last month', 'past month', 'this month']):
+        start_date = end_date - timedelta(days=30)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 3 months', 'past 3 months', '3 months']):
+        start_date = end_date - timedelta(days=90)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 6 months', 'past 6 months', '6 months']):
+        start_date = end_date - timedelta(days=180)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last year', 'past year', 'this year']):
+        start_date = end_date - timedelta(days=365)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['yesterday', 'yesterday\'s']):
+        start_date = end_date - timedelta(days=1)
+        end_date = end_date - timedelta(days=1)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['today', 'today\'s']):
+        start_date = end_date
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 7 days', 'past 7 days']):
+        start_date = end_date - timedelta(days=7)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 14 days', 'past 14 days']):
+        start_date = end_date - timedelta(days=14)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 60 days', 'past 60 days']):
+        start_date = end_date - timedelta(days=60)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 90 days', 'past 90 days']):
+        start_date = end_date - timedelta(days=90)
+        is_custom_range = True
+    
+    return {
+        'start_date': start_date,
+        'end_date': end_date,
+        'is_custom_range': is_custom_range
+    }
+
+def get_date_range_description(date_range: dict) -> str:
+    """Get a human-readable description of the date range."""
+    start_date = date_range['start_date']
+    end_date = date_range['end_date']
+    
+    if start_date == end_date:
+        return f"on {start_date.strftime('%B %d, %Y')}"
+    else:
+        days_diff = (end_date - start_date).days
+        if days_diff == 1:
+            return f"on {start_date.strftime('%B %d, %Y')}"
+        elif days_diff == 7:
+            return "in the last 7 days"
+        elif days_diff == 14:
+            return "in the last 14 days"
+        elif days_diff == 30:
+            return "in the last 30 days"
+        elif days_diff == 60:
+            return "in the last 60 days"
+        elif days_diff == 90:
+            return "in the last 90 days"
+        elif days_diff == 180:
+            return "in the last 6 months"
+        elif days_diff == 365:
+            return "in the last year"
+        else:
+            return f"from {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}"
+
+# GSC Property models
+class GSCProperty(BaseModel):
+    siteUrl: str
+    permissionLevel: str
+
+class PropertySelectionRequest(BaseModel):
+    siteUrl: str
+    permissionLevel: str
+
+@router.get("/gsc/properties")
+async def get_gsc_properties(current_user: str = Depends(get_current_user)):
+    """Get user's Google Search Console properties."""
+    try:
+        # Get user session to get their OAuth credentials
+        user_session = await db.get_user_session(current_user)
+        
+        if not user_session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User session not found"
+            )
+        
+        # Get OAuth handler
+        oauth_handler = GoogleOAuthHandler()
+        
+        # Get user's GSC properties
+        properties = await oauth_handler.get_gsc_properties(current_user)
+        
+        return {
+            "success": True,
+            "properties": properties
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get GSC properties"
+        )
+
+@router.post("/gsc/select-property")
+async def select_gsc_property(
+    request: PropertySelectionRequest,
+    current_user: str = Depends(get_current_user)
+):
+    """Select a Google Search Console property for the user."""
+    try:
+        # Store the selected property in the database
+        await db.store_user_website(current_user, request.siteUrl)
+        
+        return {
+            "success": True,
+            "message": "Property selected successfully"
+        }
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to select property"
+        )
+
+@router.get("/gsc/selected-website")
+async def get_selected_website(current_user: str = Depends(get_current_user)):
+    """Get the user's selected website."""
+    try:
+        user_session = await db.get_user_session(current_user)
+        
+        if user_session and user_session.get('selected_website'):
+            return {
+                "success": True,
+                "selected_website": user_session.get('selected_website')
+            }
+        else:
+            return {
+                "success": False,
+                "selected_website": None
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get selected website"
+        )
+
+@router.get("/gsc/metrics")
+async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
+    """Get GSC metrics for the user's selected website with caching."""
+    try:
+        # Get user session to get their OAuth credentials
+        user_session = await db.get_user_session(current_user)
+        
+        if not user_session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User session not found"
+            )
+        
+        selected_website = user_session.get('selected_website')
+        if not selected_website:
+            return {
+                "success": False,
+                "message": "No website selected",
+                "metrics": {
+                    "seo_score": 0,
+                    "organic_traffic": 0,
+                    "avg_position": 0,
+                    "ctr": 0
+                }
+            }
+        
+        # Default to last 30 days
+        from datetime import datetime, timedelta
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        date_range = {
+            'start_date': start_date,
+            'end_date': end_date
+        }
+        
+        # Check cache first
+        cached_metrics = await db.get_gsc_metrics_cache(current_user, selected_website, date_range)
+        
+        if cached_metrics:
+            print(f"Using cached GSC metrics for {current_user}")
+            return {
+                "success": True,
+                "metrics": cached_metrics
+            }
+        
+        # If no cache, fetch from GSC API
+        print(f"Fetching fresh GSC metrics for {current_user}")
+        oauth_handler = GoogleOAuthHandler()
+        metrics = await oauth_handler.get_gsc_metrics(current_user, selected_website, date_range)
+        
+        # Cache the results
+        if metrics:
+            await db.store_gsc_metrics_cache(current_user, selected_website, metrics, date_range)
+        
+        return {
+            "success": True,
+            "metrics": metrics
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get GSC metrics"
         )
 
 

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Solvia</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/settings.css">
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+</head>
+<body>
+    <!-- Side Menu Container -->
+    <div id="sidemenu-container"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-center">
+                <h1 class="page-title">Settings</h1>
+                <p class="page-subtitle">Manage your Solvia configuration</p>
+            </div>
+        </div>
+
+        <!-- Settings Content -->
+        <div class="settings-content">
+            <!-- Google Search Console Section -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <h2 class="section-title">Google Search Console</h2>
+                    <p class="section-description">Select your website from Google Search Console to connect with Solvia</p>
+                </div>
+                
+                <div class="section-content">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Selected Website</h3>
+                            <p>Choose which domain property you want to track</p>
+                        </div>
+                        <div class="dropdown-container">
+                            <select id="websiteDropdown" class="website-dropdown" onchange="selectWebsite(this.value)">
+                                <option value="">Loading properties...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <script src="/static/js/sidemenu.js"></script>
+    <script>
+        // Get access token from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+        
+        if (!accessToken) {
+            window.location.href = '/';
+        }
+
+        // Load user data
+        async function loadUserData() {
+            try {
+                const response = await fetch('/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    document.getElementById('userEmail').textContent = userData.email;
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
+        }
+
+        // Load Google Search Console properties and set previously selected website
+        async function loadGSCProperties() {
+            const dropdown = document.getElementById('websiteDropdown');
+            
+            dropdown.innerHTML = '<option value="">Loading properties...</option>';
+            
+            try {
+                const response = await fetch('/auth/gsc/properties', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.success && data.properties.length > 0) {
+                        dropdown.innerHTML = '<option value="">Select a website...</option>';
+                        
+                        data.properties.forEach(property => {
+                            const option = document.createElement('option');
+                            option.value = JSON.stringify(property);
+                            option.textContent = property.siteUrl;
+                            dropdown.appendChild(option);
+                        });
+                        
+                        // Load and set the previously selected website
+                        await loadSelectedWebsite();
+                    } else {
+                        dropdown.innerHTML = '<option value="">No properties found</option>';
+                    }
+                } else {
+                    dropdown.innerHTML = '<option value="">Failed to load properties</option>';
+                }
+            } catch (error) {
+                dropdown.innerHTML = '<option value="">Error loading properties</option>';
+            }
+        }
+
+        // Load the user's previously selected website
+        async function loadSelectedWebsite() {
+            try {
+                const response = await fetch('/auth/gsc/selected-website', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.success && data.selected_website) {
+                        const dropdown = document.getElementById('websiteDropdown');
+                        
+                        // Find and select the previously selected website
+                        for (let option of dropdown.options) {
+                            if (option.value) {
+                                const property = JSON.parse(option.value);
+                                if (property.siteUrl === data.selected_website) {
+                                    option.selected = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading selected website:', error);
+            }
+        }
+
+        // Select a website from dropdown
+        async function selectWebsite(propertyJson) {
+            if (!propertyJson) return;
+            
+            try {
+                const property = JSON.parse(propertyJson);
+                
+                const response = await fetch('/auth/gsc/select-property', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        siteUrl: property.siteUrl,
+                        permissionLevel: property.permissionLevel
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        console.log(`Website selected: ${property.siteUrl}`);
+                        showNotification('Website selected successfully!', 'success');
+                    } else {
+                        console.error('Failed to select website');
+                        showNotification('Failed to select website. Please try again.', 'error');
+                    }
+                } else {
+                    console.error('Failed to select website');
+                    showNotification('Failed to select website. Please try again.', 'error');
+                }
+            } catch (error) {
+                showNotification('Error selecting website. Please try again.', 'error');
+            }
+        }
+
+        // Show notification
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification-toast ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Show the notification
+            setTimeout(() => {
+                notification.style.display = 'block';
+            }, 100);
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                notification.style.display = 'none';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initSideMenu('settings');
+            loadUserData();
+            loadGSCProperties();
+        });
+
+
+    </script>
+</body>
+</html> 

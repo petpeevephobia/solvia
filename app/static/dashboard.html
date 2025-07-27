@@ -11,83 +11,8 @@
     <link rel="stylesheet" href="/static/dashboard.css">
 </head>
 <body>
-    <!-- Side Menu -->
-    <div class="side-menu">
-        <!-- Top Section - Logo -->
-        <div class="menu-top">
-            <div class="logo-section">
-                <img src="/static/images/text-logo.svg" alt="Solvia Logo" class="menu-logo">
-            </div>
-        </div>
-
-        <!-- Main Navigation Section -->
-        <div class="menu-main">
-            <div class="menu-item active">
-                <img src="/static/images/home.svg" alt="Dashboard" class="menu-icon">
-                <span class="menu-text">Dashboard</span>
-            </div>
-            
-            <div class="menu-item agents-item" onclick="toggleAgentsDropdown()">
-                <img src="/static/images/agent.svg" alt="Agents" class="menu-icon">
-                <span class="menu-text">Agents</span>
-                <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none">
-                    <polyline points="6,9 12,15 18,9" stroke="#374151" stroke-width="2"/>
-                </svg>
-            </div>
-            
-            <!-- Agents Dropdown -->
-            <div class="agents-dropdown" id="agentsDropdown">
-                <div class="dropdown-item">
-                    <span class="dropdown-text">Kenji - Keyword Agent</span>
-                </div>
-                <div class="dropdown-item">
-                    <span class="dropdown-text">Myer - Metadata Agent</span>
-                </div>
-            </div>
-            
-            <div class="menu-item">
-                <img src="/static/images/fixes.svg" alt="Fixes" class="menu-icon">
-                <span class="menu-text">Fixes</span>
-            </div>
-        </div>
-
-        <!-- AI Chat Model Info -->
-        <div class="ai-model-info">
-            <span class="model-text">AI Chat Model: GPT o4-mini</span>
-        </div>
-
-        <!-- Bottom Section - Utilities -->
-        <div class="menu-bottom">
-            <div class="menu-item notification">
-                <img src="/static/images/bell.svg" alt="Notifications" class="menu-icon">
-                <span class="menu-text">Notifications</span>
-            </div>
-            
-            <div class="menu-item">
-                <img src="/static/images/settings.svg" alt="Settings" class="menu-icon">
-                <span class="menu-text">Settings</span>
-            </div>
-            
-            <div class="menu-item">
-                <img src="/static/images/logout.svg" alt="Log out" class="menu-icon">
-                <span class="menu-text">Log out</span>
-            </div>
-        </div>
-
-        <!-- User Profile Section -->
-        <div class="user-profile">
-            <div class="profile-icon">
-                <svg class="menu-icon" viewBox="0 0 24 24" fill="none">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#EC6019" stroke-width="2"/>
-                    <circle cx="12" cy="7" r="4" stroke="#EC6019" stroke-width="2"/>
-                </svg>
-            </div>
-            <span class="user-email">nadra@solvia.app</span>
-            <svg class="profile-arrow" viewBox="0 0 24 24" fill="none">
-                <polyline points="9,18 15,12 9,6" stroke="#374151" stroke-width="2"/>
-            </svg>
-        </div>
-    </div>
+    <!-- Side Menu Container -->
+    <div id="sidemenu-container"></div>
 
     <div class="dashboard-container">
         <!-- Header Section -->
@@ -116,17 +41,17 @@
                             </svg>
                         </div>
                     </div>
-                    <div class="metric-value">78/100</div>
+                    <div class="metric-value" data-metric="seo-score">0.00</div>
                     <div class="metric-change positive">
                         <span class="change-arrow">↑</span>
                         <span class="change-text">5% from last month</span>
                     </div>
                 </div>
 
-                <!-- Organic Traffic Card -->
+                <!-- Impressions Card -->
                 <div class="metric-card">
                     <div class="metric-header">
-                        <h3 class="metric-title">Organic Traffic</h3>
+                        <h3 class="metric-title">Impressions</h3>
                         <div class="metric-icon traffic-icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                                 <path d="M3 18L9 12L15 18L21 12" stroke="#FF6B35" stroke-width="2" fill="none"/>
@@ -134,35 +59,17 @@
                             </svg>
                         </div>
                     </div>
-                    <div class="metric-value">8,742</div>
+                    <div class="metric-value" data-metric="organic-traffic">0</div>
                     <div class="metric-change positive">
                         <span class="change-arrow">↑</span>
                         <span class="change-text">12% from last month</span>
                     </div>
                 </div>
 
-                <!-- Avg Keyword Position Card -->
+                <!-- CTR Card -->
                 <div class="metric-card">
                     <div class="metric-header">
-                        <h3 class="metric-title">Avg. Keyword Position</h3>
-                        <div class="metric-icon keyword-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                <circle cx="11" cy="11" r="8" stroke="#FF6B35" stroke-width="2"/>
-                                <path d="M21 21L16.65 16.65" stroke="#FF6B35" stroke-width="2"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="metric-value">16.7</div>
-                    <div class="metric-change positive">
-                        <span class="change-arrow">↑</span>
-                        <span class="change-text">1.6 positions</span>
-                    </div>
-                </div>
-
-                <!-- Backlinks Card -->
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <h3 class="metric-title">Backlinks</h3>
+                        <h3 class="metric-title">CTR</h3>
                         <div class="metric-icon backlinks-icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="#FF6B35" stroke-width="2"/>
@@ -170,10 +77,28 @@
                             </svg>
                         </div>
                     </div>
-                    <div class="metric-value">342</div>
+                    <div class="metric-value" data-metric="ctr">0.00%</div>
                     <div class="metric-change positive">
                         <span class="change-arrow">↑</span>
-                        <span class="change-text">8 new this month</span>
+                        <span class="change-text">0.5% from last month</span>
+                    </div>
+                </div>
+
+                <!-- Average Position Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3 class="metric-title">Avg Position</h3>
+                        <div class="metric-icon keyword-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <circle cx="11" cy="11" r="8" stroke="#FF6B35" stroke-width="2"/>
+                                <path d="M21 21L16.65 16.65" stroke="#FF6B35" stroke-width="2"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-value" data-metric="avg-position">0.0</div>
+                    <div class="metric-change positive">
+                        <span class="change-arrow">↑</span>
+                        <span class="change-text">1.6 positions</span>
                     </div>
                 </div>
             </div>
@@ -267,12 +192,9 @@
             </div>
         </div>
 
-        <!-- Logout Button -->
-        <div class="logout-section">
-            <button id="logoutBtn" class="logout-btn">Logout</button>
-        </div>
     </div>
 
+    <script src="/static/js/sidemenu.js"></script>
     <script>
         // Get user info from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -281,6 +203,8 @@
         if (!accessToken) {
             window.location.href = '/ui';
         }
+
+
 
         // Fetch user data
         async function fetchUserData() {
@@ -303,24 +227,91 @@
             }
         }
 
-        // Logout functionality
-        document.getElementById('logoutBtn').addEventListener('click', async function() {
+        // Fetch selected website
+        async function fetchSelectedWebsite() {
             try {
-                await fetch('/auth/logout', {
-                    method: 'POST',
+                const response = await fetch('/auth/gsc/selected-website', {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`
                     }
                 });
-                window.location.href = '/ui';
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.selected_website) {
+                        document.querySelector('.domain').textContent = data.selected_website;
+                        // Fetch GSC metrics after getting the website
+                        await fetchGSCMetrics();
+                    } else {
+                        document.querySelector('.domain').textContent = 'No website selected';
+                    }
+                }
             } catch (error) {
-                console.error('Error logging out:', error);
-                window.location.href = '/ui';
+                console.error('Error fetching selected website:', error);
+                document.querySelector('.domain').textContent = 'Error loading website';
             }
-        });
+        }
+
+        // Fetch GSC metrics
+        async function fetchGSCMetrics() {
+            try {
+                console.log('Fetching GSC metrics...');
+                const response = await fetch('/auth/gsc/metrics', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('GSC metrics response:', data);
+                    
+                    if (data.success && data.metrics) {
+                        console.log('Updating metrics with:', data.metrics);
+                        updateMetrics(data.metrics);
+                    } else {
+                        console.log('No metrics available:', data.message);
+                    }
+                } else {
+                    console.error('Failed to fetch GSC metrics:', response.status);
+                }
+            } catch (error) {
+                console.error('Error fetching GSC metrics:', error);
+            }
+        }
+
+        // Update metrics on dashboard
+        function updateMetrics(metrics) {
+            // Update SEO Score
+            const seoScoreElement = document.querySelector('.metric-value[data-metric="seo-score"]');
+            if (seoScoreElement) {
+                seoScoreElement.textContent = metrics.seo_score;
+            }
+            
+            // Update Impressions (formerly Organic Traffic)
+            const impressionsElement = document.querySelector('.metric-value[data-metric="organic-traffic"]');
+            if (impressionsElement) {
+                impressionsElement.textContent = metrics.organic_traffic.toLocaleString();
+            }
+            
+            // Update CTR
+            const ctrElement = document.querySelector('.metric-value[data-metric="ctr"]');
+            if (ctrElement && metrics.ctr !== undefined) {
+                ctrElement.textContent = metrics.ctr.toFixed(2) + '%';
+            }
+            
+            // Update Average Position
+            const avgPositionElement = document.querySelector('.metric-value[data-metric="avg-position"]');
+            if (avgPositionElement) {
+                avgPositionElement.textContent = metrics.avg_position;
+            }
+        }
+
+
 
         // Load user data on page load
         fetchUserData();
+        fetchSelectedWebsite();
 
         // Chat Functionality
         const chatInput = document.getElementById('chatInput');
@@ -448,28 +439,88 @@
             }
         }
 
-        function addMessageToChat(content, type, sender) {
+        function addMessageToChat(content, type, sender, isHistorical = false) {
             const messagesContainer = document.querySelector('.chat-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${type}-message`;
             
-            // For AI messages, render HTML content; for user messages, escape HTML
-            const contentToDisplay = type === 'ai' ? content : content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            
-            messageDiv.innerHTML = `
-                <div class="message-content">
-                    <div class="message-sender">${sender}</div>
-                    <div class="message-text">${contentToDisplay}</div>
-                </div>
-            `;
-            
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            // For AI messages, detect paragraphs and split into separate bubbles
+            if (type === 'ai') {
+                // First, convert HTML paragraph separators to plain text line breaks
+                // But preserve bullet points and other formatting
+                let processedContent = content
+                    .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n')  // Convert </p><p> to double line breaks
+                    .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '\n\n')  // Convert <br><br> to double line breaks
+                    .replace(/<br\s*\/?>/gi, '\n')  // Convert single <br> to single line break
+                    .replace(/<\/p>/gi, '\n\n')  // Convert </p> to double line breaks
+                    .replace(/<p[^>]*>/gi, '')  // Remove opening <p> tags
+                    // Keep bullet points and other formatting - only remove basic HTML tags
+                    .replace(/<(?!\/?(?:ul|ol|li|strong|em|b|i|u|code|pre|blockquote|h[1-6]))[^>]*>/g, '')
+                    .trim();
+                
+                // Split by double line breaks (paragraphs)
+                const paragraphs = processedContent.split(/\n\s*\n/).filter(p => p.trim());
+                
+                if (paragraphs.length > 1 && !isHistorical) {
+                    // Multiple paragraphs - create separate bubbles with delays (only for new messages)
+                    paragraphs.forEach((paragraph, index) => {
+                        setTimeout(() => {
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = `message ${type}-message`;
+                            
+                            // Render HTML content for AI messages
+                            const contentToDisplay = paragraph.trim();
+                            
+                            messageDiv.innerHTML = `
+                                <div class="message-content">
+                                    <div class="message-sender">${sender}</div>
+                                    <div class="message-text">${contentToDisplay}</div>
+                                </div>
+                            `;
+                            
+                            messagesContainer.appendChild(messageDiv);
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }, index * 1000); // 1 second delay for each paragraph
+                    });
+                } else {
+                    // Single paragraph or historical message - create one bubble immediately
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `message ${type}-message`;
+                    
+                    const contentToDisplay = content.trim();
+                    
+                    messageDiv.innerHTML = `
+                        <div class="message-content">
+                            <div class="message-sender">${sender}</div>
+                            <div class="message-text">${contentToDisplay}</div>
+                        </div>
+                    `;
+                    
+                    messagesContainer.appendChild(messageDiv);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            } else {
+                // User message - single bubble
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}-message`;
+                
+                // Escape HTML for user messages
+                const contentToDisplay = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <div class="message-sender">${sender}</div>
+                        <div class="message-text">${contentToDisplay}</div>
+                    </div>
+                `;
+                
+                messagesContainer.appendChild(messageDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
         }
 
         // Load chat history on page load
         async function loadChatHistory() {
             try {
+                console.log('Loading chat history...');
                 const response = await fetch('/auth/chat/history', {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`
@@ -478,7 +529,10 @@
 
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Chat history response:', data);
+                    
                     if (data.success && data.messages.length > 0) {
+                        console.log(`Found ${data.messages.length} historical messages`);
                         // Clear existing messages
                         const messagesContainer = document.querySelector('.chat-messages');
                         messagesContainer.innerHTML = '';
@@ -486,9 +540,13 @@
                         // Add historical messages
                         data.messages.forEach(msg => {
                             const sender = msg.sender_name || (msg.message_type === 'ai' ? 'Solvia' : 'You');
-                            addMessageToChat(msg.message_content, msg.message_type, sender);
+                            addMessageToChat(msg.message_content, msg.message_type, sender, true);
                         });
+                    } else {
+                        console.log('No historical messages found');
                     }
+                } else {
+                    console.error('Failed to load chat history:', response.status);
                 }
             } catch (error) {
                 console.error('Error loading chat history:', error);
@@ -514,8 +572,32 @@
 
 
 
-        // Load chat history when page loads
-        loadChatHistory();
+        // Initialize sidemenu and load data when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            initSideMenu('dashboard');
+            loadChatHistory();
+        });
+
+        // Add click event to settings menu item
+        document.querySelector('.menu-bottom .menu-item:nth-child(2)').addEventListener('click', function() {
+            window.location.href = `/settings?access_token=${accessToken}`;
+        });
+
+        // Add logout functionality to sidemenu
+        document.querySelector('.menu-bottom .menu-item:last-child').addEventListener('click', async function() {
+            try {
+                await fetch('/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                window.location.href = '/ui';
+            } catch (error) {
+                console.error('Error logging out:', error);
+                window.location.href = '/ui';
+            }
+        });
     </script>
 </body>
 </html> 
