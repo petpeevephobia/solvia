@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
     
+    # OpenAI Configuration
+    OPENAI_API_KEY: str = ""
+    
     model_config = {
         "env_file": ".env",
         "case_sensitive": True,
