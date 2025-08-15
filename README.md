@@ -1,18 +1,19 @@
-# Solvia Authentication System
+# Solvia SEO Audit Tool
 
-SEO on AI Autopilot - User Authentication with Google Sheets Database
+SEO on AI Autopilot - Google Search Console Integration with Supabase
 
 ## 🚀 Overview
 
-Solvia is a SaaS platform for SEO automation. This repository contains the authentication system built with FastAPI and Google Sheets as the database.
+Solvia is a SaaS platform for SEO automation that provides real-time SEO audits powered by Google Search Console data. This repository contains the complete application built with FastAPI, Supabase, and Google OAuth integration.
 
 ## 🏗️ Architecture
 
 - **Framework**: FastAPI
-- **Database**: Google Sheets (for alpha version)
-- **Authentication**: JWT tokens
-- **Password Hashing**: bcrypt
-- **Email**: SMTP (Gmail)
+- **Database**: Supabase (PostgreSQL with Row Level Security)
+- **Authentication**: Google OAuth2 + JWT tokens
+- **SEO Data**: Google Search Console API
+- **AI**: OpenAI GPT-4o-mini for intelligent insights
+- **Frontend**: Static HTML/CSS/JavaScript
 
 ## 📁 Project Structure
 
@@ -20,15 +21,30 @@ Solvia is a SaaS platform for SEO automation. This repository contains the authe
 solvia/
 ├── app/
 │   ├── __init__.py
+│   ├── ai/
+│   │   └── agent_instructions.py    # AI agent instructions
 │   ├── auth/
 │   │   ├── __init__.py
-│   │   ├── models.py          # Pydantic models
-│   │   ├── routes.py          # API endpoints
-│   │   └── utils.py           # Auth utilities
-│   ├── config.py              # Configuration
-│   ├── database.py            # Google Sheets operations
-│   └── main.py                # FastAPI app
+│   │   ├── models.py                # Pydantic models
+│   │   ├── routes.py                # API endpoints
+│   │   ├── utils.py                 # Auth utilities
+│   │   └── google_oauth.py          # Google OAuth handler
+│   ├── database/
+│   │   ├── __init__.py
+│   │   ├── supabase_client.py       # Supabase client
+│   │   └── supabase_db.py           # Database operations
+│   ├── static/                      # Frontend assets
+│   │   ├── dashboard.html
+│   │   ├── dashboard.css
+│   │   ├── settings.html
+│   │   ├── settings.css
+│   │   ├── js/
+│   │   └── images/
+│   ├── config.py                    # Configuration
+│   └── main.py                      # FastAPI app
+├── core/
 ├── requirements.txt
+├── setup_supabase.sql               # Database schema
 ├── env.example
 └── README.md
 ```
@@ -37,10 +53,10 @@ solvia/
 
 ### 1. Prerequisites
 
-- Python 3.8+
-- Google Cloud Project with Sheets API enabled
-- Service account credentials
-- Gmail account for sending emails
+- Python 3.11+
+- Supabase account and project
+- Google Cloud Project with OAuth2 and Search Console API enabled
+- OpenAI API key
 
 ### 2. Install Dependencies
 
@@ -53,32 +69,58 @@ source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 ```
 
-### 3. Google Sheets Setup
+### 3. Supabase Setup
+
+1. Create a Supabase project at https://supabase.com
+2. Run the SQL commands from `setup_supabase.sql` in your Supabase SQL editor
+3. Get your Supabase URL and anon key from the project settings
+
+### 4. Google OAuth Setup
 
 1. Create a Google Cloud Project
-2. Enable Google Sheets API
-3. Create a service account
-4. Download the JSON credentials file
-5. Create two Google Sheets:
-   - `users` sheet with columns: email, password_hash, created_at, last_login, is_verified, verification_token, reset_token
-   - `sessions` sheet with columns: user_email, session_token, created_at, expires_at
-6. Share both sheets with your service account email
+2. Enable Google OAuth2 API and Search Console API
+3. Create OAuth2 credentials (Web application type)
+4. Add authorized redirect URIs (e.g., `http://localhost:8000/auth/google/callback`)
+5. Download the client credentials
 
-### 4. Environment Configuration
+### 5. Environment Configuration
 
 1. Copy `env.example` to `.env`
 2. Update the following variables:
-   - `USERS_SHEET_ID`: Your users sheet ID
-   - `SESSIONS_SHEET_ID`: Your sessions sheet ID
+   - `SUPABASE_URL`: Your Supabase project URL
+   - `SUPABASE_KEY`: Your Supabase anon key
+   - `GOOGLE_CLIENT_ID`: Your Google OAuth client ID
+   - `GOOGLE_CLIENT_SECRET`: Your Google OAuth client secret
+   - `GOOGLE_REDIRECT_URI`: Your OAuth redirect URI
    - `SECRET_KEY`: Generate a secure secret key
-   - `EMAIL_USERNAME`: Your Gmail address
-   - `EMAIL_PASSWORD`: Your Gmail app password
-
-### 5. Place Credentials
-
-Put your Google service account JSON file in the root directory as `credentials.json`
+   - `OPENAI_API_KEY`: Your OpenAI API key
 
 ## 🚀 Running the Application
+
+### Quick Start (Recommended)
+
+**Windows Users:**
+```bash
+# Double-click or run in Command Prompt
+run.bat
+
+# Or in PowerShell
+.\run.ps1
+```
+
+**Manual Setup:**
+```bash
+# Create and activate virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
+
+# Install dependencies (simplified)
+pip install -r requirements_simple.txt
+
+# Run the application
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
 ### Development Server
 
@@ -106,17 +148,29 @@ Once the server is running, visit:
 
 ### Authentication
 
-- `POST /auth/register` - Register new user
-- `POST /auth/login` - Login user
-- `POST /auth/verify-email` - Verify email address
-- `POST /auth/forgot-password` - Request password reset
-- `POST /auth/reset-password` - Reset password
+- `GET /auth/google/authorize` - Generate Google OAuth URL
+- `GET /auth/google/callback` - Handle OAuth callback
 - `POST /auth/logout` - Logout user
-- `GET /auth/profile` - Get user profile
+- `GET /auth/me` - Get current user info
 
-### Health Check
+### Google Search Console
+
+- `GET /auth/gsc/properties` - Get user's GSC properties
+- `POST /auth/gsc/select-property` - Select GSC property
+- `GET /auth/gsc/selected-website` - Get selected website
+- `GET /auth/gsc/metrics` - Get GSC metrics with caching
+
+### Chat/AI
+
+- `POST /auth/chat/send` - Send chat message and get AI response
+- `GET /auth/chat/history` - Get chat history
+
+### UI Routes
 
 - `GET /` - Root endpoint
+- `GET /ui` - Main UI
+- `GET /dashboard` - Dashboard
+- `GET /settings` - Settings page
 - `GET /health` - Health check
 
 ## 🔧 Configuration
@@ -125,12 +179,14 @@ Once the server is running, visit:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `USERS_SHEET_ID` | Google Sheets ID for users | Required |
-| `SESSIONS_SHEET_ID` | Google Sheets ID for sessions | Required |
+| `SUPABASE_URL` | Supabase project URL | Required |
+| `SUPABASE_KEY` | Supabase anon key | Required |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | Required |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | Required |
+| `GOOGLE_REDIRECT_URI` | OAuth redirect URI | `http://localhost:8000/auth/google/callback` |
 | `SECRET_KEY` | JWT secret key | Required |
+| `OPENAI_API_KEY` | OpenAI API key | Required |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT token expiration | 30 |
-| `EMAIL_USERNAME` | SMTP username | Required |
-| `EMAIL_PASSWORD` | SMTP password | Required |
 
 ## 🧪 Testing
 
@@ -144,35 +200,31 @@ pytest --cov=app
 
 ## 🔒 Security Features
 
-- Password hashing with bcrypt
+- Google OAuth2 authentication
 - JWT token authentication
-- Email verification
-- Password reset functionality
-- Rate limiting (TODO)
-- Input validation
+- Row Level Security (RLS) in Supabase
 - CORS protection
-
-## 📧 Email Templates
-
-The system supports email verification and password reset emails. Templates need to be implemented in the email utility functions.
+- Input validation with Pydantic
+- Secure environment variable management
 
 ## 🚨 Important Notes
 
-### Alpha Version Limitations
+### Alpha Version Features
 
-- Google Sheets has API rate limits
-- Not suitable for high-traffic applications
-- No built-in connection pooling
-- Limited concurrent access
+- Real-time Google Search Console data integration
+- AI-powered SEO insights with OpenAI
+- User session management with Supabase
+- GSC metrics caching for performance
+- Responsive web interface
 
 ### Production Considerations
 
-- Migrate to a proper database (PostgreSQL, MongoDB)
 - Implement proper email service (SendGrid, AWS SES)
 - Add rate limiting middleware
 - Implement proper logging
 - Add monitoring and alerting
 - Use environment-specific configurations
+- Consider CDN for static assets
 
 ## 🤝 Contributing
 

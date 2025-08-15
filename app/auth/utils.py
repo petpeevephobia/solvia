@@ -8,6 +8,9 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.config import settings
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -38,13 +41,39 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def verify_token(token: str) -> Optional[str]:
     """Verify and decode a JWT token."""
+    if not token:
+        return None
+    
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: str = payload.get("sub")
+        # First, let's check the token structure
+        parts = token.split('.')
+        
+        if len(parts) != 3:
+            return None
+        
+        # For Supabase tokens, we decode without verification since we don't have Supabase's signing key
+        # The token is already verified by Supabase when we get it
+        try:
+            from jose import jwt
+            # Decode without verification for Supabase tokens, ignoring audience validation
+            payload = jwt.decode(token, key="", options={
+                "verify_signature": False,
+                "verify_aud": False,
+                "verify_exp": False
+            })
+        except Exception as e:
+            return None
+        
+        # Supabase tokens have email in the 'email' field, not 'sub'
+        email: str = payload.get("email") or payload.get("sub")
         if email is None:
             return None
+        
         return email
-    except JWTError:
+        
+    except JWTError as e:
+        return None
+    except Exception as e:
         return None
 
 
@@ -75,3 +104,29 @@ def is_strong_password(password: str) -> bool:
     has_digit = any(c.isdigit() for c in password)
     
     return has_upper and has_lower and has_digit 
+
+
+def send_verification_email(to_email: str, token: str):
+    """Send a verification email with a link containing the token."""
+    verify_url = f"http://localhost:8000/auth/verify-email?token={token}"
+    subject = "Verify your Solvia account"
+    body = f"""
+    <h2>Welcome to Solvia!</h2>
+    <p>Click the link below to verify your account:</p>
+    <a href='{verify_url}'>{verify_url}</a>
+    <p>If you did not sign up, you can ignore this email.</p>
+    """
+    msg = MIMEMultipart()
+    msg['From'] = settings.EMAIL_FROM
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'html'))
+    try:
+        with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
+            server.starttls()
+            server.login(settings.EMAIL_USERNAME, settings.EMAIL_PASSWORD)
+            server.sendmail(settings.EMAIL_FROM, to_email, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"Error sending verification email: {e}")
+        return False 

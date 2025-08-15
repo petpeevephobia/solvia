@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solvia Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Welcome Message as Page Title -->
+        <div class="welcome-section" id="welcomeMessage">
+            <!-- This will be populated by JavaScript -->
+        </div>
+
+        <!-- Logout Button for Testing -->
+        <div class="logout-section">
+            <button onclick="logout()" class="logout-btn">Logout</button>
+        </div>
+
+        <!-- Overview Section -->
+        <div class="overview-section">
+            <h2 class="overview-title">Overview</h2>
+            <div class="metrics-grid">
+                <!-- SEO Score Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">SEO Score</span>
+                        <div class="metric-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 3v18h18"></path>
+                                <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="seoScore">--</div>
+                    <div class="metric-change positive" id="seoScoreChange">--</div>
+                </div>
+
+                <!-- CTR Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Avg. CTR</span>
+                        <div class="metric-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="ctr">--</div>
+                    <div class="metric-change positive" id="ctrChange">--</div>
+                </div>
+                
+                <!-- Impressions Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Impressions</span>
+                        <div class="metric-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 3v18h18"></path>
+                                <polyline points="3,9 9,15 15,9 21,15"></polyline>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="impressions">--</div>
+                    <div class="metric-change positive" id="impressionsChange">--</div>
+                </div>
+
+                <!-- Average Position Card -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Avg. Keyword Position</span>
+                        <div class="metric-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="M21 21l-4.35-4.35"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="avgPosition">--</div>
+                    <div class="metric-change positive" id="avgPositionChange">--</div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/dashboard.js"></script>
+</body>
+</html> 

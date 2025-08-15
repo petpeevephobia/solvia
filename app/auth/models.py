@@ -24,9 +24,10 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase):
     """Model for user response (without sensitive data)."""
-    created_at: datetime
-    last_login: Optional[datetime] = None
-    is_verified: bool = False
+    id: str
+    message: Optional[str] = None
+    is_verified: Optional[bool] = False
+    created_at: Optional[str] = None
 
 
 class UserInDB(UserResponse):
@@ -36,10 +37,11 @@ class UserInDB(UserResponse):
     reset_token: Optional[str] = None
 
 
-class Token(BaseModel):
+class TokenResponse(BaseModel):
     """Model for JWT token response."""
     access_token: str
     token_type: str = "bearer"
+    expires_in: float
 
 
 class TokenData(BaseModel):

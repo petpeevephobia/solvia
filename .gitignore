@@ -1,9 +1,3 @@
-# Virtual Environment
-venv/
-env/
-ENV/
-.venv/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -25,6 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+<<<<<<< HEAD
 MANIFEST
 
 # PyInstaller
@@ -133,3 +128,62 @@ logs/
 # Temporary files
 *.tmp
 *.temp 
+=======
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables and secrets
+.env
+*.env
+secrets.json
+credentials.json
+token.pickle
+config/token.pickle
+*.token
+*.key
+
+# Logs
+*.log
+debug.log
+
+# Local development
+.DS_Store
+Thumbs.db
+
+# Node-related (if any frontend/React)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build output
+*.egg-info/
+
+# Frontend artifacts (if you use React or Tailwind)
+*.css.map
+*.js.map
+
+# Airtable/backup exports
+*.csv
+*.xlsx
+*.bak
+
+# Jupyter Notebooks (if used for testing)
+.ipynb_checkpoints/
+
+# PyInstaller / Build folders
+*.spec
+
+# Output / reports
+reports/
+*.md.html
+output/

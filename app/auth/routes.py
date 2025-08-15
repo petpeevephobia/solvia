@@ -3,23 +3,83 @@ Authentication routes for Solvia.
 """
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Header, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import RedirectResponse
 from app.auth.models import (
-    UserCreate, UserLogin, UserResponse, Token, 
+    UserCreate, UserLogin, UserResponse, TokenResponse, 
     PasswordReset, PasswordResetConfirm, EmailVerification
 )
 from app.auth.utils import (
     get_password_hash, verify_password, create_access_token,
     generate_verification_token, generate_reset_token,
-    is_strong_password
+    is_strong_password, send_verification_email
 )
-from app.database import db
+from app.database.supabase_db import SupabaseAuthDB
 from app.config import settings
+from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher
+from app.ai.agent_instructions import get_agent_instructions
+import uuid
+import json
+import openai
+import markdown
+
+# New models for website management
+from pydantic import BaseModel, HttpUrl
+
+# New models for Google OAuth
+class GoogleAuthRequest(BaseModel):
+    state: Optional[str] = None
+
+class GoogleCallbackRequest(BaseModel):
+    code: str
+
+class GSCPropertyResponse(BaseModel):
+    siteUrl: str
+    permissionLevel: str
+    isVerified: bool
+
+class GSCPropertySelectRequest(BaseModel):
+    property_url: str
+
+class GSCMetricsResponse(BaseModel):
+    summary: dict
+    time_series: dict
+    last_updated: str
+    website_url: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+# Chat models
+class ChatMessage(BaseModel):
+    message_content: str
+    sender_name: str
+
+class ChatResponse(BaseModel):
+    message_id: str
+    message_content: str
+    message_type: str
+    sender_name: str
+    created_at: str
+
+class ChatHistoryResponse(BaseModel):
+    messages: list[ChatResponse]
+    success: bool
+
+
+
+class DashboardDataResponse(BaseModel):
+    user: Optional[UserResponse]
+    metrics: Optional[dict] = None
+    ai_insights: Optional[dict] = None
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 
+# Initialize database and Google OAuth handler
+db = SupabaseAuthDB()
+google_oauth = GoogleOAuthHandler(db)
+gsc_fetcher = GSCDataFetcher(google_oauth, db)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """Get current user from JWT token."""
@@ -27,6 +87,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     
     token = credentials.credentials
     email = verify_token(token)
+    
     if email is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -36,75 +97,78 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return email
 
 
-@router.post("/register", response_model=dict)
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate):
-    """Register a new user."""
+    """Register a new user using Supabase Auth."""
     # Validate password strength
     if not is_strong_password(user.password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters long and contain uppercase, lowercase, and digit"
         )
-    
-    # Check if user already exists
-    existing_user = db.get_user_by_email(user.email)
-    if existing_user:
+    # Register user with Supabase Auth
+    result = db.register_user(user.email, user.password)
+    if "error" in result and result["error"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail=f"Registration failed: {result['error']}"
         )
-    
-    # Hash password and create user
-    password_hash = get_password_hash(user.password)
-    verification_token = generate_verification_token()
-    
-    success = db.create_user(user, password_hash, verification_token)
-    if not success:
+    user_obj = result.get("user", {})
+    if hasattr(user_obj, '__dict__'):
+        user_dict = user_obj.__dict__
+    else:
+        user_dict = user_obj
+    return UserResponse(
+        id=user_dict.get("id", str(uuid.uuid4())),
+        email=user.email,
+        message="User registered successfully. Please check your email to verify your account.",
+        created_at=datetime.utcnow().isoformat()
+    )
+
+
+@router.post("/login")
+async def login(user: UserLogin):
+    """Login a user using Supabase Auth."""
+    result = db.login_user(user.email, user.password)
+    if "error" in result and result["error"]:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create user"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
         )
     
-    # TODO: Send verification email
-    # For now, just return success message
+    # Extract the access token from the Supabase session
+    session = result.get("session")
+    
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No session returned from authentication"
+        )
+    
+    # The session is a Session object, not a dict, so we need to access its attributes
+    try:
+        access_token = session.access_token
+    except AttributeError:
+        # Fallback: try to get it as a dict if it has __dict__
+        if hasattr(session, '__dict__'):
+            access_token = session.__dict__.get('access_token')
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not extract access token from session"
+            )
+    
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No access token in session"
+        )
+    
     return {
-        "message": "User registered successfully. Please check your email for verification.",
-        "verification_token": verification_token  # Remove this in production
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": result.get("user")
     }
-
-
-@router.post("/login", response_model=Token)
-async def login(user_credentials: UserLogin):
-    """Login user and return access token."""
-    # Get user from database
-    user = db.get_user_by_email(user_credentials.email)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
-        )
-    
-    # Verify password
-    if not verify_password(user_credentials.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
-        )
-    
-    # Check if email is verified
-    if not user.is_verified:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Please verify your email before logging in"
-        )
-    
-    # Update last login
-    db.update_last_login(user.email)
-    
-    # Create access token
-    access_token = create_access_token(data={"sub": user.email})
-    
-    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/verify-email")
@@ -124,27 +188,15 @@ async def verify_email(verification: EmailVerification):
 
 @router.post("/forgot-password")
 async def forgot_password(reset_request: PasswordReset):
-    """Send password reset email."""
-    user = db.get_user_by_email(reset_request.email)
-    if not user:
-        # Don't reveal if email exists or not
+    """Send password reset email using Supabase Auth."""
+    try:
+        # Use Supabase's built-in password reset
+        result = db.supabase.auth.reset_password_email(reset_request.email)
         return {"message": "If the email exists, a reset link has been sent"}
-    
-    # Generate reset token
-    reset_token = generate_reset_token()
-    success = db.set_reset_token(user.email, reset_token)
-    
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process reset request"
-        )
-    
-    # TODO: Send reset email
-    return {
-        "message": "If the email exists, a reset link has been sent",
-        "reset_token": reset_token  # Remove this in production
-    }
+    except Exception as e:
+        # Don't reveal if email exists or not
+        print(f"Password reset error: {e}")
+        return {"message": "If the email exists, a reset link has been sent"}
 
 
 @router.post("/reset-password")
@@ -164,27 +216,1250 @@ async def reset_password(reset_confirm: PasswordResetConfirm):
 
 @router.post("/logout")
 async def logout(current_user: str = Depends(get_current_user)):
-    """Logout user (invalidate token)."""
-    # In a JWT-based system, logout is typically handled client-side
-    # by removing the token. For additional security, you could maintain
-    # a blacklist of invalidated tokens.
-    
+    """Logout user."""
+    # In a more complex system, you might want to blacklist the token
+    # For now, we'll just return a success message
     return {"message": "Successfully logged out"}
 
 
-@router.get("/profile", response_model=UserResponse)
-async def get_profile(current_user: str = Depends(get_current_user)):
-    """Get current user profile."""
-    user = db.get_user_by_email(current_user)
-    if not user:
+@router.post("/refresh")
+async def refresh_token(current_user: str = Depends(get_current_user)):
+    """Refresh the access token."""
+    try:
+        # Use the current_user email directly (it's already the email from JWT)
+        user_email = current_user
+        # Create a new access token
+        access_token_expires = timedelta(minutes=30)
+        new_access_token = create_access_token(data={"sub": user_email}, expires_delta=access_token_expires)
+        
+        return TokenResponse(
+            access_token=new_access_token,
+            token_type="bearer",
+            expires_in=access_token_expires.total_seconds()
+        )
+    except Exception as e:
+        print(f"Error refreshing token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to refresh token"
+        )
+
+
+@router.post("/refresh-token")
+async def refresh_token_manual(request: Request):
+    """Refresh the access token without requiring current user validation."""
+    try:
+        # Get the token from the Authorization header
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header or not auth_header.startswith('Bearer '):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authorization header"
+            )
+        
+        token = auth_header.split(' ')[1]
+        
+        # Manually verify the token (even if expired)
+        from app.auth.utils import verify_token
+        email = verify_token(token)
+        
+        if not email:
+            # Try to decode the token manually to get the email even if expired
+            try:
+                from jose import jwt
+                from app.config import settings
+                # Decode without verification to get payload - jose requires a key parameter
+                payload = jwt.decode(token, key="", options={"verify_signature": False})
+                email = payload.get("sub")
+                if not email:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid token"
+                    )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token"
+                )
+        
+        # For Supabase Auth, we trust the JWT payload
+        user_email = email
+        # Create a new access token
+        access_token_expires = timedelta(minutes=30)
+        new_access_token = create_access_token(data={"sub": user_email}, expires_delta=access_token_expires)
+        
+        return TokenResponse(
+            access_token=new_access_token,
+            token_type="bearer",
+            expires_in=access_token_expires.total_seconds()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error refreshing token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to refresh token"
+        )
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get current user information from Supabase Auth using access token."""
+    access_token = credentials.credentials
+    user_info = db.get_user(access_token)
+    user_obj = user_info.get("user") if user_info else None
+    if not user_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+    # Convert user_obj to dict if needed
+    if hasattr(user_obj, '__dict__'):
+        user = user_obj.__dict__
+    else:
+        user = user_obj
     return UserResponse(
-        email=user.email,
-        created_at=user.created_at,
-        last_login=user.last_login,
-        is_verified=user.is_verified
-    ) 
+        id=user.get("id", str(uuid.uuid4())),
+        email=user.get("email", ""),
+        message="User information retrieved successfully",
+        created_at=user.get("created_at", datetime.utcnow().isoformat())
+    )
+
+
+@router.get("/website")
+async def get_user_website(current_user: str = Depends(get_current_user)):
+    """Get the user's selected website URL."""
+    user_website = db.get_user_website(current_user)
+    if not user_website:
+        return {"website_url": None}
+    
+    return {"website_url": user_website.get("website_url")}
+
+
+@router.get("/verify-email")
+async def verify_email(token: str, request: Request):
+    """Verify user email with token from the verification link."""
+    # Find user with this verification token
+    user = None
+    # Search all users for the token
+    all_rows = db.users_sheet.get_all_records()
+    row_num = None
+    for idx, row in enumerate(all_rows, start=2):  # start=2 to account for header row
+        if row.get('verification_token') == token:
+            user = row
+            row_num = idx
+            break
+    if not user:
+        return {"success": False, "message": "Invalid or expired verification token."}
+    # Mark as verified and clear token
+    db.users_sheet.update_cell(row_num, 5, "TRUE")  # is_verified
+    db.users_sheet.update_cell(row_num, 6, "")      # verification_token
+    # Optionally, redirect to a success page or show a message
+    return {"success": True, "message": "Your account has been verified! You can now log in."}
+
+
+@router.get("/dashboard", response_model=DashboardDataResponse)
+async def get_dashboard_data(current_user: str = Depends(get_current_user)):
+    """Get all data needed for user dashboard."""
+    try:
+        # For Supabase Auth, current_user is already the email
+        user_email = current_user
+        user_response = None
+        if user:
+            user_response = UserResponse(
+                id=user.id,
+                email=user.email,
+                is_verified=user.is_verified,
+                created_at=user.created_at
+            )
+        # Fetch cached dashboard data (metrics and ai_insights)
+        website_url = db.get_selected_gsc_property(current_user)
+        dashboard_cache = None
+        if website_url:
+            dashboard_cache = db.get_dashboard_cache(current_user, website_url)
+        return {
+            "user": user_response,
+            "metrics": dashboard_cache["metrics"] if dashboard_cache and "metrics" in dashboard_cache else None,
+            "ai_insights": dashboard_cache["ai_insights"] if dashboard_cache and "ai_insights" in dashboard_cache else None
+        }
+    except Exception as e:
+        print(f"Error getting dashboard data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+# Google OAuth and Search Console Integration
+@router.get("/google/authorize")
+async def google_authorize(request: Request, email: Optional[str] = None):
+    """Generate Google OAuth authorization URL."""
+    try:
+        # Get email from query parameter or from JWT token
+        user_email = email
+        
+        if not user_email:
+            # Try to get from JWT token
+            credentials = request.headers.get("authorization")
+            if credentials and credentials.lower().startswith("bearer "):
+                token = credentials.split(" ", 1)[1]
+                from app.auth.utils import verify_token
+                user_email = verify_token(token)
+        
+        if not user_email:
+            # For the new design without email input, we'll use a placeholder
+            # The actual email will be collected during the OAuth flow
+            user_email = "oauth_user"
+        
+        # Generate OAuth URL with email as state parameter
+        auth_url = google_oauth.get_auth_url(state=user_email)
+        
+        # Redirect directly to Google OAuth
+        return RedirectResponse(url=auth_url, status_code=302)
+        
+    except Exception as e:
+        print(f"Error generating auth URL: {e}")
+        return RedirectResponse(url="/ui", status_code=302)
+
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+    request: Request = None
+):
+    """Handle Google OAuth callback."""
+    
+    if error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OAuth error: {error}"
+        )
+    
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authorization code not provided"
+        )
+    
+    try:
+        # Get JWT from Authorization header
+        jwt_token = None
+        if request:
+            auth_header = request.headers.get("authorization")
+            if auth_header and auth_header.lower().startswith("bearer "):
+                jwt_token = auth_header.split(" ", 1)[1]
+        
+        # Handle OAuth callback
+        result = await google_oauth.handle_callback(code, jwt_token=jwt_token)
+        
+        # Get the actual user email from the OAuth response
+        actual_user_email = result.get('email')
+        
+        if not actual_user_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not retrieve user email from OAuth response"
+            )
+        
+        # If no JWT token was provided, create a user session
+        if not jwt_token:
+            # Create or get user session using the actual email
+            user_session = await db.get_or_create_user_session(actual_user_email)
+            
+            # Generate JWT token for the user
+            from app.auth.utils import create_access_token
+            access_token = create_access_token(data={"sub": actual_user_email})
+            
+            # Redirect to domain selection with token in URL
+            return RedirectResponse(url=f"/domain-selection?token={access_token}")
+        else:
+            # User already has JWT, redirect to property selection
+            return RedirectResponse(url="/property-selection")
+        
+    except Exception as e:
+        print(f"Error in OAuth callback: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to complete OAuth process"
+        )
+
+
+@router.get("/google/callback/test")
+async def google_callback_test():
+    """Test endpoint to verify callback route is accessible."""
+    return {"message": "Google callback route is working!"}
+
+
+# Chat endpoints
+@router.post("/chat/send")
+async def send_message(
+    message: ChatMessage,
+    current_user: str = Depends(get_current_user)
+):
+    """Send a chat message and get AI response."""
+    try:
+        # Debug logging
+
+        
+        # Store user message
+        user_message_id = await db.store_chat_message(
+            current_user, 
+            message.message_content, 
+            "user", 
+            message.sender_name
+        )
+        
+        # Generate AI response using Solvia with conversation context
+        ai_response = await generate_ai_response(message.message_content, current_user)
+        
+        # Split response into paragraphs
+        paragraphs = []
+        
+        # First try to split by double line breaks (most common)
+        if '\n\n' in ai_response:
+            paragraphs = [p.strip() for p in ai_response.split('\n\n') if p.strip()]
+        else:
+            # If no double line breaks, try to split by single line breaks
+            lines = ai_response.split('\n')
+            current_paragraph = ""
+            
+            for line in lines:
+                line = line.strip()
+                if line:  # Non-empty line
+                    if current_paragraph:
+                        current_paragraph += " " + line
+                    else:
+                        current_paragraph = line
+                else:  # Empty line - end of paragraph
+                    if current_paragraph:
+                        paragraphs.append(current_paragraph)
+                        current_paragraph = ""
+            
+            # Add the last paragraph if there is one
+            if current_paragraph:
+                paragraphs.append(current_paragraph)
+        
+        # If only one paragraph, send as single message
+        if len(paragraphs) <= 1:
+            ai_message_id = await db.store_chat_message(
+                current_user, 
+                ai_response, 
+                "ai", 
+                "Solvia"
+            )
+            
+            return {
+                "user_message_id": user_message_id,
+                "ai_message_id": ai_message_id,
+                "ai_response": ai_response,
+                "ai_responses": [ai_response],
+                "success": True
+            }
+        else:
+            # Store multiple AI messages
+            ai_message_ids = []
+            ai_responses = []
+            
+            for paragraph in paragraphs:
+                ai_message_id = await db.store_chat_message(
+                    current_user, 
+                    paragraph, 
+                    "ai", 
+                    "Solvia"
+                )
+                ai_message_ids.append(ai_message_id)
+                ai_responses.append(paragraph)
+            
+            return {
+                "user_message_id": user_message_id,
+                "ai_message_ids": ai_message_ids,
+                "ai_response": ai_response,  # Keep for backward compatibility
+                "ai_responses": ai_responses,
+                "success": True
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send message: {str(e)}"
+        )
+
+
+@router.get("/chat/history")
+async def get_chat_history(
+    current_user: str = Depends(get_current_user),
+    limit: int = 50
+):
+    """Get chat history for the current user."""
+    try:
+        messages = await db.get_chat_messages(current_user, limit)
+        
+        chat_responses = []
+        for msg in messages:
+            chat_responses.append(ChatResponse(
+                message_id=msg["id"],
+                message_content=msg["message_content"],
+                message_type=msg["message_type"],
+                sender_name=msg["sender_name"],
+                created_at=msg["created_at"]
+            ))
+        
+        return ChatHistoryResponse(
+            messages=chat_responses,
+            success=True
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get chat history: {str(e)}"
+        )
+
+
+async def generate_ai_response(user_message: str, user_email: str) -> str:
+    """Generate Solvia's response using OpenAI GPT-4o-mini with conversation context and GSC data."""
+    
+    # Get Solvia's custom instructions
+    agent_instructions = get_agent_instructions("solvia")
+    
+    try:
+        # Get recent conversation history (last 10 messages)
+        recent_messages = await db.get_chat_messages(user_email, 10)
+        
+        # Always include GSC metrics context for Solvia
+        # Detect date range in user message
+        date_range = detect_date_range(user_message)
+        
+        # Get GSC metrics for every response
+        gsc_context = ""
+        try:
+            # Get user's selected website
+            selected_website = await db.get_user_website(user_email)
+            if selected_website:
+                # Get OAuth handler
+                oauth_handler = GoogleOAuthHandler()
+                
+                # For custom date ranges, always fetch fresh data from GSC
+                # For default 30-day range, check cache first
+                gsc_metrics = None
+                
+                if date_range.get('is_custom_range', False):
+                    # Custom date range - fetch fresh data directly from GSC
+                    print(f"Fetching fresh GSC data for custom date range: {date_range}")
+                    gsc_metrics = oauth_handler.get_gsc_metrics(user_email, selected_website, date_range)
+                else:
+                    # Default 30-day range - check cache first, then fetch if needed
+                    cached_metrics = await db.get_gsc_metrics_cache(user_email, selected_website, date_range)
+                    if cached_metrics:
+                        print(f"Using cached GSC metrics for {user_email}")
+                        gsc_metrics = cached_metrics
+                    else:
+                        print(f"Fetching fresh GSC metrics for {user_email}")
+                        gsc_metrics = oauth_handler.get_gsc_metrics(user_email, selected_website, date_range)
+                        # Cache the results for default range
+                        if gsc_metrics:
+                            await db.store_gsc_metrics_cache(user_email, selected_website, gsc_metrics, date_range)
+                
+                if gsc_metrics:
+                    # Get actual clicks count from GSC data
+                    clicks = gsc_metrics.get('clicks', 0)
+                    
+                    # Format date range description
+                    date_description = get_date_range_description(date_range)
+                    
+                    # Add note about default range if not custom
+                    range_note = ""
+                    if not date_range.get('is_custom_range', False):
+                        range_note = "\nNote: I'm showing you the last 30 days of data by default. You can ask for specific time periods like 'last week', 'this month', or 'last 3 months'."
+                    
+                    gsc_context = f"""
+IMPORTANT: You MUST use ONLY the following real Google Search Console data. Do NOT make up or hallucinate any metrics.
+
+Current Google Search Console Data ({date_description}):
+- Impressions: {gsc_metrics.get('organic_traffic', 0):,}
+- Clicks: {clicks:,}
+- CTR: {gsc_metrics.get('ctr', 0):.2f}%
+- Average Position: {gsc_metrics.get('avg_position', 0):.1f}
+- SEO Score: {gsc_metrics.get('seo_score', 0):.1f}/100
+- Website: {selected_website}{range_note}
+
+CRITICAL INSTRUCTIONS:
+1. ALWAYS reference these exact numbers when discussing SEO metrics
+2. NEVER invent or estimate different values
+3. If asked about CTR, say exactly {gsc_metrics.get('ctr', 0):.2f}%
+4. If asked about SEO score, say exactly {gsc_metrics.get('seo_score', 0):.1f}/100
+5. If asked about impressions, say exactly {gsc_metrics.get('organic_traffic', 0):,}
+6. If asked about clicks, say exactly {clicks:,}
+7. If asked about average position, say exactly {gsc_metrics.get('avg_position', 0):.1f}
+"""
+        except Exception as e:
+            print(f"Error getting GSC data for context: {e}")
+            gsc_context = ""
+        
+        # Build conversation context
+        messages = [{"role": "system", "content": agent_instructions + gsc_context}]
+        
+        # Add recent conversation history
+        for msg in recent_messages:
+            if msg["message_type"] == "user":
+                messages.append({"role": "user", "content": msg["message_content"]})
+            elif msg["message_type"] == "ai":
+                messages.append({"role": "assistant", "content": msg["message_content"]})
+        
+        # Add current user message
+        messages.append({"role": "user", "content": user_message})
+        
+        # Set OpenAI API key
+        openai.api_key = settings.OPENAI_API_KEY
+        
+        # Create chat completion with OpenAI
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        # Process markdown in the response
+        ai_response_text = response.choices[0].message.content
+        processed_response = markdown.markdown(ai_response_text, extensions=['extra'])
+        
+        return processed_response
+            
+    except Exception as e:
+        print(f"Error in generate_ai_response: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"OpenAI API error: {str(e)}"
+        )
+
+def detect_date_range(user_message: str) -> dict:
+    """Detect date range from user message and return start/end dates."""
+    import re
+    from datetime import datetime, timedelta
+    
+    message_lower = user_message.lower()
+    
+    # Default to last 30 days
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=30)
+    is_custom_range = False
+    
+    # Detect specific time periods
+    if any(word in message_lower for word in ['last week', 'past week', 'this week']):
+        start_date = end_date - timedelta(days=7)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last month', 'past month', 'this month']):
+        start_date = end_date - timedelta(days=30)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 3 months', 'past 3 months', '3 months']):
+        start_date = end_date - timedelta(days=90)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 6 months', 'past 6 months', '6 months']):
+        start_date = end_date - timedelta(days=180)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last year', 'past year', 'this year']):
+        start_date = end_date - timedelta(days=365)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['yesterday', 'yesterday\'s']):
+        start_date = end_date - timedelta(days=1)
+        end_date = end_date - timedelta(days=1)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['today', 'today\'s']):
+        start_date = end_date
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 7 days', 'past 7 days']):
+        start_date = end_date - timedelta(days=7)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 14 days', 'past 14 days']):
+        start_date = end_date - timedelta(days=14)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 60 days', 'past 60 days']):
+        start_date = end_date - timedelta(days=60)
+        is_custom_range = True
+    elif any(word in message_lower for word in ['last 90 days', 'past 90 days']):
+        start_date = end_date - timedelta(days=90)
+        is_custom_range = True
+    
+    return {
+        'start_date': start_date,
+        'end_date': end_date,
+        'is_custom_range': is_custom_range
+    }
+
+def get_date_range_description(date_range: dict) -> str:
+    """Get a human-readable description of the date range."""
+    start_date = date_range['start_date']
+    end_date = date_range['end_date']
+    
+    if start_date == end_date:
+        return f"on {start_date.strftime('%B %d, %Y')}"
+    else:
+        days_diff = (end_date - start_date).days
+        if days_diff == 1:
+            return f"on {start_date.strftime('%B %d, %Y')}"
+        elif days_diff == 7:
+            return "in the last 7 days"
+        elif days_diff == 14:
+            return "in the last 14 days"
+        elif days_diff == 30:
+            return "in the last 30 days"
+        elif days_diff == 60:
+            return "in the last 60 days"
+        elif days_diff == 90:
+            return "in the last 90 days"
+        elif days_diff == 180:
+            return "in the last 6 months"
+        elif days_diff == 365:
+            return "in the last year"
+        else:
+            return f"from {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}"
+
+# GSC Property models
+class GSCProperty(BaseModel):
+    siteUrl: str
+    permissionLevel: str
+
+class PropertySelectionRequest(BaseModel):
+    siteUrl: str
+    permissionLevel: str
+
+@router.get("/gsc/properties")
+async def get_gsc_properties(current_user: str = Depends(get_current_user)):
+    """Get Google Search Console properties for the authenticated user."""
+    try:
+        print(f"[GSC PROPERTIES] Getting properties for user: {current_user}")
+        
+        # Get GSC properties using the Google OAuth handler
+        properties = await google_oauth.get_gsc_properties(current_user)
+        
+        print(f"[GSC PROPERTIES] Retrieved {len(properties) if properties else 0} properties")
+        print(f"[GSC PROPERTIES] Properties: {properties}")
+        
+        if not properties:
+            return {
+                "properties": [],
+                "message": "No properties found in Google Search Console"
+            }
+        
+        return {
+            "properties": properties,
+            "message": "Properties retrieved successfully"
+        }
+        
+    except Exception as e:
+        print(f"[GSC PROPERTIES] Error getting GSC properties: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get GSC properties: {str(e)}"
+        )
+
+
+@router.post("/gsc/select-property")
+async def select_gsc_property(
+    request: GSCPropertySelectRequest,
+    current_user: str = Depends(get_current_user)
+):
+    """Select a GSC property for tracking."""
+    try:
+        # Store the selected property
+        db.add_user_website(current_user, request.property_url)
+        
+        return {
+            "success": True,
+            "message": f"Property {request.property_url} selected successfully"
+        }
+        
+    except Exception as e:
+        print(f"Error selecting GSC property: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to select GSC property"
+        )
+
+@router.get("/gsc/selected-website")
+async def get_selected_website(current_user: str = Depends(get_current_user)):
+    """Get the user's selected website."""
+    try:
+        user_session = await db.get_user_session(current_user)
+        
+        if user_session and user_session.get('selected_website'):
+            return {
+                "success": True,
+                "selected_website": user_session.get('selected_website')
+            }
+        else:
+            return {
+                "success": False,
+                "selected_website": None
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get selected website"
+        )
+
+@router.get("/gsc/metrics")
+async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
+    """Get Google Search Console metrics for the authenticated user's selected property."""
+    try:
+        print(f"[GSC METRICS] Getting metrics for user: {current_user}")
+        
+        # Get user's selected website
+        user_website = db.get_user_website(current_user)
+        if not user_website:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No website selected. Please select a domain first."
+            )
+        
+        print(f"[GSC METRICS] User website: {user_website}")
+        
+        # Debug: Check if google_oauth is properly initialized
+        print(f"[GSC METRICS] google_oauth object: {google_oauth}")
+        print(f"[GSC METRICS] google_oauth type: {type(google_oauth)}")
+        
+        # Get GSC metrics using the Google OAuth handler
+        print(f"[GSC METRICS] About to call get_gsc_metrics with user: {current_user}, website: {user_website}")
+        try:
+            metrics = google_oauth.get_gsc_metrics(current_user, user_website)
+            print(f"[GSC METRICS] Successfully got metrics: {metrics}")
+        except Exception as method_error:
+            print(f"[GSC METRICS] Error calling get_gsc_metrics: {method_error}")
+            raise method_error
+        
+        return {
+            "success": True,
+            "metrics": metrics,
+            "website": user_website
+        }
+        
+    except Exception as e:
+        print(f"Error getting GSC metrics: {e}")
+        if "No credentials found" in str(e) or "object NoneType can't be used in 'await' expression" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google Search Console credentials not found. Please re-authenticate with Google to access your real SEO data."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to get GSC metrics"
+            )
+
+
+@router.get("/gsc/selected")
+async def get_selected_gsc_property(current_user: str = Depends(get_current_user)):
+    """Get the currently selected GSC property for the user."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        return {
+            "success": True,
+            "website_url": website_url,
+            "selected": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting selected GSC property: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get selected property"
+        )
+
+
+
+
+@router.get("/gsc/keywords")
+async def get_gsc_keywords(current_user: str = Depends(get_current_user)):
+    """Fetch GSC keywords for the selected property."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        keywords = await gsc_fetcher.fetch_keywords(current_user, website_url)
+        
+        # Return empty keywords list if no data (don't treat as error)
+        if keywords is None:
+            keywords = []
+        
+        return {"keywords": keywords}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching keywords for {current_user}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch keywords: {str(e)}"
+        )
+
+
+@router.post("/gsc/refresh")
+async def refresh_gsc_metrics(current_user: str = Depends(get_current_user)):
+    """Refresh SEO metrics from Google Search Console."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+        
+        # Fetch fresh metrics
+        metrics = await gsc_fetcher.fetch_metrics(current_user, website_url)
+        
+        if not metrics:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to refresh SEO metrics"
+            )
+        
+        return {
+            "success": True,
+            "message": "SEO metrics refreshed successfully!",
+            "metrics": metrics
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error refreshing GSC metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to refresh SEO metrics"
+        )
+
+
+@router.get("/dashboard/cache")
+async def get_dashboard_cache_route(request: Request, current_user: str = Depends(get_current_user)):
+    # Get user email
+    email = current_user
+    # Get user's JWT from Authorization header
+    user_jwt = request.headers.get("authorization", "").replace("Bearer ", "")
+    db = SupabaseAuthDB(access_token=user_jwt)
+    # Get website_url for the user using db
+    website_url = db.get_selected_gsc_property(email)
+    if not website_url:
+        return {"success": False, "has_cache": False, "data": None, "message": "No website property selected for user."}
+    cache = db.get_dashboard_cache(email, website_url)
+    if cache:
+        return {"success": True, "has_cache": True, "data": cache, "message": "Loaded latest cached dashboard data."}
+    else:
+        return {"success": True, "has_cache": False, "data": None, "message": "No cached dashboard data found."}
+
+
+@router.post("/dashboard/cache")
+async def cache_dashboard_data(request: Request, current_user: str = Depends(get_current_user)):
+    email = current_user
+    user_jwt = request.headers.get("authorization", "").replace("Bearer ", "")
+    db = SupabaseAuthDB(access_token=user_jwt)
+    website_url = db.get_selected_gsc_property(email)
+    if not website_url:
+        return {"success": False, "message": "No website property selected for user."}
+    
+    # Parse the JSON body
+    try:
+        body = await request.json()
+        dashboard_data = body.get("dashboard_data", {})
+        ai_insights = body.get("ai_insights")
+        keywords = body.get("keywords")
+        
+        # Optionally merge ai_insights and keywords into dashboard_data if provided
+        if ai_insights:
+            dashboard_data["ai_insights"] = ai_insights
+        if keywords:
+            dashboard_data["keywords"] = keywords
+            
+        success = db.store_dashboard_cache(email, website_url, dashboard_data)
+        if success:
+            return {"success": True, "message": "Dashboard data cached successfully!"}
+        else:
+            return {"success": False, "message": "Failed to cache dashboard data"}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to parse request: {str(e)}"}
+
+
+@router.post("/gsc/clear-credentials")
+async def clear_gsc_credentials(current_user: str = Depends(get_current_user)):
+    """Clear corrupted GSC credentials and force re-authentication."""
+    try:
+        # Clear credentials
+        google_oauth._clear_credentials(current_user)
+        
+        return {
+            "success": True,
+            "message": "GSC credentials cleared successfully. Please re-authenticate with Google Search Console."
+        }
+    except Exception as e:
+        print(f"Error clearing GSC credentials: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to clear GSC credentials"
+        )
+
+
+
+
+
+@router.get("/benchmark/insights")
+async def get_benchmark_insights(
+    current_user: str = Depends(get_current_user),
+    x_explicit_ai_request: str = Header(None),
+    explicit_ai: str = Query(None)
+):
+    # Only allow AI generation if header or query param is set
+    explicit = (x_explicit_ai_request == "true" or (explicit_ai and explicit_ai.lower() == "true"))
+    try:
+        print("[AI DEBUG] Starting AI Overall Analysis generation for user:", current_user)
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            print("[AI DEBUG] No GSC property selected for user.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No GSC property selected. Please select a property first."
+            )
+
+        # Always get the most recent cache (regardless of date)
+        cached_data = db.get_dashboard_cache(current_user, website_url)
+        if cached_data and 'ai_insights' in cached_data and not explicit:
+            print("[AI DEBUG] Returning cached AI insights.")
+            return cached_data['ai_insights']
+
+        if not explicit:
+            print("[AI DEBUG] No explicit request and no cache, returning 404.")
+            raise HTTPException(
+                status_code=404,
+                detail="No cached AI analysis available. Please generate AI analysis explicitly."
+            )
+
+        # If explicit, generate new AI insights
+        # Note: benchmark_analyzer is not implemented yet, so we'll create a simple fallback
+        def generate_fallback_insights(metrics):
+            return {
+                "visibility_performance": {
+                    "overall_assessment": "Analysis based on available metrics.",
+                    "metrics": metrics.get('summary', {})
+                },
+                "analysis": {
+                    "summary": "Basic analysis of your SEO performance."
+                }
+            }
+        
+        insights = generate_fallback_insights(dashboard_metrics)
+        try:
+            print("[AI DEBUG] Step 1: Gathering latest SEO metrics...")
+            gsc_metrics = await gsc_fetcher.fetch_metrics(current_user, website_url)
+            if gsc_metrics:
+                dashboard_metrics['summary'] = gsc_metrics.get('summary', {})
+                dashboard_metrics['time_series'] = gsc_metrics.get('time_series', {})
+            print("[AI DEBUG] Step 1 complete.")
+        except Exception as e:
+            print(f"[AI DEBUG] Failed to fetch GSC metrics: {e}")
+        
+        print("[AI DEBUG] Step 2: Aggregating AI insights...")
+        print(f"[AI DEBUG] Dashboard metrics before AI call: {json.dumps(dashboard_metrics, indent=2)}")
+        
+        # Check if we have enough data for meaningful analysis
+        has_gsc_data = 'summary' in dashboard_metrics and dashboard_metrics['summary']
+        
+        print(f"[AI DEBUG] Data availability - GSC: {has_gsc_data}")
+        
+        if not has_gsc_data:
+            print("[AI DEBUG] Insufficient data for AI analysis, returning fallback")
+            fallback_insights = {
+                "visibility_performance": {
+                    "overall_assessment": "Insufficient data available for analysis. Please ensure Google Search Console is connected and data is available.",
+                    "metrics": {}
+                },
+                "analysis": {
+                    "summary": "Unable to generate comprehensive analysis due to insufficient data. Please connect Google Search Console and ensure data is available."
+                }
+            }
+            dashboard_data = {"metrics": dashboard_metrics}
+            dashboard_data["ai_insights"] = fallback_insights
+            db.store_dashboard_cache(current_user, website_url, dashboard_data)
+            return fallback_insights
+        
+        insights = benchmark_analyzer.generate_ai_insights(dashboard_metrics, business_type="general")
+        print("[AI DEBUG] Step 2 complete.")
+        print("[AI DEBUG] Step 3: Caching results...")
+        dashboard_data = {"metrics": dashboard_metrics}
+        dashboard_data["ai_insights"] = insights
+        db.store_dashboard_cache(current_user, website_url, dashboard_data)
+        print("[AI DEBUG] Step 3 complete. AI Overall Analysis generation finished.")
+        return insights
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AI DEBUG] Error generating benchmark insights: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {e}"
+        )
+
+
+@router.post("/website/content/fetch")
+async def fetch_website_content(current_user: str = Depends(get_current_user)):
+    """Fetch website content including meta descriptions, title tags, and page content."""
+    try:
+        import aiohttp
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin, urlparse
+        
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No website property selected. Please select a property first."
+            )
+        
+        # Convert sc-domain format to actual URL if needed
+        if website_url.startswith('sc-domain:'):
+            domain = website_url.replace('sc-domain:', '')
+            website_url = f"https://{domain}"
+        
+        print(f"[WEBSITE CONTENT] Fetching content from: {website_url}")
+        
+        # Fetch website content
+        try:
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.get(website_url, timeout=30) as response:
+                        if response.status != 200:
+                            raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=f"Failed to fetch website content. Status: {response.status}"
+                            )
+                        
+                        html_content = await response.text()
+                        soup = BeautifulSoup(html_content, 'html.parser')
+                        
+                        # Extract title tags
+                        title_tags = {}
+                        for title in soup.find_all('title'):
+                            title_tags[title.get('id', 'default')] = title.get_text(strip=True)
+                        
+                        # Extract meta descriptions
+                        meta_descriptions = {}
+                        for meta in soup.find_all('meta', attrs={'name': 'description'}):
+                            meta_descriptions[meta.get('id', 'default')] = meta.get('content', '')
+                        
+                        # Extract page content (main content areas)
+                        page_content = {}
+                        
+                        # Get main content from multiple possible locations
+                        main_content = None
+                        content_selectors = [
+                            'main', 'article', 'div.content', 'div#content', 'div.main', 
+                            'div.container', 'div.wrapper', 'div#main', 'div#container',
+                            'section', 'div[role="main"]', 'div.main-content'
+                        ]
+                        
+                        for selector in content_selectors:
+                            main_content = soup.select_one(selector)
+                            if main_content:
+                                break
+                        
+                        # If no main content found, try to get content from body
+                        if not main_content:
+                            body = soup.find('body')
+                            if body:
+                                # Remove script and style elements
+                                for script in body(["script", "style", "nav", "header", "footer"]):
+                                    script.decompose()
+                                main_content = body
+                        
+                        if main_content:
+                            # Clean up the text
+                            text = main_content.get_text(separator=' ', strip=True)
+                            # Remove extra whitespace
+                            text = ' '.join(text.split())
+                            page_content['main'] = text[:2000]  # Limit to first 2000 chars
+                        
+                        # Get header content
+                        header = soup.find('header') or soup.find('nav') or soup.select_one('div.header, div.nav, div.navigation')
+                        if header:
+                            page_content['header'] = header.get_text(strip=True)[:500]
+                        
+                        # Get footer content
+                        footer = soup.find('footer') or soup.select_one('div.footer, div.foot')
+                        if footer:
+                            page_content['footer'] = footer.get_text(strip=True)[:500]
+                        
+                        # Get all headings with more comprehensive search
+                        headings = []
+                        heading_elements = soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+                        
+                        for heading in heading_elements:
+                            text = heading.get_text(strip=True)
+                            if text and len(text) > 2:  # Only include headings with meaningful text
+                                headings.append({
+                                    'tag': heading.name,
+                                    'text': text
+                                })
+                        
+                        page_content['headings'] = headings[:15]  # Limit to first 15 headings
+                        
+                        # Get all links with better filtering
+                        links = []
+                        for link in soup.find_all('a', href=True):
+                            href = link.get('href')
+                            text = link.get_text(strip=True)
+                            if text and href and len(text) > 1:  # Only include links with meaningful text
+                                # Skip common navigation/footer links
+                                if not any(skip in text.lower() for skip in ['privacy', 'terms', 'cookie', 'login', 'sign up']):
+                                    links.append({
+                                        'text': text[:100],  # Limit text length
+                                        'href': urljoin(website_url, href)
+                                    })
+                        
+                        page_content['links'] = links[:25]  # Limit to first 25 links
+                        
+                        # Add page title and meta description to content
+                        page_title = soup.find('title')
+                        if page_title:
+                            page_content['page_title'] = page_title.get_text(strip=True)
+                        
+                        meta_desc = soup.find('meta', attrs={'name': 'description'})
+                        if meta_desc:
+                            page_content['meta_description'] = meta_desc.get('content', '')
+                        
+                        # Store content data
+                        content_data = {
+                            'title_tags': title_tags,
+                            'meta_descriptions': meta_descriptions,
+                            'page_content': page_content
+                        }
+                        
+                        # Store in database
+                        success = db.store_website_content(current_user, website_url, content_data)
+                        
+                        if not success:
+                            raise HTTPException(
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail="Failed to store website content"
+                            )
+                        
+                        # Print content to terminal
+                        print(f"\n[WEBSITE CONTENT] Content fetched successfully for {website_url}")
+                        print(f"[WEBSITE CONTENT] Title tags: {title_tags}")
+                        print(f"[WEBSITE CONTENT] Meta descriptions: {meta_descriptions}")
+                        
+                        # More detailed content analysis
+                        main_content = page_content.get('main', '')
+                        if main_content:
+                            print(f"[WEBSITE CONTENT] Main content preview: {main_content[:300]}...")
+                            print(f"[WEBSITE CONTENT] Main content length: {len(main_content)} characters")
+                        else:
+                            print(f"[WEBSITE CONTENT] No main content found")
+                        
+                        headings = page_content.get('headings', [])
+                        print(f"[WEBSITE CONTENT] Number of headings: {len(headings)}")
+                        if headings:
+                            print(f"[WEBSITE CONTENT] First 3 headings:")
+                            for i, heading in enumerate(headings[:3]):
+                                print(f"  {i+1}. {heading['tag'].upper()}: {heading['text']}")
+                        
+                        links = page_content.get('links', [])
+                        print(f"[WEBSITE CONTENT] Number of links: {len(links)}")
+                        if links:
+                            print(f"[WEBSITE CONTENT] First 3 links:")
+                            for i, link in enumerate(links[:3]):
+                                print(f"  {i+1}. {link['text']} -> {link['href']}")
+                        
+                        # Show page title and meta description
+                        if page_content.get('page_title'):
+                            print(f"[WEBSITE CONTENT] Page title: {page_content['page_title']}")
+                        if page_content.get('meta_description'):
+                            print(f"[WEBSITE CONTENT] Meta description: {page_content['meta_description'][:200]}...")
+                        
+                        return {
+                            "success": True,
+                            "message": "Website content fetched and stored successfully!",
+                            "content": content_data
+                        }
+                        
+                except aiohttp.ClientError as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Failed to fetch website content: {str(e)}"
+                    )
+        except Exception as e:
+            print(f"Error fetching website content: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch website content"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching website content: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch website content"
+        )
+
+
+@router.get("/website/content")
+async def get_website_content(current_user: str = Depends(get_current_user)):
+    """Get stored website content for the user's website."""
+    try:
+        # Get the selected property for the user
+        website_url = db.get_selected_gsc_property(current_user)
+        
+        if not website_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No website property selected. Please select a property first."
+            )
+        
+        # Get stored content
+        content_data = db.get_website_content(current_user, website_url)
+        
+        if not content_data:
+            return {
+                "success": False,
+                "message": "No website content found. Please fetch content first.",
+                "content": None,
+                "fetched_at": None
+            }
+        
+        return {
+            "success": True,
+            "message": "Website content retrieved successfully!",
+            "content": content_data,
+            "fetched_at": content_data.get('fetched_at')
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting website content: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get website content"
+        )
+
+
+
+
+
+ 

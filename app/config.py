@@ -19,6 +19,22 @@ class Settings(BaseSettings):
     USERS_SHEET_ID: str = ""
     SESSIONS_SHEET_ID: str = ""
     
+    # Google OAuth Configuration
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+    
+    # PageSpeed Insights API
+    PAGESPEED_API_KEY: str = ""
+    
+    # OpenAI API
+    OPENAI_API_KEY: str = ""
+    
+    # Supabase Configuration
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    
     # JWT Settings
     SECRET_KEY: str = "your-super-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"
@@ -39,9 +55,11 @@ class Settings(BaseSettings):
     LOGIN_ATTEMPTS_LIMIT: int = 5
     LOGIN_ATTEMPTS_WINDOW_MINUTES: int = 15
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
 
 
 # Create settings instance
