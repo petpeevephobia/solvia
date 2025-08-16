@@ -923,11 +923,38 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
         print(f"[GSC METRICS] google_oauth object: {google_oauth}")
         print(f"[GSC METRICS] google_oauth type: {type(google_oauth)}")
         
-        # Get GSC metrics using the Google OAuth handler
+        # Get GSC metrics using the Google OAuth handler with caching
         print(f"[GSC METRICS] About to call get_gsc_metrics with user: {current_user}, website: {user_website}")
+        
         try:
-            metrics = google_oauth.get_gsc_metrics(current_user, user_website)
-            print(f"[GSC METRICS] Successfully got metrics: {metrics}")
+            # Default 30-day date range for dashboard
+            from datetime import datetime, timedelta
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=30)
+            date_range = {
+                'start_date': start_date,
+                'end_date': end_date,
+                'is_custom_range': False
+            }
+            
+            # Check cache first, then fetch if needed
+            cached_metrics = await db.get_gsc_metrics_cache(current_user, user_website, date_range)
+            if cached_metrics:
+                print(f"[GSC METRICS] Using cached metrics for {current_user}")
+                metrics = cached_metrics
+            else:
+                print(f"[GSC METRICS] Fetching fresh metrics for {current_user}")
+                metrics = google_oauth.get_gsc_metrics(current_user, user_website, date_range)
+                print(f"[GSC METRICS] Successfully got metrics: {metrics}")
+                
+                # Store in cache for future use
+                if metrics:
+                    print(f"[GSC METRICS] Storing metrics in cache for {current_user}")
+                    await db.store_gsc_metrics_cache(current_user, user_website, metrics, date_range)
+                    print(f"[GSC METRICS] Metrics stored successfully")
+                else:
+                    print(f"[GSC METRICS] No metrics to store (empty result)")
+                    
         except Exception as method_error:
             print(f"[GSC METRICS] Error calling get_gsc_metrics: {method_error}")
             raise method_error
