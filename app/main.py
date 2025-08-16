@@ -62,6 +62,10 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # Include auth routes
 app.include_router(auth_router)
 
+# Include enhanced data pipeline routes
+from app.auth.enhanced_routes import enhanced_router
+app.include_router(enhanced_router)
+
 @app.get("/")
 async def root():
     """Root endpoint."""
