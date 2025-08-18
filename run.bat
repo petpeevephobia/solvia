@@ -32,16 +32,32 @@ REM Upgrade pip
 echo Upgrading pip...
 python -m pip install --upgrade pip
 
-REM Install requirements (with fallback for Rust issues)
-echo Installing dependencies...
-pip install fastapi uvicorn supabase python-dotenv google-auth google-auth-oauthlib google-api-python-client openai markdown
+REM Install core packages
+echo Installing core dependencies...
+pip install fastapi uvicorn python-dotenv
 
-REM Check if installation was successful
-if errorlevel 1 (
-    echo WARNING: Some dependencies may not have installed properly
-    echo You may need to install Rust for full functionality
-    echo Visit: https://rustup.rs/
-)
+echo Installing database dependencies...  
+pip install supabase
+
+echo Installing Google OAuth dependencies...
+pip install google-auth google-auth-oauthlib google-api-python-client
+
+echo Installing authentication dependencies...
+pip install python-jose[cryptography] passlib[bcrypt] python-multipart email-validator
+
+echo Installing AI and utility dependencies...
+pip install openai markdown aiohttp
+
+echo Installing additional dependencies...
+pip install gspread fastapi-mail
+
+REM Verify installation
+echo.
+echo Verifying installation...
+python -c "import fastapi; print('✅ FastAPI installed')" 2>nul || echo "❌ FastAPI failed"
+python -c "import uvicorn; print('✅ Uvicorn installed')" 2>nul || echo "❌ Uvicorn failed" 
+python -c "import supabase; print('✅ Supabase installed')" 2>nul || echo "❌ Supabase failed"
+python -c "from google.oauth2 import credentials; print('✅ Google Auth installed')" 2>nul || echo "❌ Google Auth failed"
 
 echo.
 echo ========================================
