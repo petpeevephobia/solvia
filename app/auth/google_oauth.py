@@ -435,32 +435,37 @@ class GoogleOAuthHandler:
         }
     
     def _calculate_seo_score(self, clicks: int, impressions: int, ctr: float, position: float) -> float:
-        """Calculate a simplified SEO score based on GSC metrics."""
-        # Base score starts at 50
-        score = 50.0
+        """Calculate SEO score using unified scoring engine."""
+        # Import here to avoid circular dependency
+        from app.core.seo_scoring import SEOScoringEngine
         
-        # Traffic factor (up to 25 points)
-        if clicks > 0:
-            traffic_factor = min(clicks / 100, 25)  # Cap at 25 points
-            score += traffic_factor
+        # Use unified scoring engine for consistency
+        score = SEOScoringEngine.calculate_score(
+            clicks=clicks,
+            impressions=impressions,
+            ctr=ctr,
+            position=position,
+            historical_data=None  # No historical data for simple metrics
+        )
         
-        # CTR factor (up to 15 points)
-        ctr_percentage = ctr * 100
-        if ctr_percentage > 0:
-            ctr_factor = min(ctr_percentage / 2, 15)  # Cap at 15 points
-            score += ctr_factor
-        
-        # Position factor (up to 10 points)
-        if position > 0:
-            position_factor = max(0, (10 - position) * 2)  # Better position = higher score
-            score += position_factor
-        
-        return min(score, 100)  # Cap at 100
+        return score
     
     def _get_empty_metrics(self) -> dict:
-        """Return empty metrics structure."""
+        """Return empty metrics structure with base SEO score."""
+        # Import here to avoid circular dependency
+        from app.core.seo_scoring import SEOScoringEngine
+        
+        # Calculate base score for no data
+        base_score = SEOScoringEngine.calculate_score(
+            clicks=0,
+            impressions=0,
+            ctr=0,
+            position=0,
+            historical_data=None
+        )
+        
         return {
-            'seo_score': 0,
+            'seo_score': base_score,  # Unified base score (25.0)
             'organic_traffic': 0,
             'avg_position': 0,
             'ctr': 0,

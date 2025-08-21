@@ -66,6 +66,10 @@ app.include_router(auth_router)
 from app.auth.enhanced_routes import enhanced_router
 app.include_router(enhanced_router)
 
+# Include audit engine routes (Milestone 2)
+from app.audit.routes import audit_router
+app.include_router(audit_router)
+
 @app.get("/")
 async def root():
     """Root endpoint."""
