@@ -32,32 +32,57 @@ REM Upgrade pip
 echo Upgrading pip...
 python -m pip install --upgrade pip
 
-REM Install core packages
-echo Installing core dependencies...
-pip install fastapi uvicorn python-dotenv
+REM Install from requirements.txt if it exists, otherwise install manually
+if exist requirements.txt (
+    echo Installing dependencies from requirements.txt...
+    pip install -r requirements.txt
+) else (
+    echo Installing core dependencies...
+    pip install fastapi uvicorn python-dotenv
 
-echo Installing database dependencies...  
-pip install supabase
+    echo Installing database dependencies...  
+    pip install supabase
 
-echo Installing Google OAuth dependencies...
-pip install google-auth google-auth-oauthlib google-api-python-client
+    echo Installing Google OAuth dependencies...
+    pip install google-auth google-auth-oauthlib google-api-python-client
 
-echo Installing authentication dependencies...
-pip install python-jose[cryptography] passlib[bcrypt] python-multipart email-validator
+    echo Installing authentication dependencies...
+    pip install python-jose[cryptography] passlib[bcrypt] python-multipart email-validator
 
-echo Installing AI and utility dependencies...
-pip install openai markdown aiohttp
+    echo Installing AI and utility dependencies...
+    pip install openai markdown aiohttp
 
-echo Installing additional dependencies...
-pip install gspread fastapi-mail
+    echo Installing mathematical dependencies (CRITICAL for audit engine)...
+    pip install numpy scipy pandas
 
-REM Verify installation
+    echo Installing additional dependencies...
+    pip install gspread fastapi-mail httpx
+
+    echo Installing testing dependencies...
+    pip install pytest pytest-asyncio
+)
+
+REM Verify critical installations
 echo.
 echo Verifying installation...
 python -c "import fastapi; print('✅ FastAPI installed')" 2>nul || echo "❌ FastAPI failed"
 python -c "import uvicorn; print('✅ Uvicorn installed')" 2>nul || echo "❌ Uvicorn failed" 
 python -c "import supabase; print('✅ Supabase installed')" 2>nul || echo "❌ Supabase failed"
 python -c "from google.oauth2 import credentials; print('✅ Google Auth installed')" 2>nul || echo "❌ Google Auth failed"
+python -c "import numpy; print('✅ NumPy installed (CRITICAL)')" 2>nul || echo "❌ NumPy failed - AUDIT ENGINE WILL NOT WORK"
+python -c "from app.core.seo_scoring import SEOScoringEngine; print('✅ SEO Scoring Engine available')" 2>nul || echo "❌ SEO Scoring Engine failed"
+
+REM Check for environment file
+if not exist .env (
+    echo.
+    echo ⚠️  WARNING: .env file not found!
+    echo Please create .env file with required configuration:
+    echo SUPABASE_URL=your_supabase_url
+    echo SUPABASE_KEY=your_supabase_key
+    echo GOOGLE_CLIENT_ID=your_google_client_id
+    echo GOOGLE_CLIENT_SECRET=your_google_client_secret
+    echo.
+)
 
 echo.
 echo ========================================
