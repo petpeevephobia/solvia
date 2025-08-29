@@ -51,29 +51,39 @@ def verify_token(token: str) -> Optional[str]:
         if len(parts) != 3:
             return None
         
-        # For Supabase tokens, we decode without verification since we don't have Supabase's signing key
-        # The token is already verified by Supabase when we get it
+        # Try to verify as our custom JWT token first (created by create_access_token)
         try:
-            from jose import jwt
-            # Decode without verification for Supabase tokens, ignoring audience validation
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            # Our tokens have email in 'sub' field
+            email: str = payload.get("sub")
+            if email:
+                return email
+        except JWTError:
+            # If verification fails, this might be a Supabase token
+            pass
+        except Exception:
+            pass
+        
+        # If custom token verification failed, try Supabase token format
+        try:
+            # Decode without verification for Supabase tokens
             payload = jwt.decode(token, key="", options={
                 "verify_signature": False,
                 "verify_aud": False,
                 "verify_exp": False
             })
-        except Exception as e:
-            return None
+            # Supabase tokens have email in the 'email' field, not 'sub'
+            email: str = payload.get("email") or payload.get("sub")
+            if email:
+                return email
+        except Exception:
+            pass
         
-        # Supabase tokens have email in the 'email' field, not 'sub'
-        email: str = payload.get("email") or payload.get("sub")
-        if email is None:
-            return None
-        
-        return email
-        
-    except JWTError as e:
         return None
-    except Exception as e:
+        
+    except JWTError:
+        return None
+    except Exception:
         return None
 
 

@@ -40,12 +40,17 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # Email Settings
-    SMTP_SERVER: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    EMAIL_USERNAME: str = ""
-    EMAIL_PASSWORD: str = ""
-    EMAIL_FROM: str = ""
+    # Email Settings - Using Zoho SMTP
+    EMAIL_ENABLED: bool = True  # Enable email functionality
+    EMAIL_HOST: str = "smtp.zoho.com"  # Zoho SMTP server
+    EMAIL_PORT: int = 587
+    EMAIL_USERNAME: str = "info@solvia.app"  # From .env SENDER_EMAIL
+    EMAIL_PASSWORD: str = "BCbSE5cUDGnH"  # From .env APP_PASSWORD  
+    EMAIL_FROM: str = "info@solvia.app"  # From .env SENDER_EMAIL
+    EMAIL_USE_TLS: bool = True
+    
+    # Frontend URL for links in emails
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:8000")
     
     # Security
     VERIFICATION_TOKEN_EXPIRE_HOURS: int = 24

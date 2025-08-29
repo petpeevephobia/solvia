@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solvia Setup Wizard - Connect Google Search Console</title>
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css?v=1.3">
 </head>
@@ -413,7 +414,6 @@
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const error = urlParams.get('error');
-            const demo = urlParams.get('demo');
             const oauthSuccess = urlParams.get('oauth_success');
             const oauthError = urlParams.get('oauth_error');
             
@@ -431,14 +431,7 @@
                 return;
             }
             
-            if (demo === 'true') {
-                // Demo mode - simulate successful connection
-                console.log('Demo mode detected, simulating GSC connection');
-                nextStep();
-                showOAuthSuccess();
-                loadGSCProperties();
-                return;
-            }
+            // Proceed with real GSC connection
             
             if (code) {
                 // Direct callback with code - this shouldn't happen with current flow
@@ -476,7 +469,6 @@
         // Check if this is a callback from Google OAuth
         if (window.location.search.includes('code=') || 
             window.location.search.includes('error=') || 
-            window.location.search.includes('demo=') ||
             window.location.search.includes('oauth_success=') ||
             window.location.search.includes('oauth_error=')) {
             handleGoogleCallback();

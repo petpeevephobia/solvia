@@ -24,7 +24,13 @@ python3 -m venv venv
 
 # Activate virtual environment
 echo "Activating virtual environment..."
-source venv/bin/activate
+# Check if running on Windows (Git Bash/MINGW)
+if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OS" == "Windows_NT" ]]; then
+    echo "Detected Windows environment (Git Bash/MINGW)..."
+    source venv/Scripts/activate
+else
+    source venv/bin/activate
+fi
 
 # Upgrade pip
 echo "Upgrading pip..."

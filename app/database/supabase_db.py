@@ -1,6 +1,6 @@
 from supabase import create_client, Client
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://your-project.supabase.co")
@@ -437,10 +437,17 @@ class SupabaseAuthDB:
     async def store_gsc_metrics_cache(self, user_email: str, website_url: str, metrics: dict, date_range: dict) -> bool:
         """
         Store GSC metrics in cache for a user's website and date range.
+        Also updates the SEO score from the latest audit if available.
         """
         try:
             start_date = date_range['start_date']
             end_date = date_range['end_date']
+            
+            # Check if there's a recent audit with updated SEO score
+            latest_audit = self.get_latest_audit(user_email, website_url)
+            if latest_audit and latest_audit.get('seo_score'):
+                # Use the SEO score from the latest audit
+                metrics['seo_score'] = latest_audit['seo_score']
             
             cache_data = {
                 'user_email': user_email,
@@ -456,8 +463,13 @@ class SupabaseAuthDB:
                 'created_at': datetime.utcnow().isoformat()
             }
             
-            # Insert or update cache entry
-            response = self.supabase.table('gsc_metrics_cache').upsert(cache_data, on_conflict=['user_email,website_url,start_date,end_date']).execute()
+            # Insert or update cache entry with service role key
+            if self.service_role_key:
+                service_client = create_client(self.supabase_url, self.service_role_key)
+            else:
+                service_client = self.supabase
+                
+            response = service_client.table('gsc_metrics_cache').upsert(cache_data, on_conflict=['user_email,website_url,start_date,end_date']).execute()
             
             return True if response.data else False
             
@@ -493,9 +505,15 @@ class SupabaseAuthDB:
 
     async def store_chat_message(self, user_email: str, message_content: str, message_type: str, sender_name: str) -> str:
         """
-        Store a chat message in the database.
+        Store a chat message in the database using service role key to bypass RLS.
         """
         try:
+            # Use service role key to bypass RLS for chat storage
+            if self.service_role_key:
+                service_client = create_client(self.supabase_url, self.service_role_key)
+            else:
+                service_client = self.supabase
+                
             message_data = {
                 'user_email': user_email,
                 'message_content': message_content,
@@ -504,7 +522,7 @@ class SupabaseAuthDB:
                 'created_at': datetime.utcnow().isoformat()
             }
             
-            response = self.supabase.table('chat_messages').insert(message_data).execute()
+            response = service_client.table('chat_messages').insert(message_data).execute()
             
             if response.data and len(response.data) > 0:
                 return str(response.data[0]['id'])
@@ -517,19 +535,33 @@ class SupabaseAuthDB:
 
     async def get_chat_messages(self, user_email: str, limit: int = 50) -> list:
         """
-        Get chat messages for a user.
+        Get chat messages for a user using service role key.
         """
         try:
-            response = self.supabase.table('chat_messages') \
+            print(f"[CHAT RETRIEVAL] Getting messages for user: {user_email}")
+            
+            # Use service role key to bypass RLS for chat retrieval
+            if self.service_role_key:
+                print(f"[CHAT RETRIEVAL] Using service role key")
+                service_client = create_client(self.supabase_url, self.service_role_key)
+            else:
+                print(f"[CHAT RETRIEVAL] Using regular client")
+                service_client = self.supabase
+                
+            response = service_client.table('chat_messages') \
                 .select('*') \
                 .eq('user_email', user_email) \
                 .order('created_at', desc=True) \
                 .limit(limit) \
                 .execute()
             
+            print(f"[CHAT RETRIEVAL] Found {len(response.data)} messages")
+            
             if response.data:
                 # Return in chronological order (oldest first)
-                return list(reversed(response.data))
+                messages = list(reversed(response.data))
+                print(f"[CHAT RETRIEVAL] Returning {len(messages)} messages")
+                return messages
             return []
             
         except Exception as e:
@@ -558,4 +590,203 @@ class SupabaseAuthDB:
             
         except Exception as e:
             print(f"[SupabaseAuth] Error storing website content: {e}")
-            return False 
+            return False
+    
+    # ===========================
+    # AUDIT STORAGE METHODS
+    # ===========================
+    
+    def store_audit_result(self, user_email: str, audit_data: dict, website_url: str) -> Optional[str]:
+        """
+        Store audit result in database using service role key to bypass RLS
+        """
+        try:
+            # Use service role key to bypass RLS
+            print(f"[AUDIT STORAGE] Service role key available: {bool(self.service_role_key)}")
+            if self.service_role_key:
+                print("[AUDIT STORAGE] Using service role key to bypass RLS")
+                service_client = create_client(self.supabase_url, self.service_role_key)
+            else:
+                print("[AUDIT STORAGE] WARNING: No service role key, using regular client")
+                service_client = self.supabase
+                
+            # Use the audit_id from the audit_data if it exists, otherwise generate new one
+            import uuid
+            audit_id = audit_data.get('audit_id', str(uuid.uuid4()))
+            
+            audit_record = {
+                'audit_id': audit_id,  # Use existing audit_id from audit_data
+                'user_email': user_email,
+                'website_url': website_url,
+                'audit_data': audit_data,  # JSON data
+                'seo_score': audit_data.get('seo_score', 0),
+                'critical_issues': audit_data.get('critical_issues', 0),
+                'status': 'completed',
+                'created_at': datetime.utcnow().isoformat()
+            }
+            
+            response = service_client.table('audit_results').insert(audit_record).execute()
+            
+            if response.data and len(response.data) > 0:
+                return audit_id  # Return the UUID we generated
+            return None
+            
+        except Exception as e:
+            print(f"[SupabaseAuth] Error storing audit result: {e}")
+            return None
+    
+    def get_audit_history(self, user_email: str, limit: int = 10, offset: int = 0) -> List[dict]:
+        """
+        Get user's audit history with pagination support using service role key
+        """
+        try:
+            # Use service role key to bypass RLS
+            if self.service_role_key:
+                service_client = create_client(self.supabase_url, self.service_role_key)
+                query = (service_client
+                        .table('audit_results')
+                        .select('*')
+                        .eq('user_email', user_email)
+                        .order('created_at', desc=True))
+            else:
+                query = (self.supabase
+                        .table('audit_results')
+                        .select('*')
+                        .eq('user_email', user_email)
+                        .order('created_at', desc=True))
+            
+            # Apply offset and limit
+            if offset > 0:
+                query = query.range(offset, offset + limit - 1)
+            else:
+                query = query.limit(limit)
+            
+            response = query.execute()
+            
+            return response.data if response.data else []
+            
+        except Exception as e:
+            print(f"[SupabaseAuth] Error getting audit history: {e}")
+            return []
+    
+    def get_audit_by_id(self, audit_id: str, user_email: str) -> Optional[dict]:
+        """
+        Get specific audit by ID using service role key to bypass RLS
+        """
+        try:
+            # Use service role key to bypass RLS for system operations
+            if self.service_role_key:
+                service_client = create_client(self.supabase_url, self.service_role_key)
+                response = (service_client
+                           .table('audit_results')
+                           .select('*')
+                           .eq('audit_id', audit_id)  # Fixed: use 'audit_id' not 'id'
+                           .eq('user_email', user_email)
+                           .single()
+                           .execute())
+            else:
+                response = (self.supabase
+                           .table('audit_results')
+                           .select('*')
+                           .eq('audit_id', audit_id)  # Fixed: use 'audit_id' not 'id'
+                           .eq('user_email', user_email)
+                           .single()
+                           .execute())
+            
+            return response.data if response.data else None
+            
+        except Exception as e:
+            print(f"[SupabaseAuth] Error getting audit by ID: {e}")
+            print(f"[SupabaseAuth] Audit ID: {audit_id}, User Email: {user_email}")
+            return None
+    
+    def update_audit_status(self, audit_id: str, user_email: str, status: str, pdf_path: Optional[str] = None) -> bool:
+        """
+        Update audit status or metadata using service role key
+        """
+        try:
+            # Use service role key to bypass RLS
+            if self.service_role_key:
+                service_client = create_client(self.supabase_url, self.service_role_key)
+            else:
+                service_client = self.supabase
+                
+            update_data = {
+                'status': status,
+                'updated_at': datetime.utcnow().isoformat()
+            }
+            
+            if pdf_path:
+                update_data['pdf_path'] = pdf_path
+            
+            response = (service_client
+                       .table('audit_results')
+                       .update(update_data)
+                       .eq('audit_id', audit_id)  # Use audit_id instead of id
+                       .eq('user_email', user_email)
+                       .execute())
+            
+            return True if response.data else False
+            
+        except Exception as e:
+            print(f"[SupabaseAuth] Error updating audit status: {e}")
+            return False
+    
+    def update_gsc_cache_with_audit_score(self, user_email: str, website_url: str, seo_score: float) -> bool:
+        """
+        Update the GSC metrics cache with the latest audit SEO score
+        """
+        try:
+            # Use service role key to bypass RLS
+            if self.service_role_key:
+                service_client = create_client(self.supabase_url, self.service_role_key)
+            else:
+                service_client = self.supabase
+            
+            # Update the most recent cache entry with the new SEO score
+            from datetime import datetime
+            response = (service_client
+                       .table('gsc_metrics_cache')
+                       .update({'seo_score': seo_score, 'updated_at': datetime.utcnow().isoformat()})
+                       .eq('user_email', user_email)
+                       .eq('website_url', website_url)
+                       .execute())
+            
+            if response.data:
+                print(f"[SupabaseAuth] Updated GSC cache with audit score: {seo_score}")
+                return True
+            return False
+            
+        except Exception as e:
+            print(f"[SupabaseAuth] Error updating GSC cache with audit score: {e}")
+            return False
+    
+    def get_latest_audit(self, user_email: str, website_url: str) -> Optional[dict]:
+        """
+        Get most recent audit for a specific website using service role key
+        """
+        try:
+            # Use service role key to bypass RLS
+            if self.service_role_key:
+                service_client = create_client(self.supabase_url, self.service_role_key)
+            else:
+                service_client = self.supabase
+                
+            print(f"[get_latest_audit] Searching for audit: user_email={user_email}, website_url={website_url}")
+            
+            response = (service_client
+                       .table('audit_results')
+                       .select('*')
+                       .eq('user_email', user_email)
+                       .eq('website_url', website_url)
+                       .order('created_at', desc=True)
+                       .limit(1)
+                       .execute())
+            
+            print(f"[get_latest_audit] Found {len(response.data)} audits")
+            
+            return response.data[0] if response.data else None
+            
+        except Exception as e:
+            print(f"[SupabaseAuth] Error getting latest audit: {e}")
+            return None 

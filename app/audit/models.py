@@ -133,7 +133,7 @@ class AuditResult(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     
     # Identification
-    audit_id: str = Field(default_factory=lambda: f"audit_{uuid.uuid4().hex[:12]}")
+    audit_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_email: str
     website_url: str
     

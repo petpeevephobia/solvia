@@ -1,6 +1,7 @@
 """
 Authentication routes for Solvia.
 """
+import traceback
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Header, Query
@@ -181,9 +182,8 @@ async def verify_email(verification: EmailVerification):
     # For now, we'll need to search through users
     # This is not efficient for production - consider using a separate tokens sheet
     
-    # TODO: Implement proper token verification
-    # For now, return a placeholder response
-    return {"message": "Email verification endpoint - implementation needed"}
+    # Email verification not implemented yet
+    return {"message": "Email verification feature not available"}
 
 
 @router.post("/forgot-password")
@@ -210,8 +210,8 @@ async def reset_password(reset_confirm: PasswordResetConfirm):
         )
     
     # TODO: Implement proper token validation
-    # For now, return a placeholder response
-    return {"message": "Password reset endpoint - implementation needed"}
+    # Return appropriate response for password reset
+    return {"message": "Password reset functionality not implemented in current version"}
 
 
 @router.post("/logout")
@@ -305,27 +305,33 @@ async def refresh_token_manual(request: Request):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Get current user information from Supabase Auth using access token."""
-    access_token = credentials.credentials
-    user_info = db.get_user(access_token)
-    user_obj = user_info.get("user") if user_info else None
-    if not user_obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+async def get_current_user_info(current_user: str = Depends(get_current_user)):
+    """Get current user information using JWT token."""
+    try:
+        # Get user session from database using email
+        user_session = await db.get_user_session(current_user)
+        if not user_session:
+            # If no session found, create a basic response using the email
+            name = current_user.split('@')[0].title()
+        else:
+            name = user_session.get('name', current_user.split('@')[0].title())
+        
+        return UserResponse(
+            id=str(uuid.uuid4()),
+            email=current_user,
+            name=name,
+            message="User information retrieved successfully",
+            created_at=datetime.utcnow().isoformat()
         )
-    # Convert user_obj to dict if needed
-    if hasattr(user_obj, '__dict__'):
-        user = user_obj.__dict__
-    else:
-        user = user_obj
-    return UserResponse(
-        id=user.get("id", str(uuid.uuid4())),
-        email=user.get("email", ""),
-        message="User information retrieved successfully",
-        created_at=user.get("created_at", datetime.utcnow().isoformat())
-    )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting user info: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get user information"
+        )
 
 
 @router.get("/website")
@@ -409,8 +415,7 @@ async def google_authorize(request: Request, email: Optional[str] = None):
                 user_email = verify_token(token)
         
         if not user_email:
-            # For the new design without email input, we'll use a placeholder
-            # The actual email will be collected during the OAuth flow
+            # For OAuth flow, email will be available after authentication
             user_email = "oauth_user"
         
         # Generate OAuth URL with email as state parameter
@@ -500,10 +505,10 @@ async def send_message(
     message: ChatMessage,
     current_user: str = Depends(get_current_user)
 ):
-    """Send a chat message and get AI response."""
+    """Send a chat message and get AI response with RAG enhancement."""
     try:
-        # Debug logging
-
+        # Import Supabase RAG integration
+        from app.agent.chat_integration_supabase import chat_integration
         
         # Store user message
         user_message_id = await db.store_chat_message(
@@ -513,8 +518,16 @@ async def send_message(
             message.sender_name
         )
         
-        # Generate AI response using Solvia with conversation context
-        ai_response = await generate_ai_response(message.message_content, current_user)
+        # Get user's selected website for context
+        selected_website = await db.get_user_website(current_user)
+        
+        # Generate AI response using Supabase RAG-enhanced processing
+        ai_response = await chat_integration.process_chat_message(
+            user_email=current_user,
+            message=message.message_content,
+            website_url=selected_website,
+            conversation_history=[]
+        )
         
         # Split response into paragraphs
         paragraphs = []
@@ -595,22 +608,45 @@ async def get_chat_history(
 ):
     """Get chat history for the current user."""
     try:
+        print(f"[CHAT API] Getting messages for user: {current_user}")
         messages = await db.get_chat_messages(current_user, limit)
+        print(f"[CHAT API] Database returned {len(messages)} messages")
         
         chat_responses = []
         for msg in messages:
-            chat_responses.append(ChatResponse(
-                message_id=msg["id"],
-                message_content=msg["message_content"],
-                message_type=msg["message_type"],
-                sender_name=msg["sender_name"],
-                created_at=msg["created_at"]
-            ))
+            print(f"[CHAT API] Processing message: {msg.get('message_content', '')[:50]}")
+            print(f"[CHAT API DEBUG] Full message: {msg}")
+            try:
+                # Ensure created_at is properly formatted as string
+                created_at = msg.get("created_at", "")
+                if hasattr(created_at, 'isoformat'):
+                    created_at = created_at.isoformat()
+                elif not isinstance(created_at, str):
+                    created_at = str(created_at)
+                
+                chat_response = ChatResponse(
+                    message_id=str(msg.get("id", "")),
+                    message_content=msg.get("message_content", ""),
+                    message_type=msg.get("message_type", "user"),
+                    sender_name=msg.get("sender_name", "Unknown"),
+                    created_at=created_at
+                )
+                chat_responses.append(chat_response)
+                print(f"[CHAT API DEBUG] Added response: {chat_response.model_dump()}")
+            except Exception as msg_error:
+                print(f"[CHAT API ERROR] Failed to process message {msg.get('id')}: {msg_error}")
+                print(f"[CHAT API ERROR] Full traceback: {traceback.format_exc()}")
+                continue
         
-        return ChatHistoryResponse(
+        print(f"[CHAT API] Returning {len(chat_responses)} formatted messages")
+        
+        response = ChatHistoryResponse(
             messages=chat_responses,
             success=True
         )
+        print(f"[CHAT API] Response created successfully")
+        print(f"[CHAT API DEBUG] Response dict: {response.model_dump()}")
+        return response
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -885,12 +921,13 @@ async def select_gsc_property(
 async def get_selected_website(current_user: str = Depends(get_current_user)):
     """Get the user's selected website."""
     try:
-        user_session = await db.get_user_session(current_user)
+        # Use the same method as metrics endpoint
+        user_website = db.get_user_website(current_user)
         
-        if user_session and user_session.get('selected_website'):
+        if user_website:
             return {
                 "success": True,
-                "selected_website": user_session.get('selected_website')
+                "selected_website": user_website
             }
         else:
             return {
@@ -937,23 +974,41 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
                 'is_custom_range': False
             }
             
-            # Check cache first, then fetch if needed
-            cached_metrics = await db.get_gsc_metrics_cache(current_user, user_website, date_range)
-            if cached_metrics:
-                print(f"[GSC METRICS] Using cached metrics for {current_user}")
-                metrics = cached_metrics
+            # Initialize GSC fetcher for enhanced metrics
+            from app.auth.google_oauth import GSCDataFetcher
+            gsc_fetcher = GSCDataFetcher(google_oauth, db)
+            
+            print(f"[GSC METRICS] Fetching enhanced metrics with change indicators...")
+            enhanced_metrics = await gsc_fetcher.fetch_metrics(current_user, user_website, days=30)
+            
+            if enhanced_metrics and enhanced_metrics.get('summary'):
+                # Transform the enhanced metrics for frontend compatibility
+                summary = enhanced_metrics['summary']
+                metrics = {
+                    'seo_score': google_oauth._calculate_seo_score(
+                        summary.get('total_clicks', 0),
+                        summary.get('total_impressions', 0), 
+                        summary.get('avg_ctr', 0),
+                        summary.get('avg_position', 0)
+                    ),
+                    'organic_traffic': summary.get('total_clicks', 0),
+                    'clicks': summary.get('total_clicks', 0),
+                    'impressions': summary.get('total_impressions', 0),
+                    'ctr': summary.get('avg_ctr', 0) * 100,  # Convert to percentage
+                    'avg_position': summary.get('avg_position', 0),
+                    'keywords': len(enhanced_metrics.get('time_series', {}).get('dates', [])),
+                    # Add change indicators
+                    'seo_score_change': summary.get('seo_score_change', 0),
+                    'clicks_change': summary.get('clicks_change', 0),
+                    'impressions_change': summary.get('impressions_change', 0),
+                    'ctr_change': summary.get('ctr_change', 0),
+                    'position_change': summary.get('position_change', 0)
+                }
+                print(f"[GSC METRICS] Enhanced metrics with changes: {metrics}")
             else:
-                print(f"[GSC METRICS] Fetching fresh metrics for {current_user}")
+                print(f"[GSC METRICS] Falling back to simple metrics")
+                # Fallback to simple metrics
                 metrics = google_oauth.get_gsc_metrics(current_user, user_website, date_range)
-                print(f"[GSC METRICS] Successfully got metrics: {metrics}")
-                
-                # Store in cache for future use
-                if metrics:
-                    print(f"[GSC METRICS] Storing metrics in cache for {current_user}")
-                    await db.store_gsc_metrics_cache(current_user, user_website, metrics, date_range)
-                    print(f"[GSC METRICS] Metrics stored successfully")
-                else:
-                    print(f"[GSC METRICS] No metrics to store (empty result)")
                     
         except Exception as method_error:
             print(f"[GSC METRICS] Error calling get_gsc_metrics: {method_error}")
@@ -968,9 +1023,14 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
     except Exception as e:
         print(f"Error getting GSC metrics: {e}")
         if "No credentials found" in str(e) or "object NoneType can't be used in 'await' expression" in str(e):
+            # Enhanced error response with re-authentication guidance
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Google Search Console credentials not found. Please re-authenticate with Google to access your real SEO data."
+                detail="Google Search Console credentials not found. Please re-authenticate with Google to access your real SEO data.",
+                headers={
+                    "X-Auth-Required": "google_oauth",
+                    "X-Redirect-URL": "/auth/google/authorize"
+                }
             )
         else:
             raise HTTPException(

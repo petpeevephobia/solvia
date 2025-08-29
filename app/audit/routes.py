@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta
+import uuid
 
 from app.audit.engine import AuditEngine
 from app.audit.models import (
@@ -63,8 +64,8 @@ async def trigger_audit(
                 detail="No website selected. Please select a website first."
             )
         
-        # Create audit status
-        audit_id = f"audit_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{current_user[:8]}"
+        # Create audit status (proper UUID format)
+        audit_id = str(uuid.uuid4())
         audit_status = AuditStatus(
             audit_id=audit_id,
             status="pending",
@@ -102,7 +103,16 @@ async def get_audit_status(
     
     try:
         # In production, query audit_results table
-        # For now, return mock status
+        # Query stored audit status from database
+        stored_audit = db.get_audit_result(audit_id, current_user)
+        if stored_audit:
+            return AuditStatus(
+                audit_id=audit_id,
+                status="completed",
+                progress=100,
+                message="Audit completed successfully",
+                estimated_completion=stored_audit.get('created_at', datetime.now())
+            )
         
         audit_status = AuditStatus(
             audit_id=audit_id,

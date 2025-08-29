@@ -40,7 +40,7 @@ class GoogleOAuthHandler:
         
         # Check if we have valid Google credentials
         if not (self.client_id and self.client_secret and 
-                             self.client_id != 'your_google_client_id_here' and 
+                self.client_id != 'your_google_client_id_here' and 
                 self.client_secret != 'your_google_client_secret_here'):
             raise Exception("Google OAuth credentials required. Cannot start Solvia without proper configuration.")
     
@@ -101,7 +101,7 @@ class GoogleOAuthHandler:
         return result
     
     def _store_credentials(self, user_email: str, credentials: Credentials, jwt_token: str = None):
-        """Store OAuth credentials in Supabase."""
+        """Store OAuth credentials in Supabase using service role key."""
         # Prepare credential data
         cred_data = {
             'email': user_email,
@@ -111,36 +111,31 @@ class GoogleOAuthHandler:
             'created_at': datetime.utcnow().isoformat(),
             'updated_at': datetime.utcnow().isoformat()
         }
-
-        print(f"[CREDENTIALS DEBUG] Attempting to store credentials for {user_email}")
-        print(f"[CREDENTIALS DEBUG] JWT token provided: {jwt_token is not None}")
-        print(f"[CREDENTIALS DEBUG] Service role key available: {settings.SUPABASE_SERVICE_ROLE_KEY is not None}")
-
+        print(f"[CREDENTIALS STORE] Storing credentials for {user_email}")
+        
         try:
-            # Use user-scoped Supabase client if jwt_token is provided
-            if jwt_token:
-                print(f"[CREDENTIALS DEBUG] Using JWT token for storage")
-                user_db = SupabaseAuthDB(access_token=jwt_token)
-                response = user_db.supabase.table('gsc_connections').upsert(cred_data, on_conflict=['email']).execute()
-                print(f"[CREDENTIALS DEBUG] Successfully stored with JWT token")
-            else:
-                # For OAuth flow without JWT, we need to handle RLS differently
-                # Try to use a service role key if available, otherwise skip storage for now
-                service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
-                if service_role_key:
-                    # Use service role key to bypass RLS
-                    print(f"[CREDENTIALS DEBUG] Using service role key for storage")
-                    service_db = create_client(settings.SUPABASE_URL, service_role_key)
-                    response = service_db.table('gsc_connections').upsert(cred_data, on_conflict=['email']).execute()
-                    print(f"[CREDENTIALS DEBUG] Successfully stored with service role key for {user_email}")
+            # Always use service role key to bypass RLS for credential storage
+            service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
+            if service_role_key:
+                print(f"[CREDENTIALS STORE] Using service role key for storage")
+                service_db = create_client(settings.SUPABASE_URL, service_role_key)
+                response = service_db.table('gsc_connections').upsert(cred_data, on_conflict=['email']).execute()
+                if response.data:
+                    print(f"[CREDENTIALS STORE] Successfully stored credentials for {user_email}")
                 else:
-                    # If no service role key, we'll store credentials in cache only
-                    # The user will need to re-authenticate on next login
-                    print(f"[CREDENTIALS DEBUG] Warning: No service role key available. Credentials for {user_email} stored in cache only.")
+                    print(f"[CREDENTIALS STORE] No response data when storing credentials")
+            else:
+                # Fallback to JWT token if provided
+                if jwt_token:
+                    print(f"[CREDENTIALS STORE] No service role key, using JWT token")
+                    user_db = SupabaseAuthDB(access_token=jwt_token)
+                    response = user_db.supabase.table('gsc_connections').upsert(cred_data, on_conflict=['email']).execute()
+                    print(f"[CREDENTIALS STORE] Successfully stored with JWT token")
+                else:
+                    print(f"[CREDENTIALS STORE] ERROR: No service role key or JWT token available")
                     response = None
         except Exception as e:
-            print(f"[CREDENTIALS DEBUG] Error storing credentials: {e}")
-            # Fallback: store in cache only
+            print(f"[CREDENTIALS STORE] Error storing credentials: {e}")
             response = None
 
         # Cache the credentials regardless
@@ -149,7 +144,8 @@ class GoogleOAuthHandler:
             'credentials': credentials,
             'timestamp': datetime.now()
         }
-        print(f"[CREDENTIALS DEBUG] Credentials cached for {user_email}")
+        print(f"[CREDENTIALS STORE] Cached credentials for {user_email}")
+        
     
     async def _get_user_email_from_credentials(self, credentials: Credentials) -> Optional[str]:
         """Get user email from Google OAuth credentials."""
@@ -185,8 +181,17 @@ class GoogleOAuthHandler:
                 print(f"[CREDENTIALS DEBUG] Cache expired for {user_email}")
         
         print(f"[CREDENTIALS DEBUG] Querying Supabase for credentials for {user_email}")
-        # Query Supabase for credentials
-        response = self.db.supabase.table('gsc_connections').select('*').eq('email', user_email).execute()
+        
+        # Use service role key to bypass RLS when reading credentials
+        service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
+        if service_role_key:
+            print(f"[CREDENTIALS DEBUG] Using service role key to bypass RLS")
+            from supabase import create_client
+            service_supabase = create_client(settings.SUPABASE_URL, service_role_key)
+            response = service_supabase.table('gsc_connections').select('*').eq('email', user_email).execute()
+        else:
+            print(f"[CREDENTIALS DEBUG] No service role key available, using standard client")
+            response = self.db.supabase.table('gsc_connections').select('*').eq('email', user_email).execute()
         
         print(f"[CREDENTIALS DEBUG] Supabase response: {response.data}")
         
@@ -286,8 +291,16 @@ class GoogleOAuthHandler:
     def _clear_credentials(self, user_email: str):
         """Clear corrupted credentials for a user from Supabase."""
         try:
-            # Delete credentials from Supabase
-            self.db.supabase.table('gsc_connections').delete().eq('email', user_email).execute()
+            # Use service role key to bypass RLS when clearing credentials
+            service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
+            if service_role_key:
+                from supabase import create_client
+                service_supabase = create_client(settings.SUPABASE_URL, service_role_key)
+                service_supabase.table('gsc_connections').delete().eq('email', user_email).execute()
+            else:
+                # Fallback to regular client
+                self.db.supabase.table('gsc_connections').delete().eq('email', user_email).execute()
+            
             # Clear from cache
             cache_key = f"creds_{user_email}"
             if cache_key in self._credentials_cache:
