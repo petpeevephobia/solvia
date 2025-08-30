@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 import openai
 
-from app.auth.routes import get_current_user
+from app.auth.routes import get_current_user, get_authenticated_user
 from app.auth.google_oauth import GoogleOAuthHandler, GSCDataFetcher
 from app.database.supabase_db import SupabaseAuthDB
 from app.audit.engine import AuditEngine
@@ -207,7 +207,7 @@ openai.api_key = settings.OPENAI_API_KEY
 async def trigger_audit(
     request: AuditRequest,
     background_tasks: BackgroundTasks,
-    current_user: str = Depends(get_current_user)
+    current_user: str = Depends(get_authenticated_user)
 ):
     """
     Trigger a new SEO audit with real-time progress tracking.
@@ -411,8 +411,9 @@ async def trigger_audit(
                 'end': end_date.isoformat(),
                 'days': request.date_range_days
             },
+            # Fix: Get issue counts from the nested audit data issues array
             'critical_issues': audit_result.get('summary', {}).get('critical_issues', 0),
-            'high_issues': audit_result.get('summary', {}).get('high_issues', 0),
+            'high_issues': audit_result.get('summary', {}).get('high_issues', 0), 
             'medium_issues': audit_result.get('summary', {}).get('medium_issues', 0),
             'low_issues': audit_result.get('summary', {}).get('low_issues', 0),
             'total_issues': audit_result.get('summary', {}).get('total_issues', 0),
@@ -433,13 +434,17 @@ async def trigger_audit(
             db_with_role.update_gsc_cache_with_audit_score(current_user, website_url, audit_data['seo_score'])
             print(f"[AUDIT SUCCESS] Updated GSC cache with new SEO score: {audit_data['seo_score']}")
         
-        # Store chat message about audit completion
+        # Store chat message about audit completion  
         print(f"[AUDIT] Storing chat message for user: {current_user}")
         try:
+            # Get correct counts from the summary
+            critical_count = audit_result.get('summary', {}).get('critical_issues', 0)
+            total_count = audit_result.get('summary', {}).get('total_issues', 0)
+            
             await db_with_role.store_chat_message(
                 current_user,
-                f"✅ Audit completed! SEO Score: {audit_data['seo_score']}/100. Found {audit_data['critical_issues']} critical issues.",
-                "ai",
+                f"✅ Audit completed! SEO Score: {audit_data['seo_score']}/100. Found {critical_count} critical issues out of {total_count} total issues.",
+                "ai", 
                 "Solvia"
             )
             print(f"[AUDIT] Chat message stored successfully")
@@ -540,105 +545,92 @@ Your current SEO score is {audit_response.seo_score}/100."""
             except Exception as e:
                 response_message = f"I encountered an issue while trying to run your audit: {str(e)}. Please make sure you have selected a website first."
         else:
-            # Regular chat response using OpenAI
-            # Get user's current metrics for context
-            user_data = await db.get_user_session(current_user)
-            website_url = user_data.get('selected_website') if user_data else None
-            
-            context = ""
-            if website_url:
-                try:
-                    raw_metrics = await gsc_fetcher.fetch_metrics(current_user, website_url, 30)
-                    if raw_metrics and raw_metrics.get('summary'):
-                        summary = raw_metrics['summary']
-                        seo_score = google_oauth._calculate_seo_score(
-                            summary.get('total_clicks', 0),
-                            summary.get('total_impressions', 0),
-                            summary.get('avg_ctr', 0),
-                            summary.get('avg_position', 0)
-                        )
-                        # Get top queries if available
-                        top_queries_text = ""
-                        if raw_metrics.get('rows'):
-                            # Extract unique queries from the detailed data
-                            queries = {}
-                            for row in raw_metrics['rows'][:100]:  # Limit to top 100
-                                query = row.get('keys', [None])[0] if row.get('keys') else None
-                                if query and query not in queries:
-                                    queries[query] = {
-                                        'clicks': row.get('clicks', 0),
-                                        'impressions': row.get('impressions', 0),
-                                        'ctr': row.get('ctr', 0),
-                                        'position': row.get('position', 0)
-                                    }
-                            
-                            if queries:
-                                # Get top 10 queries by clicks
-                                sorted_queries = sorted(queries.items(), key=lambda x: x[1]['clicks'], reverse=True)[:10]
-                                top_queries_text = "\nTop performing keywords:\n"
-                                for q, data in sorted_queries:
-                                    top_queries_text += f"- '{q}': {data['clicks']} clicks, position {data['position']:.1f}\n"
-                            else:
-                                top_queries_text = "\nNO KEYWORDS FOUND - Your site has no search queries in Google Search Console data.\n"
-                        else:
-                            top_queries_text = "\nNO KEYWORDS FOUND - No search query data available from Google Search Console.\n"
-                        
-                        context = f"""
-User's current website: {website_url}
-Current SEO Score: {seo_score}
-Impressions (last 30 days): {summary.get('total_impressions', 0):,}
-Clicks: {summary.get('total_clicks', 0):,}
-Average CTR: {summary.get('avg_ctr', 0) * 100:.2f}%
-Average Position: {summary.get('avg_position', 0):.1f}
-{top_queries_text}
-"""
-                    else:
-                        context = f"User's website: {website_url} (no recent data available - you may need to wait for Google Search Console to update)"
-                except:
-                    context = f"User's website: {website_url}"
-            
-            # Get chat history for context continuity
-            chat_history = await db.get_chat_messages(current_user, limit=10)
-            
-            # Build conversation history for OpenAI
-            messages = [
-                {"role": "system", "content": get_agent_instructions('solvia') + "\n\nCurrent Data Context:\n" + context}
-            ]
-            
-            # Add previous messages for context (last 5 exchanges)
-            if chat_history and len(chat_history) > 0:
-                for msg in chat_history[-10:]:  # Last 10 messages (5 exchanges)
-                    role = "user" if msg.get('message_type') == 'user' else "assistant"
-                    messages.append({"role": role, "content": msg.get('message_content', '')})
-            
-            # Add current user message
-            messages.append({"role": "user", "content": user_message})
-            
-            # Generate response using OpenAI with full context
-            client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages,
-                max_tokens=800,  # Increased for better responses
-                temperature=0.7
+            # Regular chat response using RAG system for intelligent context
+            try:
+                from app.agent.chat_integration_supabase import ChatIntegrationSupabase
+                
+                # Use RAG-powered chat integration
+                chat_integration = ChatIntegrationSupabase()
+                
+                if chat_integration.rag_agent:
+                    print(f"[CHAT-RAG] Using RAG agent: {type(chat_integration.rag_agent).__name__} in {chat_integration.rag_mode} mode")
+                    
+                    # Get user's website for context
+                    user_data = await db.get_user_session(current_user)
+                    website_url = user_data.get('selected_website') if user_data else None
+                    
+                    # Get chat history for conversation context
+                    chat_history = await db.get_chat_messages(current_user, limit=10)
+                    
+                    # Convert chat history to RAG format
+                    conversation_history = []
+                    if chat_history:
+                        for msg in chat_history[-5:]:  # Last 5 messages for context
+                            role = "user" if msg.get('message_type') == 'user' else "assistant"
+                            conversation_history.append({
+                                "role": role,
+                                "content": msg.get('message_content', '')
+                            })
+                    
+                    print(f"[CHAT-RAG] Query: '{user_message}', Website: {website_url}, History: {len(conversation_history)} messages")
+                    
+                    # Generate RAG response with full audit and GSC context
+                    response_message = await chat_integration.rag_agent.generate_response(
+                        user_email=current_user,
+                        query=user_message,
+                        conversation_history=conversation_history
+                    )
+                    
+                    print(f"[CHAT-RAG] ✅ Generated response: {len(response_message)} chars")
+                    
+                    # RAG system success - store messages and return
+                    print(f"[CHAT-RAG] ✅ RAG response generated successfully")
+                    
+                else:
+                    print(f"[CHAT-RAG] ❌ No RAG agent available, falling back to basic OpenAI")
+                    # Fallback to basic OpenAI if RAG not available
+                    client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+                    completion = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": get_agent_instructions('solvia')},
+                            {"role": "user", "content": user_message}
+                        ],
+                        max_tokens=800,
+                        temperature=0.7
+                    )
+                    response_message = completion.choices[0].message.content
+                    
+            except Exception as e:
+                print(f"[CHAT-RAG] ❌ Error using RAG system: {e}")
+                # Fallback to basic OpenAI on error
+                client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+                completion = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": get_agent_instructions('solvia')},
+                        {"role": "user", "content": user_message}
+                    ],
+                    max_tokens=800,
+                    temperature=0.7
+                )
+                response_message = completion.choices[0].message.content
+        
+        # Store chat messages (for non-RAG fallback cases only)
+        if 'response_message' in locals():
+            await db.store_chat_message(
+                current_user,
+                message.message,
+                'user',
+                current_user.split('@')[0]
             )
             
-            response_message = completion.choices[0].message.content
-        
-        # Store chat messages - FIX: Must await async functions!
-        await db.store_chat_message(
-            current_user,
-            message.message,
-            'user',
-            current_user.split('@')[0]
-        )
-        
-        await db.store_chat_message(
-            current_user,
-            response_message,
-            'ai',
-            'Solvia'
-        )
+            await db.store_chat_message(
+                current_user,
+                response_message,
+                'ai',
+                'Solvia'
+            )
         
         # Suggest action buttons based on context
         action_buttons = [

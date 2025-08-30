@@ -1,16 +1,18 @@
 """
-Chat Integration with Supabase pgvector RAG
-============================================
-Clean integration layer for chat functionality using Supabase RAG.
-Replaces ChromaDB integration with production-ready pgvector solution.
+Chat Integration with Adaptive RAG System
+==========================================
+Clean integration layer for chat functionality using adaptive RAG.
+Automatically switches between keyword-based and vector-based RAG.
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 import json
 
-from app.agent.supabase_rag_agent import SupabaseRAGAgent, RAGConfig
+from app.agent.rag_factory import RAGFactory
+from app.agent.keyword_rag_agent import KeywordRAGAgent
+from app.agent.supabase_rag_agent import SupabaseRAGAgent
 from app.database.supabase_db import SupabaseAuthDB
 
 logger = logging.getLogger(__name__)
@@ -18,36 +20,45 @@ logger = logging.getLogger(__name__)
 
 class ChatIntegrationSupabase:
     """
-    Clean chat integration using Supabase pgvector RAG.
+    Clean chat integration using adaptive RAG system.
     Handles chat messages, context retrieval, and audit indexing.
+    Automatically switches between keyword and vector RAG based on API capabilities.
     """
     
     def __init__(self):
         """Initialize chat integration with dependency injection"""
         self.db = SupabaseAuthDB()
-        self.rag_agent: Optional[SupabaseRAGAgent] = None
+        self.rag_agent: Optional[Union[KeywordRAGAgent, SupabaseRAGAgent]] = None
+        self.rag_mode: str = "unknown"
         self._init_rag_agent()
         
     def _init_rag_agent(self):
-        """Initialize RAG agent with proper configuration"""
+        """Initialize RAG agent with auto-detection"""
         try:
             import os
             from dotenv import load_dotenv
             load_dotenv()
             
-            # Initialize Supabase RAG agent
-            self.rag_agent = SupabaseRAGAgent(
+            openai_key = os.getenv('OPENAI_API_KEY')
+            if not openai_key:
+                raise ValueError("OPENAI_API_KEY not found in environment")
+            
+            # Test capabilities and create appropriate agent
+            capabilities = RAGFactory.test_rag_capabilities(openai_key)
+            
+            # Create RAG agent using factory
+            self.rag_agent = RAGFactory.create_rag_agent(
                 supabase_client=self.db.supabase,
-                openai_api_key=os.getenv('OPENAI_API_KEY'),
-                config=RAGConfig(
-                    model="gpt-4o-mini",
-                    temperature=0.3,
-                    max_context_length=8000,
-                    min_relevance_score=0.7
-                )
+                openai_api_key=openai_key,
+                mode=os.getenv('RAG_MODE', 'auto')
             )
             
-            logger.info("✅ Supabase RAG agent initialized successfully")
+            self.rag_mode = "vector" if isinstance(self.rag_agent, SupabaseRAGAgent) else "keyword"
+            
+            logger.info(f"✅ RAG agent initialized successfully in {self.rag_mode} mode")
+            logger.info(f"   Chat API: {'✅' if capabilities['chat'] else '❌'}")
+            logger.info(f"   Embeddings API: {'✅' if capabilities['embeddings'] else '❌'}")
+            logger.info(f"   Recommended mode: {capabilities['recommended_mode']}")
             
         except Exception as e:
             logger.error(f"❌ Failed to initialize Supabase RAG agent: {e}")

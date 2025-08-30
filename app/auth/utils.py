@@ -87,6 +87,56 @@ def verify_token(token: str) -> Optional[str]:
         return None
 
 
+def verify_gsc_credentials(user_email: str) -> bool:
+    """
+    Verify that user has valid (non-expired) GSC credentials.
+    
+    Args:
+        user_email: User's email address
+        
+    Returns:
+        True if GSC credentials are valid and not expired
+    """
+    try:
+        from app.database.supabase_db import SupabaseAuthDB
+        
+        db = SupabaseAuthDB()
+        
+        # Get GSC credentials using service role (bypasses RLS)
+        response = db.service_supabase.table('gsc_connections').select('*').eq('email', user_email).execute()
+        
+        if not response.data:
+            return False
+            
+        credentials = response.data[0]
+        
+        # Check if we have access token
+        if not credentials.get('access_token'):
+            return False
+            
+        # Check if token is expired
+        expires_at_str = credentials.get('expires_at')
+        if expires_at_str:
+            from datetime import datetime
+            expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+            now = datetime.now(expires_at.tzinfo)
+            
+            if now > expires_at:
+                # Token is expired - check if we have refresh token
+                if not credentials.get('refresh_token'):
+                    return False  # Expired and can't refresh
+                    
+                # TODO: Attempt token refresh here
+                # For now, consider expired tokens as invalid
+                return False
+                
+        return True
+        
+    except Exception as e:
+        print(f"[AUTH ERROR] Failed to verify GSC credentials: {e}")
+        return False
+
+
 def generate_verification_token() -> str:
     """Generate a random verification token."""
     return secrets.token_urlsafe(32)

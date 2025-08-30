@@ -98,6 +98,38 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return email
 
 
+def get_authenticated_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """
+    Get current user with GSC credential validation.
+    Use this for endpoints that require valid GSC access.
+    """
+    from app.auth.utils import verify_token, verify_gsc_credentials
+    
+    token = credentials.credentials
+    email = verify_token(token)
+    
+    if email is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if user has valid GSC credentials
+    if not verify_gsc_credentials(email):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google Search Console credentials expired. Please re-authenticate.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+                "X-Auth-Required": "google",
+                "X-Redirect-URL": "/domain-selection"
+            }
+        )
+    
+    return email
+
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate):
     """Register a new user using Supabase Auth."""
@@ -863,7 +895,7 @@ class PropertySelectionRequest(BaseModel):
     permissionLevel: str
 
 @router.get("/gsc/properties")
-async def get_gsc_properties(current_user: str = Depends(get_current_user)):
+async def get_gsc_properties(current_user: str = Depends(get_authenticated_user)):
     """Get Google Search Console properties for the authenticated user."""
     try:
         print(f"[GSC PROPERTIES] Getting properties for user: {current_user}")
@@ -941,7 +973,7 @@ async def get_selected_website(current_user: str = Depends(get_current_user)):
         )
 
 @router.get("/gsc/metrics")
-async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
+async def get_gsc_metrics(current_user: str = Depends(get_authenticated_user)):
     """Get Google Search Console metrics for the authenticated user's selected property."""
     try:
         print(f"[GSC METRICS] Getting metrics for user: {current_user}")

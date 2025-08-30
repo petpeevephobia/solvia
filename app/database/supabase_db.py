@@ -17,6 +17,13 @@ class SupabaseAuthDB:
         self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         self.supabase_url = SUPABASE_URL
         self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        
+        # Create service role client for RLS bypass operations
+        if self.service_role_key:
+            self.service_supabase = create_client(SUPABASE_URL, self.service_role_key)
+        else:
+            self.service_supabase = self.supabase
+            
         if access_token:
             self.supabase.auth.session = {"access_token": access_token}
 

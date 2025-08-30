@@ -126,6 +126,18 @@ async function checkAuth() {
             }
         });
         if (!response.ok) {
+            // Check if this is a GSC authentication error
+            const authRequired = response.headers.get('X-Auth-Required');
+            const redirectUrl = response.headers.get('X-Redirect-URL');
+            
+            if (authRequired === 'google' && redirectUrl) {
+                // GSC credentials expired - redirect to domain selection for re-auth
+                console.log('GSC credentials expired, redirecting to domain selection');
+                window.location.href = redirectUrl;
+                return;
+            }
+            
+            // Regular authentication error - redirect to login
             localStorage.removeItem('auth_token');
             window.location.href = '/login';
             return;
@@ -221,7 +233,7 @@ async function loadOverviewMetrics() {
         } else if (metricsResponse.status === 401) {
             // Handle credentials error - check if it's Google OAuth issue
             const errorData = await metricsResponse.json().catch(() => ({}));
-            if (errorData.detail && errorData.detail.includes('Google Search Console credentials not found')) {
+            if (errorData.detail && (errorData.detail.includes('Google Search Console credentials not found') || errorData.detail.includes('Google Search Console credentials expired'))) {
                 console.log('GSC credentials lost, showing re-authentication message');
                 showCredentialsError();
                 hideMetricsSkeleton(); // Hide skeleton on error

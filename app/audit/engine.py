@@ -566,27 +566,38 @@ class AuditEngine:
             print(f"[AUDIT] Successfully stored audit {audit_result.audit_id} with {len(audit_result.issues)} issues")
             
             # Index audit results into Supabase pgvector for RAG
+            print(f"[RAG-DEBUG] Attempting to index audit {audit_result.audit_id} to RAG system")
             try:
-                from app.agent.chat_integration_supabase import chat_integration
+                from app.agent.chat_integration_supabase import ChatIntegrationSupabase
                 
-                # Prepare audit data for Supabase indexing
-                audit_for_rag = audit_result.to_dict()
+                # Create fresh chat integration instance
+                chat_integration = ChatIntegrationSupabase()
+                print(f"[RAG-DEBUG] Chat integration created successfully")
                 
-                # Index to Supabase asynchronously
-                indexed = await chat_integration.index_audit_results(
-                    user_email=audit_result.user_email,
-                    website_url=audit_result.website_url,
-                    audit_data=audit_for_rag
-                )
-                
-                if indexed:
-                    print(f"[SUPABASE-RAG] Successfully indexed audit {audit_result.audit_id} for RAG")
+                if not chat_integration.rag_agent:
+                    print(f"[RAG-DEBUG] No RAG agent available - skipping indexing")
                 else:
-                    print(f"[SUPABASE-RAG] Failed to index audit {audit_result.audit_id} (non-critical)")
+                    print(f"[RAG-DEBUG] RAG agent available: {type(chat_integration.rag_agent).__name__}")
+                
+                    # Prepare audit data for Supabase indexing
+                    audit_for_rag = audit_result.to_dict()
+                    print(f"[RAG-DEBUG] Audit data prepared: {len(audit_for_rag.get('issues', []))} issues")
+                    
+                    # Index to Supabase asynchronously
+                    indexed = await chat_integration.rag_agent.index_audit_results(
+                        user_email=audit_result.user_email,
+                        website_url=audit_result.website_url,
+                        audit_data=audit_for_rag
+                    )
+                    
+                    if indexed:
+                        print(f"[SUPABASE-RAG] ✅ Successfully indexed audit {audit_result.audit_id} for RAG")
+                    else:
+                        print(f"[SUPABASE-RAG] ❌ Failed to index audit {audit_result.audit_id} (non-critical)")
                     
             except Exception as rag_error:
                 # Don't fail the audit if RAG indexing fails
-                print(f"[SUPABASE-RAG] Error indexing audit: {rag_error} (non-critical)")
+                print(f"[SUPABASE-RAG] ❌ Error indexing audit: {rag_error} (non-critical)")
             
             return True
             
