@@ -1037,6 +1037,41 @@ async def get_gsc_metrics(current_user: str = Depends(get_authenticated_user)):
                     'position_change': summary.get('position_change', 0)
                 }
                 print(f"[GSC METRICS] Enhanced metrics with changes: {metrics}")
+                
+                # Index GSC data into RAG system for intelligent chat responses
+                try:
+                    from app.agent.chat_integration_supabase import ChatIntegrationSupabase
+                    chat_integration = ChatIntegrationSupabase()
+                    
+                    # Prepare GSC data for RAG indexing
+                    gsc_data_for_rag = {
+                        'start_date': start_date.isoformat(),
+                        'end_date': end_date.isoformat(),
+                        'clicks': summary.get('total_clicks', 0),
+                        'impressions': summary.get('total_impressions', 0),
+                        'ctr': summary.get('avg_ctr', 0),
+                        'avg_position': summary.get('avg_position', 0),
+                        'seo_score': metrics['seo_score'],
+                        'clicks_change': summary.get('clicks_change', 0),
+                        'impressions_change': summary.get('impressions_change', 0),
+                        'position_change': summary.get('position_change', 0),
+                        'ctr_change': summary.get('ctr_change', 0),
+                        'top_queries': enhanced_metrics.get('top_queries', []),
+                        'top_pages': enhanced_metrics.get('top_pages', [])
+                    }
+                    
+                    # Index the data for chat RAG system
+                    await chat_integration.index_gsc_data(
+                        user_email=current_user,
+                        website_url=user_website,
+                        gsc_data=gsc_data_for_rag
+                    )
+                    print(f"[GSC METRICS] ✅ Successfully indexed GSC data into RAG system")
+                    
+                except Exception as rag_error:
+                    print(f"[GSC METRICS] ⚠️ Failed to index GSC data into RAG: {rag_error}")
+                    # Continue without RAG indexing - it's not critical for metrics display
+                    
             else:
                 print(f"[GSC METRICS] Falling back to simple metrics")
                 # Fallback to simple metrics

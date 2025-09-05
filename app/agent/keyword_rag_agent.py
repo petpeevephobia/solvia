@@ -375,6 +375,104 @@ class KeywordRAGAgent:
         }
         return formatting.get(collection, collection.replace('_', ' ').title())
         
+    async def _get_current_audit_data(self, user_email: str) -> str:
+        """
+        Get current audit data and GSC metrics for the user.
+        
+        Args:
+            user_email: User's email
+            
+        Returns:
+            Formatted audit data string for AI context
+        """
+        try:
+            # Try to get recent audit data from database
+            from app.database.supabase_db import SupabaseAuthDB
+            db = SupabaseAuthDB()
+            
+            # Get user's website
+            website_url = db.get_user_website(user_email)
+            if not website_url:
+                return "No website selected. Please select a website first."
+            
+            # Get latest audit from database
+            latest_audit = db.get_latest_audit(user_email, website_url)
+            
+            # Also get current GSC metrics cache
+            try:
+                gsc_cache = self.service_supabase.table('gsc_metrics_cache').select('*').eq('user_email', user_email).eq('website_url', website_url).order('cache_date', desc=True).limit(1).execute()
+                current_metrics = gsc_cache.data[0] if gsc_cache.data else None
+            except:
+                current_metrics = None
+            
+            # Format audit data for AI context
+            if latest_audit and latest_audit.get('audit_data'):
+                audit_data = latest_audit['audit_data']
+                
+                # Format the audit data
+                formatted_data = f"""
+Website: {website_url}
+Audit Date: {latest_audit.get('created_at', 'Unknown')}
+SEO Score: {latest_audit.get('seo_score', 'N/A')}/100
+
+Audit Summary:
+- Critical Issues: {latest_audit.get('critical_issues', 0)}
+- High Issues: {latest_audit.get('high_issues', 0)}
+- Medium Issues: {latest_audit.get('medium_issues', 0)}
+- Total Issues: {latest_audit.get('total_issues', 0)}
+
+"""
+                
+                # Add current GSC metrics if available
+                if current_metrics:
+                    formatted_data += f"""
+Current GSC Metrics (Last 30 days):
+- Clicks: {current_metrics.get('clicks', 0)}
+- Impressions: {current_metrics.get('impressions', 0)}
+- CTR: {current_metrics.get('ctr', 0):.2f}%
+- Average Position: {current_metrics.get('avg_position', 0):.1f}
+- Cache Date: {current_metrics.get('cache_date', 'Unknown')}
+
+"""
+                
+                # Add specific issues if available in audit data
+                if isinstance(audit_data, dict) and 'issues' in audit_data:
+                    formatted_data += "\nSpecific Issues Found:\n"
+                    for i, issue in enumerate(audit_data['issues'][:5], 1):  # Top 5 issues
+                        if isinstance(issue, dict):
+                            formatted_data += f"{i}. {issue.get('title', 'Unknown Issue')} (Severity: {issue.get('severity', 'Unknown')})\n"
+                            if issue.get('description'):
+                                formatted_data += f"   Description: {issue['description'][:100]}...\n"
+                
+                return formatted_data.strip()
+            
+            # Fallback to just current metrics if no audit available
+            elif current_metrics:
+                return f"""
+Website: {website_url}
+Current GSC Metrics (Last 30 days):
+- Clicks: {current_metrics.get('clicks', 0)}
+- Impressions: {current_metrics.get('impressions', 0)}
+- CTR: {current_metrics.get('ctr', 0):.2f}%
+- Average Position: {current_metrics.get('avg_position', 0):.1f}
+- SEO Score: {current_metrics.get('seo_score', 25.0)}/100
+- Cache Date: {current_metrics.get('cache_date', 'Unknown')}
+
+Note: No recent audit data available. Consider running a new audit for detailed insights.
+"""
+            
+            # No data available
+            else:
+                return f"""
+Website: {website_url}
+No recent audit or GSC data available.
+Please refresh your dashboard to load current metrics or run a new audit.
+"""
+                
+        except Exception as e:
+            logger.error(f"Failed to get current audit data: {e}")
+            return "Unable to retrieve current audit data. Please try refreshing your dashboard."
+    
     async def generate_response(
         self,
         user_email: str,
@@ -396,15 +494,59 @@ class KeywordRAGAgent:
             # Get augmented context using keyword search
             context = await self.get_augmented_context(user_email, query)
             
+            # Get current GSC metrics for the user
+            current_audit_data = await self._get_current_audit_data(user_email)
+            
+            # Enhanced system prompt with actual data injection
+            enhanced_prompt = f"""You are Solvia, an expert SEO analyst that provides insights based EXCLUSIVELY on real Google Search Console data and audit results. You NEVER make up data or provide generic advice.
+
+## CRITICAL INSTRUCTIONS:
+1. ONLY use numbers, metrics, and data points that are explicitly provided in the context
+2. If specific data is not available, say "I don't have that data in the current audit"
+3. Always cite exact numbers with their date ranges
+4. Never use placeholder values or estimates
+5. Every insight must reference actual data from the provided context
+
+## DATA CONTEXT PROVIDED TO YOU:
+<audit_data>
+{current_audit_data}
+</audit_data>
+
+## YOUR RESPONSE RULES:
+
+### When analyzing SEO performance:
+- State the EXACT SEO score: "Your SEO score is [exact_number]/100"
+- Use ACTUAL metrics: "[exact_clicks] clicks from [exact_impressions] impressions"
+- Reference REAL date ranges: "Based on data from [start_date] to [end_date]"
+- Compare with ACTUAL historical data if available in context
+
+### When identifying issues:
+- Only mention issues that exist in the audit_data or context
+- Cite specific affected pages with their exact URLs if available
+- Provide exact impact metrics from the data
+- Never invent problems that aren't in the data
+
+### When making recommendations:
+- Base every suggestion on a specific data point from the audit
+- Prioritize based on actual impact scores in the data
+- Never suggest generic SEO tactics without data backing
+
+### When answering questions:
+- "What are my top issues?" → List ONLY issues from the audit_data with their exact details
+- "Show me traffic trends" → Reference ONLY the exact metrics and changes in the data
+- "How is my site doing?" → Provide the EXACT seo_score and metrics
+
+## HANDLING MISSING DATA:
+If asked about data not in the context, respond:
+"I don't have [specific_metric] data in your current audit. I can analyze the GSC metrics currently available based on your actual Google Search Console data."
+
+Remember: You are a data analyst, not a fortune teller. Only state what the data explicitly shows."""
+            
             # Build messages for OpenAI
             messages = [
                 {
                     "role": "system",
-                    "content": """You are Solvia, an expert SEO assistant with access to the user's real Google Search Console data and audit history.
-                    Use the provided context to give specific, data-driven advice. Always reference actual metrics when available.
-                    Be concise but thorough. Focus on actionable recommendations.
-                    
-                    Note: You're using keyword-based search (not semantic), so focus on exact terms and phrases mentioned in the context."""
+                    "content": enhanced_prompt
                 }
             ]
             
