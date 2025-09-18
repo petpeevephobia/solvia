@@ -1933,31 +1933,8 @@ class SolviaRouter {
 
 // Global Functions
 function toggleSidebar() {
-    console.log('🔧 SPA: toggleSidebar function called!');
-
-    const sidebar = document.getElementById('sidebar');
-    const logoImg = document.getElementById('logo-img');
-
-    if (!sidebar || !logoImg) {
-        console.error('❌ Missing elements - sidebar:', !!sidebar, 'logoImg:', !!logoImg);
-        return;
-    }
-
-    const isExpanding = !sidebar.classList.contains('expanded');
-    console.log('🔄 Toggle action - isExpanding:', isExpanding);
-
-    sidebar.classList.toggle('expanded');
-
-    // Switch logo based on sidebar state
-    if (isExpanding) {
-        console.log('🔄 Expanding: Setting logo to logo_v2.png');
-        logoImg.src = '/static/logo_v2.png?' + Date.now();
-    } else {
-        console.log('🔄 Collapsing: Setting logo to orange-svg-emblem-40px.svg');
-        logoImg.src = '/static/orange-svg-emblem-40px.svg?' + Date.now();
-    }
-
-    console.log('🔄 Logo src after toggle:', logoImg.src);
+    // ✅ CLEAN CODE: Function extracted to utility module
+    return window.SolviaUtils.UtilityFunctions.toggleSidebar();
 }
 
 async function logout() {
@@ -2025,19 +2002,8 @@ async function saveWebsiteSelection() {
 
 // Toggle issue description visibility
 function toggleIssueDescription(cardId) {
-    const shortDiv = document.getElementById(`short-${cardId}`);
-    const fullDiv = document.getElementById(`full-${cardId}`);
-    const btn = event.target;
-
-    if (fullDiv.style.display === 'none' || fullDiv.style.display === '') {
-        shortDiv.style.display = 'none';
-        fullDiv.style.display = 'block';
-        btn.textContent = '← Show less details';
-    } else {
-        shortDiv.style.display = 'block';
-        fullDiv.style.display = 'none';
-        btn.textContent = 'Show more details →';
-    }
+    // ✅ CLEAN CODE: Function extracted to utility module
+    return window.SolviaUtils.UtilityFunctions.toggleIssueDescription(cardId);
 }
 
 // Run new audit
@@ -2072,27 +2038,8 @@ async function runNewAudit() {
 
 // Enhanced progress interface helper functions
 function minimizeAuditProgress() {
-    const overlay = document.getElementById('auditProgressOverlay');
-    const details = document.getElementById('auditProgressDetails');
-    const btn = document.getElementById('minimizeAuditBtn');
-
-    if (overlay && details && btn) {
-        const isCollapsed = details.style.display === 'none';
-
-        if (isCollapsed) {
-            // Expand: show details, change to minus icon
-            details.style.display = 'block';
-            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/></svg>';
-            btn.title = 'Minimize';
-            console.log('🚀 ENHANCED: Progress details expanded');
-        } else {
-            // Collapse: hide details, change to plus icon
-            details.style.display = 'none';
-            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>';
-            btn.title = 'Expand';
-            console.log('🚀 ENHANCED: Progress details collapsed');
-        }
-    }
+    // ✅ CLEAN CODE: Function extracted to utility module
+    return window.SolviaUtils.UtilityFunctions.minimizeAuditProgress();
 }
 
 function runAuditInBackground() {
