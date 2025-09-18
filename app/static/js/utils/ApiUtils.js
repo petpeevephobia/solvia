@@ -252,6 +252,1066 @@ export class TextUtils {
     }
 }
 
+export class ChatUtils {
+    static handleChatKeypress(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendChatMessage();
+        }
+    }
+
+    static sendSuggestion(suggestion) {
+        const input = document.getElementById('chatInput');
+        if (input) {
+            input.value = suggestion;
+            sendChatMessage();
+        }
+    }
+
+    static getRandomSuggestions(excludeText = null) {
+        const suggestionPool = [
+            'How was my SEO last week?',
+            'Run a new audit',
+            'What are my top issues?',
+            'Show me traffic trends',
+            'Suggest keywords for my blog',
+            'How to improve my CTR?',
+            'What pages need optimization?',
+            'Show me my best performing queries',
+            'Any pressing issues this month?',
+            'What can you help me with?',
+            'Analyze my competitors',
+            'How to get more impressions?'
+        ];
+
+        let available = suggestionPool.filter(s => s !== excludeText);
+        let shuffled = available.sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, 4);
+    }
+
+    static sendSuggestionWithRotation(text) {
+        // Send the suggestion
+        ChatUtils.sendSuggestion(text);
+
+        // Rotate to new random suggestions after a short delay
+        setTimeout(() => {
+            ChatUtils.updateSuggestionButtons(ChatUtils.getRandomSuggestions(text));
+        }, 100);
+    }
+
+    static updateSuggestionButtons(actionButtons, hideForAudit = false) {
+        const suggestionsContainer = document.querySelector('.chat-suggestions');
+        if (!suggestionsContainer) return;
+
+        // Hide suggestions during audit
+        if (hideForAudit) {
+            suggestionsContainer.style.display = 'none';
+            console.log('🔄 Hiding suggestions during audit...');
+            return;
+        }
+
+        // Show suggestions container
+        suggestionsContainer.style.display = 'flex';
+
+        // Use provided suggestions or get random ones
+        let suggestions = [];
+
+        if (actionButtons && Array.isArray(actionButtons) && actionButtons.length > 0) {
+            suggestions = actionButtons.slice(0, 4);
+            console.log('✅ Using provided suggestions:', suggestions);
+        } else {
+            // Get random suggestions
+            suggestions = ChatUtils.getRandomSuggestions();
+            console.log('🎲 Using random suggestions:', suggestions);
+        }
+
+        // Generate suggestion buttons HTML
+        const suggestionsHtml = suggestions.map(suggestion =>
+            `<button class="suggestion-btn" onclick="sendSuggestionWithRotation('${suggestion.replace(/'/g, "\\'")}')">${suggestion}</button>`
+        ).join('');
+
+        // Update the suggestions container
+        suggestionsContainer.innerHTML = suggestionsHtml;
+    }
+}
+
+export class ChatService {
+    static async sendChatMessage() {
+        const input = document.getElementById('chatInput');
+        const messagesContainer = document.getElementById('chatMessages');
+        const sendBtn = document.getElementById('sendBtn');
+
+        if (!input || !input.value.trim()) return;
+
+        // Disable send button and input
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.style.opacity = '0.5';
+            sendBtn.style.cursor = 'not-allowed';
+        }
+        if (input) {
+            input.disabled = true;
+            input.style.opacity = '0.7';
+        }
+
+        const message = input.value.trim();
+        input.value = '';
+
+        // Check if user is asking to run an audit
+        const auditKeywords = ['run audit', 'new audit', 'run a new audit', 'start audit', 'perform audit', 'trigger audit'];
+        const shouldTriggerAudit = auditKeywords.some(keyword => message.toLowerCase().includes(keyword));
+
+        // If audit requested, trigger audit with enhanced progress (no modal)
+        if (shouldTriggerAudit) {
+            console.log('🚀 Chat audit request detected, starting audit...');
+            triggerAudit();
+        }
+
+        // Add user message to chat
+        const userMessageHtml = `
+            <div class="chat-message user">
+                <div class="message-content user">
+                    <div class="message-text">${message}</div>
+                </div>
+                <div class="message-avatar user">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 18px; height: 18px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                    </svg>
+                </div>
+            </div>
+        `;
+
+        // Remove skeleton and welcome message if they exist
+        const skeleton = document.getElementById('chatSkeleton');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        if (skeleton) skeleton.style.display = 'none';
+        if (welcomeMessage) {
+            welcomeMessage.style.display = 'none';
+            welcomeMessage.classList.add('hidden');
+        }
+
+        // Add to messages
+        if (messagesContainer) {
+            messagesContainer.insertAdjacentHTML('beforeend', userMessageHtml);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Add loading indicator with fade animation instead of rotation
+        const loadingMessages = [
+            '🔄 Analyzing your question...',
+            '🧠 Searching knowledge base...',
+            '📊 Checking your website data...',
+            '✍️ Crafting your response...',
+            '🧪 Testing insights...',
+            '⚙️ Preparing recommendations...',
+            '🔍 Analyzing patterns...',
+            '📈 Evaluating SEO metrics...',
+            '🎯 Optimizing suggestions...',
+            '💡 Generating ideas...',
+            '📋 Reviewing data quality...',
+            '🚀 Finalizing response...'
+        ];
+
+        let currentLoadingIndex = 0;
+        const loadingHtml = `
+            <div class="chat-message ai loading" id="loadingMessage">
+                <div class="message-avatar ai">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="loading-fade">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                    </svg>
+                </div>
+                <div class="message-content ai">
+                    <div class="message-text" id="loadingText">${loadingMessages[0]}</div>
+                </div>
+            </div>
+        `;
+
+        if (messagesContainer) {
+            messagesContainer.insertAdjacentHTML('beforeend', loadingHtml);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Animate loading messages
+        const loadingInterval = setInterval(() => {
+            currentLoadingIndex = (currentLoadingIndex + 1) % loadingMessages.length;
+            const loadingTextElement = document.getElementById('loadingText');
+            if (loadingTextElement) {
+                loadingTextElement.textContent = loadingMessages[currentLoadingIndex];
+            }
+        }, 30000);
+
+        try {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const response = await fetch('/agent/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    message: message
+                })
+            });
+
+            // Clear loading interval and remove loading message
+            clearInterval(loadingInterval);
+            const loadingMessage = document.getElementById('loadingMessage');
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Chat response data:', data);
+
+                // Extract the actual message content from the response
+                let aiMessage = data.message || data.ai_response || data.response || data.message_content || 'I understand your question. Let me help you with that.';
+
+                // Special formatting for audit responses
+                if (data.audit_triggered || shouldTriggerAudit) {
+                    aiMessage = formatAuditResponse(aiMessage);
+                }
+
+                // Convert markdown to HTML for proper formatting
+                aiMessage = convertMarkdownToHTML(aiMessage);
+
+                // Check if an audit was triggered
+                if (data.audit_triggered || shouldTriggerAudit) {
+                    // Refresh dashboard data after audit completes
+                    setTimeout(() => {
+                        if (window.solviaRouter) {
+                            console.log('🔄 Refreshing dashboard after chat audit...');
+                            window.solviaRouter.loadDashboardData();
+                        }
+                    }, 5000); // Wait 5 seconds for audit to complete
+                }
+
+                // Check if an audit was triggered and add download buttons
+                let downloadButtons = '';
+                if (data.audit_triggered && data.audit_id) {
+                    console.log('✅ SPA: Audit completed! Adding download buttons for audit:', data.audit_id);
+                    downloadButtons = `
+                        <div style="display: flex; gap: 10px; margin-top: 16px;">
+                            <button onclick="downloadAuditPDF('${data.audit_id}')" style="
+                                background: white;
+                                color: #EC6019;
+                                border: 1px solid #EC6019;
+                                border-radius: 8px;
+                                font-size: 14px;
+                                font-weight: 500;
+                                cursor: pointer;
+                                padding: 10px 16px;
+                                flex: 1;
+                                transition: all 0.2s;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 8px;
+                            " onmouseover="this.style.background='#EC6019'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#EC6019';">
+                                <span>📄</span> Download PDF
+                            </button>
+                            <button onclick="downloadAuditJSON('${data.audit_id}')" style="
+                                background: white;
+                                color: #EC6019;
+                                border: 1px solid #EC6019;
+                                border-radius: 8px;
+                                font-size: 14px;
+                                font-weight: 500;
+                                cursor: pointer;
+                                padding: 10px 16px;
+                                flex: 1;
+                                transition: all 0.2s;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 8px;
+                            " onmouseover="this.style.background='#EC6019'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#EC6019';">
+                                <span>📊</span> Download JSON
+                            </button>
+                        </div>
+                    `;
+
+                    // Store audit ID for potential later use
+                    window.currentAuditId = data.audit_id;
+                }
+
+                // Add AI response
+                const aiMessageHtml = `
+                    <div class="chat-message ai">
+                        <div class="message-avatar ai">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                            </svg>
+                        </div>
+                        <div class="message-content ai">
+                            <div class="message-text">${aiMessage}${downloadButtons}</div>
+                        </div>
+                    </div>
+                `;
+
+                if (messagesContainer) {
+                    messagesContainer.insertAdjacentHTML('beforeend', aiMessageHtml);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+                // Handle suggestion buttons based on audit state
+                if (data.audit_triggered) {
+                    // Hide suggestions during audit
+                    updateSuggestionButtons(null, true);
+
+                    // Show suggestions again after audit completes (estimated 60 seconds)
+                    setTimeout(() => {
+                        updateSuggestionButtons(getRandomSuggestions());
+                        console.log('✅ Audit complete - suggestions restored');
+                    }, 60000);
+                } else {
+                    // Normal chat response - show suggestions
+                    updateSuggestionButtons(data.action_buttons || getRandomSuggestions());
+                }
+            } else {
+                console.error('Chat API error:', response.status, response.statusText);
+                // Try to get error details
+                try {
+                    const errorData = await response.json();
+                    console.error('Error details:', errorData);
+
+                    // Handle GSC credentials expired (401 error)
+                    if (response.status === 401 || (errorData && errorData.error && errorData.error.includes('credentials expired'))) {
+                        const errorMessageHtml = `
+                            <div class="chat-message ai error">
+                                <div class="message-avatar ai">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                                    </svg>
+                                </div>
+                                <div class="message-content ai">
+                                    <div class="message-text">
+                                        🔐 <strong>Google Search Console credentials expired.</strong><br><br>
+                                        I need fresh access to provide intelligent SEO insights. Please:
+                                        <br><br>
+                                        <button onclick="reauthorizeGoogle()" style="background: #EC6019; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin: 8px 0;">
+                                            ⚡ Refresh Credentials
+                                        </button>
+                                        <br><br>
+                                        Your chat history and settings will be preserved.
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                        if (messagesContainer) {
+                            messagesContainer.insertAdjacentHTML('beforeend', errorMessageHtml);
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                    } else {
+                        // Other errors
+                        const genericErrorHtml = `
+                            <div class="chat-message ai error">
+                                <div class="message-avatar ai">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                                    </svg>
+                                </div>
+                                <div class="message-content ai">
+                                    <div class="message-text">I'm having trouble processing your request. Please try again in a moment.</div>
+                                </div>
+                            </div>
+                        `;
+
+                        if (messagesContainer) {
+                            messagesContainer.insertAdjacentHTML('beforeend', genericErrorHtml);
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Could not parse error response');
+                }
+            }
+        } catch (error) {
+            console.error('Error sending chat message:', error);
+
+            // Clear loading interval and remove loading message on error
+            clearInterval(loadingInterval);
+            const loadingMessage = document.getElementById('loadingMessage');
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+
+            // Show error message
+            const errorHtml = `
+                <div class="chat-message ai error">
+                    <div class="message-avatar ai">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                        </svg>
+                    </div>
+                    <div class="message-content ai">
+                        <div class="message-text">Connection error. Please check your internet and try again.</div>
+                    </div>
+                </div>
+            `;
+
+            if (messagesContainer) {
+                messagesContainer.insertAdjacentHTML('beforeend', errorHtml);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        } finally {
+            // Re-enable send button and input
+            const sendBtn = document.getElementById('sendBtn');
+            const input = document.getElementById('chatInput');
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.style.opacity = '1';
+                sendBtn.style.cursor = 'pointer';
+            }
+            if (input) {
+                input.disabled = false;
+                input.style.opacity = '1';
+            }
+        }
+    }
+}
+
+export class AuditService {
+    static async triggerAudit() {
+        console.log('🚀 Starting audit trigger...');
+        const startTime = Date.now();
+        const steps = [
+            { id: 'initializing', progress: 15, message: 'Initializing audit engine...' },
+            { id: 'fetching', progress: 30, message: 'Fetching GSC data...' },
+            { id: 'analyzing', progress: 50, message: 'Analyzing with AI...' },
+            { id: 'detecting', progress: 70, message: 'Detecting issues...' },
+            { id: 'recommendations', progress: 85, message: 'Generating recommendations...' },
+            { id: 'report', progress: 95, message: 'Creating report...' },
+            { id: 'completed', progress: 100, message: 'Audit completed!' }
+        ];
+
+        let currentStepIndex = 0;
+        let progressInterval = null;
+        let auditTimeoutId = null;
+        let auditStartTime = Date.now();
+
+        // Timeout handler function
+        const handleAuditTimeout = () => {
+            console.warn('⚠️ AUDIT TIMEOUT: Auto-cleaning up after 30+ seconds...');
+
+            // Clear progress interval
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+
+            // Clean up UI elements
+            const overlay = document.getElementById('auditProgressOverlay');
+            const backgroundIndicator = document.getElementById('auditBackgroundIndicator');
+
+            if (backgroundIndicator) {
+                // Remove background indicator
+                backgroundIndicator.remove();
+            } else if (overlay) {
+                // Hide progress overlay
+                overlay.style.transform = 'translateY(-100%)';
+                setTimeout(() => overlay.style.display = 'none', 400);
+            }
+
+            // Re-enable audit button
+            const auditBtn = document.getElementById('auditBtn');
+            if (auditBtn) {
+                auditBtn.disabled = false;
+                auditBtn.textContent = 'Run a new audit';
+            }
+
+            // Show timeout notification
+            const timeoutToast = document.createElement('div');
+            timeoutToast.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 60000;
+                background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                color: white; padding: 16px 20px; border-radius: 12px;
+                box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+                max-width: 350px; transform: translateX(400px);
+                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            `;
+            timeoutToast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="font-size: 24px;">⏰</div>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Audit Timeout</div>
+                        <div style="font-size: 13px; opacity: 0.9;">The audit took longer than expected and was stopped.</div>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()"
+                            style="background: none; border: none; color: white; opacity: 0.7; cursor: pointer; padding: 4px; margin-left: auto;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            document.body.appendChild(timeoutToast);
+
+            // Show toast with slide-in animation
+            setTimeout(() => timeoutToast.style.transform = 'translateX(0)', 100);
+
+            // Auto-hide after 7 seconds
+            setTimeout(() => {
+                timeoutToast.style.transform = 'translateX(400px)';
+                setTimeout(() => timeoutToast.remove(), 400);
+            }, 7000);
+
+            console.log('🚀 TIMEOUT: Cleanup completed');
+        };
+
+        // Update progress function
+        const updateProgress = (stepId, progress, message) => {
+            console.log(`📊 Updating progress: ${stepId} - ${progress}% - ${message}`);
+
+            // Note: No longer resetting timeout on each progress update
+            // Timeout is set once at API call start and only cleared on success/error
+
+            // ===== ENHANCED PROGRESS INTERFACE =====
+            const overlay = document.getElementById('auditProgressOverlay');
+            if (overlay) {
+                // Show with slide-down animation
+                overlay.style.display = 'block';
+                setTimeout(() => overlay.style.transform = 'translateY(0)', 10);
+
+                // Update progress elements
+                const progressBar = overlay.querySelector('.progress-bar');
+                const progressText = overlay.querySelector('.progress-text');
+                const progressPercent = overlay.querySelector('.progress-percent');
+                const stepStatus = overlay.querySelector(`[data-step="${stepId}"]`);
+
+                if (progressBar) {
+                    progressBar.style.setProperty('width', `${progress}%`, 'important');
+                }
+
+                if (progressText) {
+                    progressText.textContent = message;
+                }
+
+                if (progressPercent) {
+                    progressPercent.textContent = `${progress}%`;
+                }
+
+                if (stepStatus) {
+                    // Update step status
+                    stepStatus.textContent = 'completed';
+                    stepStatus.className = 'step-status completed';
+                }
+
+                console.log(`📊 Progress overlay updated: ${progress}%`);
+            }
+
+            // ===== FALLBACK BACKGROUND INDICATOR =====
+            let backgroundIndicator = document.getElementById('auditBackgroundIndicator');
+            if (!backgroundIndicator) {
+                // Create background indicator if not exists
+                backgroundIndicator = document.createElement('div');
+                backgroundIndicator.id = 'auditBackgroundIndicator';
+                backgroundIndicator.style.cssText = `
+                    position: fixed; top: 20px; right: 20px; z-index: 55000;
+                    background: linear-gradient(135deg, #EC6019 0%, #d97706 100%);
+                    color: white; padding: 12px 16px; border-radius: 10px;
+                    box-shadow: 0 6px 20px rgba(236, 96, 25, 0.3);
+                    font-size: 14px; font-weight: 500; max-width: 250px;
+                    transform: translateX(300px);
+                    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                `;
+                document.body.appendChild(backgroundIndicator);
+
+                // Show with slide-in animation
+                setTimeout(() => backgroundIndicator.style.transform = 'translateX(0)', 100);
+            }
+
+            // Update background indicator content
+            backgroundIndicator.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="loading-spinner" style="
+                        width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+                        border-top-color: white; border-radius: 50%;
+                        animation: spin 1s linear infinite;
+                    "></div>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 2px;">Running Audit</div>
+                        <div style="font-size: 12px; opacity: 0.9;">${progress}% - ${message}</div>
+                    </div>
+                </div>
+            `;
+
+            console.log(`📊 Background indicator updated: ${progress}%`);
+        };
+
+        // ===== START AUDIT PROCESS =====
+        console.log('🔥 Starting enhanced audit process...');
+
+        // Disable audit button immediately
+        const auditBtn = document.getElementById('auditBtn');
+        if (auditBtn) {
+            auditBtn.disabled = true;
+            auditBtn.textContent = 'Running audit...';
+        }
+
+        // Start progress simulation
+        progressInterval = setInterval(() => {
+            if (currentStepIndex < steps.length) {
+                const step = steps[currentStepIndex];
+                updateProgress(step.id, step.progress, step.message);
+                currentStepIndex++;
+            } else {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        }, 800); // Progress every 800ms
+
+        try {
+            // Start 32-second timeout
+            auditTimeoutId = setTimeout(handleAuditTimeout, 32000);
+
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const response = await fetch('/agent/audit/trigger', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            // Clear timeout on response (success or error)
+            if (auditTimeoutId) {
+                clearTimeout(auditTimeoutId);
+                auditTimeoutId = null;
+                console.log('✅ Audit timeout cleared on response');
+            }
+
+            // Clear progress interval
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Audit triggered successfully:', data);
+
+                // Show 100% completion briefly
+                updateProgress('completed', 100, 'Audit completed!');
+
+                // Clean up UI after short delay
+                setTimeout(() => {
+                    // Remove progress overlay
+                    const overlay = document.getElementById('auditProgressOverlay');
+                    if (overlay) {
+                        overlay.style.transform = 'translateY(-100%)';
+                        setTimeout(() => overlay.style.display = 'none', 400);
+                    }
+
+                    // Remove background indicator
+                    const backgroundIndicator = document.getElementById('auditBackgroundIndicator');
+                    if (backgroundIndicator) {
+                        backgroundIndicator.style.transform = 'translateX(300px)';
+                        setTimeout(() => backgroundIndicator.remove(), 400);
+                    }
+
+                    // Re-enable audit button
+                    if (auditBtn) {
+                        auditBtn.disabled = false;
+                        auditBtn.textContent = 'Run a new audit';
+                    }
+
+                    // Show success notification
+                    const successToast = document.createElement('div');
+                    successToast.style.cssText = `
+                        position: fixed; top: 20px; right: 20px; z-index: 60000;
+                        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                        color: white; padding: 16px 20px; border-radius: 12px;
+                        box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+                        max-width: 350px; transform: translateX(400px);
+                        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                    `;
+                    successToast.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="font-size: 24px;">✅</div>
+                            <div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">Audit Complete</div>
+                                <div style="font-size: 13px; opacity: 0.9;">Your website audit has been completed successfully.</div>
+                            </div>
+                            <button onclick="this.parentElement.parentElement.remove()"
+                                    style="background: none; border: none; color: white; opacity: 0.7; cursor: pointer; padding: 4px; margin-left: auto;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 6L6 18M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+
+                    document.body.appendChild(successToast);
+
+                    // Show toast with slide-in animation
+                    setTimeout(() => successToast.style.transform = 'translateX(0)', 100);
+
+                    // Auto-hide after 5 seconds
+                    setTimeout(() => {
+                        successToast.style.transform = 'translateX(400px)';
+                        setTimeout(() => successToast.remove(), 400);
+                    }, 5000);
+
+                    // Refresh dashboard after 2 seconds
+                    setTimeout(() => {
+                        if (window.solviaRouter) {
+                            console.log('🔄 Refreshing dashboard after audit completion...');
+                            window.solviaRouter.loadDashboardData();
+                        }
+                    }, 2000);
+
+                }, 1000); // Short delay to show completion
+
+                const endTime = Date.now();
+                const duration = (endTime - startTime) / 1000;
+                console.log(`⏱️ Total audit time: ${duration.toFixed(1)}s`);
+
+            } else {
+                console.error('❌ Audit trigger failed:', response.status, response.statusText);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+        } catch (error) {
+            console.error('❌ Audit trigger error:', error);
+
+            // Clear timeout on error
+            if (auditTimeoutId) {
+                clearTimeout(auditTimeoutId);
+                auditTimeoutId = null;
+            }
+
+            // Clear progress interval
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+
+            // Clean up UI
+            const overlay = document.getElementById('auditProgressOverlay');
+            const backgroundIndicator = document.getElementById('auditBackgroundIndicator');
+
+            if (backgroundIndicator) {
+                backgroundIndicator.remove();
+            } else if (overlay) {
+                overlay.style.transform = 'translateY(-100%)';
+                setTimeout(() => overlay.style.display = 'none', 400);
+            }
+
+            // Re-enable audit button
+            if (auditBtn) {
+                auditBtn.disabled = false;
+                auditBtn.textContent = 'Run a new audit';
+            }
+
+            // Auto-close modal after 3 seconds on error
+            setTimeout(() => {
+                closeAuditModal();
+            }, 3000);
+        }
+    }
+}
+
+export class UIService {
+    static async runNewAudit() {
+        console.log('🚀 Starting new SEO audit...');
+
+        // Get audit button and disable it
+        const auditBtn = document.getElementById('auditBtn');
+        if (auditBtn) {
+            auditBtn.disabled = true;
+            auditBtn.textContent = 'Starting audit...';
+        }
+
+        // Send chat message to indicate audit started
+        const chatContainer = document.getElementById('chatContainer');
+        if (chatContainer && window.solviaRouter && window.solviaRouter.sendChatMessage) {
+            // Add user message to show audit was triggered
+            const userMessageHtml = `
+                <div class="chat-message user">
+                    <div class="message-content user">
+                        <div class="message-text">Run a new audit</div>
+                    </div>
+                    <div class="message-avatar user">👤</div>
+                </div>
+            `;
+
+            const messagesContainer = document.getElementById('chatMessages');
+            if (messagesContainer) {
+                messagesContainer.insertAdjacentHTML('beforeend', userMessageHtml);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }
+
+        // Start the audit
+        await triggerAudit();
+    }
+
+    static showAuditModal() {
+        // Check if modal already exists
+        let modal = document.getElementById('auditModalSPA');
+
+        if (!modal) {
+            // Create modal HTML with larger size
+            const modalHTML = `
+                <div id="auditModalSPA" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>🔍 Running SEO Audit</h3>
+                            <span class="modal-close" onclick="closeAuditModal()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div class="audit-progress-container">
+                                <div class="progress-icon">
+                                    <div class="spinner"></div>
+                                </div>
+                                <div class="progress-info">
+                                    <h4 id="auditStatusTitle">Analyzing your website...</h4>
+                                    <p id="auditStatusMessage">Starting comprehensive SEO audit for your website</p>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                                    </div>
+                                    <div class="progress-text">
+                                        <span id="progressPercent">0%</span>
+                                        <span id="progressTime">Starting...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="audit-steps">
+                                <div class="step" id="step-initializing">
+                                    <span class="step-icon">🔄</span>
+                                    <span class="step-text">Initializing audit</span>
+                                    <span class="step-status pending">pending</span>
+                                </div>
+                                <div class="step" id="step-fetching">
+                                    <span class="step-icon">📊</span>
+                                    <span class="step-text">Fetching Google Search Console data</span>
+                                    <span class="step-status pending">pending</span>
+                                </div>
+                                <div class="step" id="step-analyzing">
+                                    <span class="step-icon">🧠</span>
+                                    <span class="step-text">Analyzing metrics with AI</span>
+                                    <span class="step-status pending">pending</span>
+                                </div>
+                                <div class="step" id="step-detecting">
+                                    <span class="step-icon">🔍</span>
+                                    <span class="step-text">Detecting SEO issues</span>
+                                    <span class="step-status pending">pending</span>
+                                </div>
+                                <div class="step" id="step-recommendations">
+                                    <span class="step-icon">💡</span>
+                                    <span class="step-text">Generating recommendations</span>
+                                    <span class="step-status pending">pending</span>
+                                </div>
+                                <div class="step" id="step-report">
+                                    <span class="step-icon">📄</span>
+                                    <span class="step-text">Creating report</span>
+                                    <span class="step-status pending">pending</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button onclick="minimizeAuditProgress()" class="btn-secondary">Minimize</button>
+                            <button onclick="closeAuditModal()" class="btn-secondary">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            modal = document.getElementById('auditModalSPA');
+        }
+
+        // Show modal
+        modal.style.display = 'block';
+        // Reset progress
+        resetModalProgress();
+    }
+
+    static minimizeAuditProgress() {
+        const modal = document.getElementById('auditModalSPA');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    static runAuditInBackground() {
+        console.log('🔄 Running audit in background...');
+
+        // Hide modal if visible
+        const modal = document.getElementById('auditModalSPA');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+
+        // Create or update background indicator
+        let backgroundIndicator = document.getElementById('auditBackgroundIndicator');
+
+        if (!backgroundIndicator) {
+            const indicatorHTML = `
+                <div id="auditBackgroundIndicator" style="
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #EC6019 0%, #d97706 100%);
+                    color: white;
+                    padding: 12px 16px;
+                    border-radius: 10px;
+                    box-shadow: 0 6px 20px rgba(236, 96, 25, 0.3);
+                    z-index: 55000;
+                    font-size: 14px;
+                    font-weight: 500;
+                    max-width: 280px;
+                    transform: translateX(300px);
+                    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                ">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="loading-spinner" style="
+                            width: 16px;
+                            height: 16px;
+                            border: 2px solid rgba(255,255,255,0.3);
+                            border-top-color: white;
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                        "></div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 2px;">Running Audit</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Your SEO audit is running in the background</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', indicatorHTML);
+            backgroundIndicator = document.getElementById('auditBackgroundIndicator');
+
+            // Show with slide-in animation
+            setTimeout(() => {
+                backgroundIndicator.style.transform = 'translateX(0)';
+            }, 100);
+        }
+
+        console.log('🚀 Background indicator active');
+    }
+
+    static hideSuccessToast() {
+        const toast = document.getElementById('auditSuccessToast');
+        if (toast) {
+            toast.style.transform = 'translateX(400px)';
+            setTimeout(() => toast.style.display = 'none', 400);
+        }
+    }
+}
+
+export class DownloadUtils {
+    static async downloadAuditPDF(auditId) {
+        try {
+            console.log('📄 SPA: Downloading PDF for audit:', auditId);
+
+            // Validate audit ID format
+            if (!auditId || auditId === 'undefined' || auditId === 'null') {
+                console.error('Invalid audit ID:', auditId);
+                alert('Invalid audit ID. Please run a new audit.');
+                return;
+            }
+
+            const authToken = localStorage.getItem('auth_token');
+            const response = await fetch(`/agent/report/${auditId}/pdf`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                if (response.status === 404) {
+                    console.error('Audit not found');
+                    alert('This audit report is no longer available. Please run a new audit.');
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${response.status} - ${errorData.detail || errorData.message}`);
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `seo_audit_${auditId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            console.log('✅ SPA: PDF downloaded successfully');
+        } catch (error) {
+            console.error('Failed to download PDF:', error);
+            alert('Failed to download PDF report. Please try again.');
+        }
+    }
+
+    static async downloadAuditJSON(auditId) {
+        try {
+            console.log('📊 SPA: Downloading JSON for audit:', auditId);
+
+            // Validate audit ID format
+            if (!auditId || auditId === 'undefined' || auditId === 'null') {
+                console.error('Invalid audit ID:', auditId);
+                alert('Invalid audit ID. Please run a new audit.');
+                return;
+            }
+
+            const authToken = localStorage.getItem('auth_token');
+            const response = await fetch(`/agent/report/${auditId}/json`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                if (response.status === 404) {
+                    console.error('Audit not found');
+                    alert('This audit data is no longer available. Please run a new audit.');
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${response.status} - ${errorData.detail || errorData.message}`);
+            }
+
+            const data = await response.json();
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `seo_audit_${auditId}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            console.log('✅ SPA: JSON downloaded successfully');
+        } catch (error) {
+            console.error('Failed to download JSON:', error);
+            alert(`Failed to download JSON: ${error.message}`);
+        }
+    }
+
+    static closeDownloadMenu() {
+        const menu = document.querySelector('[id*="download-menu"]');
+        if (menu) {
+            menu.style.display = 'none';
+        }
+    }
+
+    static reauthorizeGoogle() {
+        console.log('Reauthorizing Google credentials...');
+        window.location.href = '/auth/google/authorize';
+    }
+}
+
 export class AuthUtils {
     static async logout() {
         try {
@@ -473,6 +1533,11 @@ window.SolviaUtils = {
     DomUtils,
     StorageUtils,
     TextUtils,
+    ChatUtils,
+    ChatService,
+    AuditService,
+    UIService,
+    DownloadUtils,
     AuthUtils,
     UtilityFunctions
 };
