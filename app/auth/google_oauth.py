@@ -22,7 +22,7 @@ from app.config import settings
 
 class GoogleOAuthHandler:
     """Handles Google OAuth flow and Search Console API access."""
-    
+
     def __init__(self, db):
         self.db = db
         self.client_id = settings.GOOGLE_CLIENT_ID
@@ -37,15 +37,19 @@ class GoogleOAuthHandler:
         # Simple cache to reduce API calls
         self._credentials_cache = {}
         self._cache_timeout = 300  # 5 minutes
-        
+
+        # Device trust cache for remembering devices
+        self._trusted_devices_cache = {}
+        self._device_trust_timeout = 2592000  # 30 days in seconds
+
         # Check if we have valid Google credentials
-        if not (self.client_id and self.client_secret and 
-                self.client_id != 'your_google_client_id_here' and 
+        if not (self.client_id and self.client_secret and
+                self.client_id != 'your_google_client_id_here' and
                 self.client_secret != 'your_google_client_secret_here'):
             raise Exception("Google OAuth credentials required. Cannot start Solvia without proper configuration.")
     
-    def get_auth_url(self, state: str = None) -> str:
-        """Generate Google OAuth authorization URL."""
+    def get_auth_url(self, state: str = None, remember_device: bool = False) -> str:
+        """Generate Google OAuth authorization URL with device remembering support."""
         flow = Flow.from_client_config(
             {
                 "web": {
@@ -59,10 +63,115 @@ class GoogleOAuthHandler:
             scopes=self.scopes
         )
         flow.redirect_uri = self.redirect_uri
-        # The state is used for CSRF protection and to pass the user's email.
-        auth_url, generated_state = flow.authorization_url(state=state, prompt='select_account')
+
+        # CRITICAL: access_type='offline' is required to get refresh tokens
+        # Device remembering logic:
+        # - For returning users with trusted devices: prompt='none' (skip consent)
+        # - For new devices or forced re-auth: prompt='consent' to ensure refresh tokens
+        # Note: Using 'consent' instead of 'select_account' to force consent screen and get refresh tokens
+        prompt_value = 'none' if remember_device else 'consent'
+
+        print(f"[OAUTH URL] 🔧 Generating OAuth URL with parameters:")
+        print(f"[OAUTH URL]   - prompt: {prompt_value}")
+        print(f"[OAUTH URL]   - access_type: offline")
+        print(f"[OAUTH URL]   - remember_device: {remember_device}")
+
+        auth_url, generated_state = flow.authorization_url(
+            state=state,
+            prompt=prompt_value,
+            access_type='offline',
+            # Enable incremental authorization to reduce consent friction
+            include_granted_scopes='true'
+        )
         return auth_url
-    
+
+    def generate_device_fingerprint(self, request_headers: dict, user_agent: str = None, ip_address: str = None) -> str:
+        """Generate a unique device fingerprint for device remembering."""
+        import hashlib
+
+        # Extract key identifying information
+        user_agent = user_agent or request_headers.get('user-agent', '')
+        accept_language = request_headers.get('accept-language', '')
+        accept_encoding = request_headers.get('accept-encoding', '')
+
+        # Create fingerprint from stable browser characteristics
+        fingerprint_data = f"{user_agent}|{accept_language}|{accept_encoding}|{ip_address or 'unknown'}"
+
+        # Generate SHA-256 hash for fingerprint
+        fingerprint = hashlib.sha256(fingerprint_data.encode()).hexdigest()[:32]
+
+        return fingerprint
+
+    def is_device_trusted(self, user_email: str, device_fingerprint: str) -> bool:
+        """Check if a device is trusted for the user."""
+        cache_key = f"trust_{user_email}_{device_fingerprint}"
+
+        # Check memory cache first
+        if cache_key in self._trusted_devices_cache:
+            trust_data = self._trusted_devices_cache[cache_key]
+            if (datetime.now() - trust_data['timestamp']).total_seconds() < self._device_trust_timeout:
+                return True
+            else:
+                # Trust expired, remove from cache
+                del self._trusted_devices_cache[cache_key]
+
+        # Check database for persistent trust
+        try:
+            service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
+            if service_role_key:
+                service_db = create_client(settings.SUPABASE_URL, service_role_key)
+                response = service_db.table('trusted_devices').select('*').eq('user_email', user_email).eq('device_fingerprint', device_fingerprint).execute()
+
+                if response.data and len(response.data) > 0:
+                    trust_record = response.data[0]
+                    created_at = datetime.fromisoformat(trust_record['created_at'].replace('Z', '+00:00'))
+
+                    # Check if trust hasn't expired (30 days)
+                    if (datetime.now(created_at.tzinfo) - created_at).total_seconds() < self._device_trust_timeout:
+                        # Cache for quick access
+                        self._trusted_devices_cache[cache_key] = {
+                            'timestamp': datetime.now(),
+                            'trusted': True
+                        }
+                        return True
+                    else:
+                        # Remove expired trust record
+                        service_db.table('trusted_devices').delete().eq('id', trust_record['id']).execute()
+        except Exception as e:
+            print(f"[DEVICE TRUST] Error checking device trust: {e}")
+
+        return False
+
+    def mark_device_trusted(self, user_email: str, device_fingerprint: str, user_agent: str = None):
+        """Mark a device as trusted for 30 days."""
+        cache_key = f"trust_{user_email}_{device_fingerprint}"
+
+        # Cache in memory
+        self._trusted_devices_cache[cache_key] = {
+            'timestamp': datetime.now(),
+            'trusted': True
+        }
+
+        # Store in database for persistence
+        try:
+            service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
+            if service_role_key:
+                service_db = create_client(settings.SUPABASE_URL, service_role_key)
+
+                trust_data = {
+                    'user_email': user_email,
+                    'device_fingerprint': device_fingerprint,
+                    'user_agent': user_agent or 'unknown',
+                    'created_at': datetime.utcnow().isoformat(),
+                    'expires_at': (datetime.utcnow() + timedelta(seconds=self._device_trust_timeout)).isoformat()
+                }
+
+                # Upsert the trust record
+                service_db.table('trusted_devices').upsert(trust_data, on_conflict='user_email,device_fingerprint').execute()
+                print(f"[DEVICE TRUST] Device marked as trusted for {user_email}")
+        except Exception as e:
+            print(f"[DEVICE TRUST] Error storing device trust: {e}")
+
     async def handle_callback(self, code: str, jwt_token: str = None) -> Dict:
         """Handle OAuth callback and store credentials."""
         flow = Flow.from_client_config(
@@ -102,6 +211,20 @@ class GoogleOAuthHandler:
     
     def _store_credentials(self, user_email: str, credentials: Credentials, jwt_token: str = None):
         """Store OAuth credentials in Supabase using service role key."""
+        print(f"[CREDENTIALS STORE] 🏗️ Storing credentials for {user_email}")
+        print(f"[CREDENTIALS STORE] 📊 Credential details received from Google:")
+        print(f"[CREDENTIALS STORE]   - Has access_token: {'Yes' if credentials.token else 'No'}")
+        print(f"[CREDENTIALS STORE]   - Has refresh_token: {'Yes' if credentials.refresh_token else 'No'}")
+        print(f"[CREDENTIALS STORE]   - Token expiry: {credentials.expiry}")
+        print(f"[CREDENTIALS STORE]   - Token URI: {credentials.token_uri}")
+        print(f"[CREDENTIALS STORE]   - Client ID: {credentials.client_id}")
+        print(f"[CREDENTIALS STORE]   - Scopes: {credentials.scopes}")
+
+        if not credentials.refresh_token:
+            print(f"[CREDENTIALS STORE] ⚠️ WARNING: Google did not provide a refresh token!")
+            print(f"[CREDENTIALS STORE] 🔧 This means automatic token refresh will not work")
+            print(f"[CREDENTIALS STORE] 💡 User will need to re-authenticate when token expires")
+
         # Prepare credential data
         cred_data = {
             'email': user_email,
@@ -111,7 +234,7 @@ class GoogleOAuthHandler:
             'created_at': datetime.utcnow().isoformat(),
             'updated_at': datetime.utcnow().isoformat()
         }
-        print(f"[CREDENTIALS STORE] Storing credentials for {user_email}")
+        print(f"[CREDENTIALS STORE] 💾 Data to store: {cred_data}")
         
         try:
             # Always use service role key to bypass RLS for credential storage
@@ -138,13 +261,11 @@ class GoogleOAuthHandler:
             print(f"[CREDENTIALS STORE] Error storing credentials: {e}")
             response = None
 
-        # Cache the credentials regardless
+        # Clear the cache so fresh credentials are fetched from database
         cache_key = f"creds_{user_email}"
-        self._credentials_cache[cache_key] = {
-            'credentials': credentials,
-            'timestamp': datetime.now()
-        }
-        print(f"[CREDENTIALS STORE] Cached credentials for {user_email}")
+        if cache_key in self._credentials_cache:
+            del self._credentials_cache[cache_key]
+            print(f"[CREDENTIALS STORE] Cleared cache for {user_email} to force fresh fetch")
         
     
     async def _get_user_email_from_credentials(self, credentials: Credentials) -> Optional[str]:
@@ -212,22 +333,22 @@ class GoogleOAuthHandler:
         
         # Check if credentials are valid
         if not credentials.token:
+            print(f"[CREDENTIALS DEBUG] No access token found for {user_email}")
             return None
-        
-        # Refresh token if expired and we have a refresh token
+
+        # Check if credentials are expired - if so, don't cache them
+        # Let verify_gsc_credentials() handle refresh logic comprehensively
         if credentials.expired:
-            if credentials.refresh_token:
-                try:
-                    credentials.refresh(Request())
-                    self._store_credentials(user_email, credentials)
-                except Exception as refresh_error:
-                    pass # No print statements here
-        
-        # Cache the credentials
+            print(f"[CREDENTIALS DEBUG] Credentials expired for {user_email}, not caching")
+            # Don't cache expired credentials - let verify_gsc_credentials handle refresh
+            return credentials
+
+        # Only cache valid, non-expired credentials
         self._credentials_cache[cache_key] = {
             'credentials': credentials,
             'timestamp': datetime.now()
         }
+        print(f"[CREDENTIALS DEBUG] Cached valid credentials for {user_email}")
         return credentials
     
     async def get_gsc_properties(self, user_email: str) -> List[Dict]:
@@ -291,22 +412,112 @@ class GoogleOAuthHandler:
     def _clear_credentials(self, user_email: str):
         """Clear corrupted credentials for a user from Supabase."""
         try:
+            print(f"[CREDENTIALS CLEAR] Clearing credentials for {user_email}")
+
             # Use service role key to bypass RLS when clearing credentials
             service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
             if service_role_key:
                 from supabase import create_client
                 service_supabase = create_client(settings.SUPABASE_URL, service_role_key)
                 service_supabase.table('gsc_connections').delete().eq('email', user_email).execute()
+                print(f"[CREDENTIALS CLEAR] Cleared from database for {user_email}")
             else:
                 # Fallback to regular client
                 self.db.supabase.table('gsc_connections').delete().eq('email', user_email).execute()
-            
+                print(f"[CREDENTIALS CLEAR] Cleared from database (fallback) for {user_email}")
+
             # Clear from cache
             cache_key = f"creds_{user_email}"
             if cache_key in self._credentials_cache:
                 del self._credentials_cache[cache_key]
+                print(f"[CREDENTIALS CLEAR] Cleared from cache for {user_email}")
+
         except Exception as e:
-            pass # No print statements here
+            print(f"[CREDENTIALS CLEAR] Error clearing credentials for {user_email}: {e}")
+
+    def _expire_credentials_for_testing(self, user_email: str):
+        """Expire credentials (for testing refresh functionality) without deleting refresh tokens."""
+        try:
+            print(f"[CREDENTIALS EXPIRE] 🧪 Starting credential expiry for testing refresh for {user_email}")
+
+            # Use service role key to bypass RLS
+            service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY
+            if service_role_key:
+                print(f"[CREDENTIALS EXPIRE] 🔑 Using service role key for database access")
+                from supabase import create_client
+                service_supabase = create_client(settings.SUPABASE_URL, service_role_key)
+
+                # Set expiry to 1 hour ago to simulate expired token
+                from datetime import datetime, timedelta
+                expired_time = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+                current_time = datetime.utcnow().isoformat()
+
+                print(f"[CREDENTIALS EXPIRE] ⏰ Setting token expiry to: {expired_time} (1 hour ago)")
+                print(f"[CREDENTIALS EXPIRE] 📅 Current time: {current_time}")
+
+                # First, let's check what's currently in the database
+                current_response = service_supabase.table('gsc_connections').select('*').eq('email', user_email).execute()
+                if current_response.data:
+                    current_creds = current_response.data[0]
+                    print(f"[CREDENTIALS EXPIRE] 📊 Current credential status:")
+                    print(f"[CREDENTIALS EXPIRE]   - Has access_token: {'Yes' if current_creds.get('access_token') else 'No'}")
+                    print(f"[CREDENTIALS EXPIRE]   - Has refresh_token: {'Yes' if current_creds.get('refresh_token') else 'No'}")
+                    print(f"[CREDENTIALS EXPIRE]   - Current expires_at: {current_creds.get('expires_at')}")
+
+                # Update only the expires_at field, keeping refresh_token intact
+                update_data = {
+                    'expires_at': expired_time,
+                    'updated_at': current_time
+                }
+
+                print(f"[CREDENTIALS EXPIRE] 💾 Updating database with expired time...")
+                update_response = service_supabase.table('gsc_connections').update(update_data).eq('email', user_email).execute()
+                print(f"[CREDENTIALS EXPIRE] 💾 Database update response: {update_response.data}")
+
+                # Verify the update worked
+                verify_response = service_supabase.table('gsc_connections').select('*').eq('email', user_email).execute()
+                if verify_response.data:
+                    updated_creds = verify_response.data[0]
+                    print(f"[CREDENTIALS EXPIRE] ✅ Verification - Updated credential status:")
+                    print(f"[CREDENTIALS EXPIRE]   - New expires_at: {updated_creds.get('expires_at')}")
+                    print(f"[CREDENTIALS EXPIRE]   - Refresh token preserved: {'Yes' if updated_creds.get('refresh_token') else 'No'}")
+
+            else:
+                print(f"[CREDENTIALS EXPIRE] ⚠️ No service role key, using regular client")
+                # Fallback to regular client
+                from datetime import datetime, timedelta
+                expired_time = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+
+                update_data = {
+                    'expires_at': expired_time,
+                    'updated_at': datetime.utcnow().isoformat()
+                }
+
+                self.db.supabase.table('gsc_connections').update(update_data).eq('email', user_email).execute()
+                print(f"[CREDENTIALS EXPIRE] Set credentials to expired (fallback) for {user_email}")
+
+            # Clear from cache so fresh (expired) credentials are fetched
+            cache_key = f"creds_{user_email}"
+            if cache_key in self._credentials_cache:
+                del self._credentials_cache[cache_key]
+                print(f"[CREDENTIALS EXPIRE] 🧹 Cleared cache for {user_email}")
+            else:
+                print(f"[CREDENTIALS EXPIRE] 🧹 No cache entry found for {user_email}")
+
+            print(f"[CREDENTIALS EXPIRE] 🎉 ✅ Successfully expired credentials for testing for {user_email}")
+
+        except Exception as e:
+            print(f"[CREDENTIALS EXPIRE] 💥 ❌ Error expiring credentials for {user_email}: {e}")
+            import traceback
+            print(f"[CREDENTIALS EXPIRE] 📜 Full error traceback:")
+            traceback.print_exc()
+
+    def clear_credentials_cache(self, user_email: str):
+        """Clear credentials cache for a user (useful after refresh operations)."""
+        cache_key = f"creds_{user_email}"
+        if cache_key in self._credentials_cache:
+            del self._credentials_cache[cache_key]
+            print(f"[CREDENTIALS CACHE] Cleared cache for {user_email}")
     
     def get_gsc_metrics(self, user_email: str, website_url: str, date_range: dict = None) -> dict:
         """Get Google Search Console metrics for a specific website."""

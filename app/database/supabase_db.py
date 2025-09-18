@@ -407,7 +407,7 @@ class SupabaseAuthDB:
             print(f"[SupabaseAuth] Error getting user session: {e}")
             return None
 
-    async def get_gsc_metrics_cache(self, user_email: str, website_url: str, date_range: dict) -> Optional[Dict]:
+    def get_gsc_metrics_cache(self, user_email: str, website_url: str, date_range: dict) -> Optional[Dict]:
         """
         Get cached GSC metrics for a user's website and date range.
         """
@@ -415,7 +415,8 @@ class SupabaseAuthDB:
             start_date = date_range['start_date']
             end_date = date_range['end_date']
             
-            # Query the cache table
+            # Query the cache table with flexible date matching
+            # First try exact match
             response = self.supabase.table('gsc_metrics_cache') \
                 .select('*') \
                 .eq('user_email', user_email) \
@@ -425,6 +426,21 @@ class SupabaseAuthDB:
                 .order('created_at', desc=True) \
                 .limit(1) \
                 .execute()
+
+            # If no exact match, try most recent cache for this user/website
+            if not response.data:
+                from datetime import timedelta
+                print(f"[CACHE] No exact date match, trying most recent cache for {user_email}")
+                response = self.supabase.table('gsc_metrics_cache') \
+                    .select('*') \
+                    .eq('user_email', user_email) \
+                    .eq('website_url', website_url) \
+                    .order('created_at', desc=True) \
+                    .limit(1) \
+                    .execute()
+                print(f"[CACHE] Most recent cache lookup: {len(response.data) if response.data else 0} records")
+                if response.data:
+                    print(f"[CACHE] Found recent cache with {response.data[0].get('impressions', 0)} impressions")
             
             if response.data and len(response.data) > 0:
                 cache_entry = response.data[0]
@@ -441,7 +457,7 @@ class SupabaseAuthDB:
             print(f"[SupabaseAuth] Error getting GSC metrics cache: {e}")
             return None
 
-    async def store_gsc_metrics_cache(self, user_email: str, website_url: str, metrics: dict, date_range: dict) -> bool:
+    def store_gsc_metrics_cache(self, user_email: str, website_url: str, metrics: dict, date_range: dict) -> bool:
         """
         Store GSC metrics in cache for a user's website and date range.
         Also updates the SEO score from the latest audit if available.
@@ -510,7 +526,7 @@ class SupabaseAuthDB:
             print(f"[SupabaseAuth] Error storing dashboard cache: {e}")
             return False
 
-    async def store_chat_message(self, user_email: str, message_content: str, message_type: str, sender_name: str) -> str:
+    def store_chat_message(self, user_email: str, message_content: str, message_type: str, sender_name: str) -> str:
         """
         Store a chat message in the database using service role key to bypass RLS.
         """
@@ -540,7 +556,7 @@ class SupabaseAuthDB:
             print(f"[SupabaseAuth] Error storing chat message: {e}")
             raise e
 
-    async def get_chat_messages(self, user_email: str, limit: int = 50) -> list:
+    def get_chat_messages(self, user_email: str, limit: int = 50) -> list:
         """
         Get chat messages for a user using service role key.
         """

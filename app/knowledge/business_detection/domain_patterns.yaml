@@ -1,0 +1,115 @@
+# Business detection patterns for automatic industry classification
+
+domain_patterns:
+  construction:
+    keywords: [akar, build, construct, architect, renovation, contractor, engineering]
+    suffixes: [co, corp, group, services, solutions]
+    tld_hints: [.construction, .build]
+    confidence_weights:
+      exact_match: 0.9      # akarco = construction company
+      keyword_match: 0.7    # "build" in domain
+      suffix_match: 0.3     # "services" suffix
+      tld_match: 0.8        # .construction TLD
+
+  healthcare:
+    keywords: [health, medical, clinic, hospital, care, dental, pharma]
+    suffixes: [clinic, hospital, medical, health, care]
+    tld_hints: [.health, .medical, .clinic]
+    confidence_weights:
+      exact_match: 0.9
+      keyword_match: 0.8
+      suffix_match: 0.6
+      tld_match: 0.9
+
+  ecommerce:
+    keywords: [shop, store, buy, sell, market, retail, commerce]
+    suffixes: [shop, store, market, mall, bazaar]
+    tld_hints: [.shop, .store, .buy]
+    confidence_weights:
+      exact_match: 0.8
+      keyword_match: 0.7
+      suffix_match: 0.5
+      tld_match: 0.8
+
+  technology:
+    keywords: [tech, software, app, dev, digital, code, system, IT]
+    suffixes: [tech, systems, solutions, software, digital]
+    tld_hints: [.tech, .app, .io, .dev]
+    confidence_weights:
+      exact_match: 0.8
+      keyword_match: 0.6
+      suffix_match: 0.4
+      tld_match: 0.7
+
+  professional_services:
+    keywords: [consult, advisory, legal, finance, accounting, law]
+    suffixes: [consulting, advisory, partners, associates, llp]
+    tld_hints: [.consulting, .legal, .law]
+    confidence_weights:
+      exact_match: 0.7
+      keyword_match: 0.6
+      suffix_match: 0.5
+      tld_match: 0.8
+
+# Location detection patterns
+location_patterns:
+  singapore:
+    domain_indicators: [sg, singapore, sin]
+    tld_hints: [.sg, .com.sg]
+    confidence_weights:
+      domain_match: 0.8
+      tld_match: 0.9
+
+  malaysia:
+    domain_indicators: [my, malaysia, mal]
+    tld_hints: [.my, .com.my]
+    confidence_weights:
+      domain_match: 0.8
+      tld_match: 0.9
+
+  global:
+    tld_hints: [.com, .net, .org, .co]
+    confidence_weights:
+      tld_match: 0.3
+
+# Business type combinations
+business_combinations:
+  "construction + singapore":
+    industry: construction
+    location: singapore
+    market_focus: local
+    competition_level: high
+
+  "healthcare + singapore":
+    industry: healthcare
+    location: singapore
+    market_focus: local
+    competition_level: very_high
+
+# Fallback classifications
+fallback_rules:
+  unknown_domain:
+    industry: general_business
+    location: global
+    confidence: 0.1
+    keywords: ["business services", "professional services"]
+
+  single_word_domains:
+    confidence_penalty: 0.2  # Reduce confidence for generic domains
+
+# Examples for validation
+examples:
+  "akarco.sg":
+    expected_industry: construction
+    expected_location: singapore
+    expected_confidence: 0.85
+
+  "healthplus.com.sg":
+    expected_industry: healthcare
+    expected_location: singapore
+    expected_confidence: 0.8
+
+  "techsolutions.io":
+    expected_industry: technology
+    expected_location: global
+    expected_confidence: 0.7

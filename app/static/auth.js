@@ -92,13 +92,21 @@ async function loginWithGoogle() {
     console.log('loginWithGoogle function called'); // Debug log
     setLoading('googleLoginBtn', true);
     clearAlerts();
-    
+
     try {
         console.log('Redirecting to Google OAuth...'); // Debug log
-        // For the new design, we'll redirect directly to Google OAuth
-        // The backend will handle the email collection during the OAuth flow
-        window.location.href = `/auth/google/authorize`;
-        
+
+        // Always trust device - no checkbox needed
+        const trustDevice = true;
+
+        // Build OAuth URL - device trust is always enabled
+        const oauthUrl = `/auth/google/authorize`;
+
+        console.log(`Trust device: ${trustDevice}, OAuth URL: ${oauthUrl}`);
+
+        // Redirect to Google OAuth with automatic device trust
+        window.location.href = oauthUrl;
+
     } catch (error) {
         console.error('Error in loginWithGoogle:', error); // Debug log
         showAlert('loginAlert', `❌ Error starting Google OAuth: ${error.message}`, 'error');

@@ -1,0 +1,303 @@
+# Technical SEO Knowledge Base
+# Comprehensive technical optimization guidance
+
+category: technical_seo
+description: "Technical website optimization for search engines"
+
+# Core technical SEO elements
+fundamentals:
+  crawling_indexing:
+    robots_txt:
+      purpose: "Control search engine crawler access to website sections"
+      best_practices:
+        - "Allow crawling of important pages and content"
+        - "Block admin areas, duplicate content, and private sections"
+        - "Include sitemap reference: 'Sitemap: https://domain.com/sitemap.xml'"
+        - "Test using Google Search Console robots.txt tester"
+
+    xml_sitemaps:
+      purpose: "Guide search engines to discover and index important pages"
+      implementation:
+        - "Include all important pages (max 50,000 URLs per sitemap)"
+        - "Update automatically when content changes"
+        - "Submit to Google Search Console and Bing Webmaster Tools"
+        - "Use sitemap index for large sites"
+        - "Include last modification dates and priority indicators"
+
+    meta_robots:
+      directives:
+        - "index/noindex: Control page indexing"
+        - "follow/nofollow: Control link following"
+        - "noarchive: Prevent cached page storage"
+        - "nosnippet: Prevent snippet display in search results"
+
+  page_optimization:
+    title_tags:
+      best_practices:
+        - "55-60 characters for optimal display"
+        - "Include primary keyword near the beginning"
+        - "Make each title unique and descriptive"
+        - "Include brand name (typically at the end)"
+        - "Write for users first, search engines second"
+
+      industry_examples:
+        construction: "Professional Building Contractor Singapore | [Brand Name]"
+        healthcare: "Family Medical Clinic Singapore - [Service] | [Brand Name]"
+        technology: "[Product] - [Key Benefit] for [Target] | [Brand Name]"
+
+    meta_descriptions:
+      optimization:
+        - "150-160 characters for optimal display"
+        - "Include primary and secondary keywords naturally"
+        - "Write compelling copy that encourages clicks"
+        - "Include call-to-action when appropriate"
+        - "Make each description unique"
+
+      templates_by_intent:
+        commercial: "Get [service] in [location]. [Benefit 1], [Benefit 2]. Free consultation. Call [phone] or book online today."
+        informational: "Learn [topic] with our comprehensive guide. [Key benefit]. [Authority indicator]. Read more expert insights."
+        local: "[Service] in [location]. [Years] years experience. [Unique value]. Serving [areas]. Contact us: [phone]."
+
+    header_tags:
+      structure:
+        - "H1: Main page topic (one per page, include primary keyword)"
+        - "H2: Major sections (include secondary keywords)"
+        - "H3-H6: Subsections (maintain logical hierarchy)"
+
+      optimization:
+        - "Use keywords naturally, avoid keyword stuffing"
+        - "Maintain semantic hierarchy (don't skip levels)"
+        - "Make headers descriptive and user-friendly"
+
+# Schema markup implementation
+structured_data:
+  business_types:
+    local_business:
+      required_properties:
+        - "name: Business name"
+        - "address: Complete physical address"
+        - "telephone: Primary phone number"
+        - "url: Website URL"
+        - "openingHours: Operating hours"
+        - "image: Business logo or photo"
+
+      construction_specific:
+        - "@type: GeneralContractor or Electrician"
+        - "areaServed: Service areas/locations"
+        - "hasOfferCatalog: Services offered"
+        - "aggregateRating: Customer review ratings"
+
+    organization:
+      implementation:
+        - "Logo and brand information"
+        - "Social media profile links"
+        - "Contact information"
+        - "Founding date and description"
+
+  content_types:
+    article:
+      properties:
+        - "headline: Article title"
+        - "datePublished: Publication date"
+        - "dateModified: Last update date"
+        - "author: Author information"
+        - "publisher: Publishing organization"
+        - "image: Featured image"
+
+    faq_page:
+      implementation:
+        - "Structured Q&A format"
+        - "Relevant for FAQ pages and comprehensive guides"
+        - "Can appear in rich snippets"
+
+    how_to:
+      structure:
+        - "Step-by-step instructions"
+        - "Tools and materials needed"
+        - "Time estimates"
+        - "Images for each step"
+
+# Site architecture optimization
+site_structure:
+  url_optimization:
+    best_practices:
+      - "Use descriptive, keyword-rich URLs"
+      - "Keep URLs short and readable"
+      - "Use hyphens to separate words"
+      - "Implement consistent URL structure"
+      - "Avoid dynamic parameters when possible"
+
+    examples:
+      good: "https://domain.com/services/commercial-construction/"
+      poor: "https://domain.com/page?id=123&cat=services"
+
+  internal_linking:
+    strategy:
+      - "Link to relevant, related content"
+      - "Use descriptive anchor text with keywords"
+      - "Maintain reasonable link depth (3-4 clicks from homepage)"
+      - "Create topical clusters and pillar pages"
+      - "Fix broken internal links promptly"
+
+    anchor_text_optimization:
+      - "Use varied, natural anchor text"
+      - "Include target keywords contextually"
+      - "Avoid over-optimization and exact match overuse"
+
+# Core Web Vitals optimization
+page_experience:
+  core_web_vitals:
+    largest_contentful_paint:
+      target: "< 2.5 seconds"
+      optimization:
+        - "Optimize images and use next-gen formats (WebP, AVIF)"
+        - "Implement lazy loading for below-fold content"
+        - "Minimize render-blocking CSS and JavaScript"
+        - "Use CDN for faster content delivery"
+        - "Optimize server response time"
+
+    first_input_delay:
+      target: "< 100 milliseconds"
+      optimization:
+        - "Minimize JavaScript execution time"
+        - "Remove unused JavaScript code"
+        - "Use web workers for heavy computations"
+        - "Implement code splitting"
+
+    cumulative_layout_shift:
+      target: "< 0.1"
+      prevention:
+        - "Define size attributes for images and videos"
+        - "Reserve space for ads and embeds"
+        - "Avoid inserting content above existing content"
+        - "Use transform animations instead of layout changes"
+
+  mobile_optimization:
+    responsive_design:
+      - "Use viewport meta tag"
+      - "Implement fluid grid layouts"
+      - "Optimize touch targets (44px minimum)"
+      - "Test on various device sizes"
+
+    mobile_first_indexing:
+      - "Ensure mobile version has same content as desktop"
+      - "Optimize mobile page load speed"
+      - "Make mobile navigation user-friendly"
+      - "Use appropriate font sizes (16px minimum)"
+
+# Security and trust signals
+security_optimization:
+  ssl_https:
+    implementation:
+      - "Install valid SSL certificate"
+      - "Redirect all HTTP traffic to HTTPS"
+      - "Update internal links to use HTTPS"
+      - "Submit HTTPS version to search engines"
+
+  security_headers:
+    recommended:
+      - "Content-Security-Policy (CSP)"
+      - "X-Frame-Options: DENY"
+      - "X-Content-Type-Options: nosniff"
+      - "Referrer-Policy: strict-origin-when-cross-origin"
+
+# Industry-specific technical considerations
+industry_implementations:
+  construction:
+    technical_priorities:
+      - "Local schema markup for service areas"
+      - "Image optimization for project galleries"
+      - "Mobile optimization for field workers"
+      - "Load speed optimization for image-heavy content"
+
+    common_issues:
+      - "Large image files slowing page speed"
+      - "Duplicate content across service pages"
+      - "Missing local business schema"
+      - "Poor mobile experience for contact forms"
+
+  healthcare:
+    technical_priorities:
+      - "HIPAA-compliant website security"
+      - "Medical schema markup for services"
+      - "Appointment booking system optimization"
+      - "Review and rating schema implementation"
+
+    compliance_considerations:
+      - "Secure contact forms and patient portals"
+      - "Privacy policy and cookie consent"
+      - "SSL certificate and security headers"
+      - "Regular security auditing and updates"
+
+  technology:
+    technical_priorities:
+      - "API documentation site optimization"
+      - "Technical content performance optimization"
+      - "Developer-focused user experience"
+      - "Documentation search functionality"
+
+    advanced_implementations:
+      - "JSON-LD for software applications"
+      - "Code snippet optimization and highlighting"
+      - "API reference schema markup"
+      - "Technical documentation structure"
+
+# Common technical issues and solutions
+troubleshooting:
+  indexing_issues:
+    page_not_indexed:
+      diagnosis:
+        - "Check robots.txt for blocking directives"
+        - "Verify noindex meta tag is not present"
+        - "Ensure page is linked from other indexed pages"
+        - "Submit URL for indexing in Google Search Console"
+
+    crawl_errors:
+      common_solutions:
+        - "Fix 404 errors or implement proper redirects"
+        - "Resolve server errors (5xx status codes)"
+        - "Improve server response time"
+        - "Optimize crawl budget allocation"
+
+  duplicate_content:
+    identification:
+      - "Use site:domain.com search to find duplicates"
+      - "Implement canonical tags for similar pages"
+      - "Use 301 redirects for duplicate URLs"
+      - "Set up URL parameters in Search Console"
+
+    prevention:
+      - "Create unique, valuable content for each page"
+      - "Implement proper URL canonicalization"
+      - "Use noindex for necessary duplicate pages"
+      - "Monitor for content scraping and copying"
+
+# Technical SEO audit checklist
+audit_checklist:
+  crawling_accessibility:
+    - "Robots.txt accessibility and correctness"
+    - "XML sitemap presence and submission"
+    - "Internal link structure and navigation"
+    - "URL structure optimization"
+    - "Broken link identification and fixing"
+
+  on_page_optimization:
+    - "Title tag optimization and uniqueness"
+    - "Meta description quality and CTR potential"
+    - "Header tag structure and keyword usage"
+    - "Image alt text and optimization"
+    - "Schema markup implementation"
+
+  technical_performance:
+    - "Core Web Vitals scores and optimization"
+    - "Mobile-friendliness and responsive design"
+    - "SSL certificate and HTTPS implementation"
+    - "Page load speed optimization"
+    - "Browser compatibility testing"
+
+  content_quality:
+    - "Duplicate content identification"
+    - "Thin content page improvement"
+    - "Content freshness and updates"
+    - "Internal linking strategy"
+    - "User engagement metrics analysis"

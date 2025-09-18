@@ -99,11 +99,11 @@ def serve_ui():
 
 @app.get("/dashboard")
 async def serve_dashboard():
-    """Serve the dashboard UI."""
-    dashboard_file = os.path.join(static_dir, "dashboard.html")
-    if os.path.exists(dashboard_file):
+    """Serve the dashboard UI - Now using SPA architecture."""
+    spa_file = os.path.join(static_dir, "spa.html")
+    if os.path.exists(spa_file):
         return FileResponse(
-            dashboard_file,
+            spa_file,
             headers={
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
@@ -114,6 +114,25 @@ async def serve_dashboard():
         return {
             "error": "Dashboard not found",
             "message": "Please ensure the dashboard files are in the static directory"
+        }
+
+@app.get("/spa")
+async def serve_spa():
+    """Serve the Single Page Application."""
+    spa_file = os.path.join(static_dir, "spa.html")
+    if os.path.exists(spa_file):
+        return FileResponse(
+            spa_file,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    else:
+        return {
+            "error": "SPA not found",
+            "message": "Please ensure the SPA files are in the static directory"
         }
 
 @app.get("/domain-selection")
@@ -141,6 +160,7 @@ async def serve_setup_wizard():
             "error": "Setup wizard not found",
             "message": "Please ensure the setup wizard files are in the static directory"
         }
+
 
 @app.get("/property-selection")
 async def serve_property_selection(

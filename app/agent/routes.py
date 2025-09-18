@@ -441,10 +441,10 @@ async def trigger_audit(
             critical_count = audit_result.get('summary', {}).get('critical_issues', 0)
             total_count = audit_result.get('summary', {}).get('total_issues', 0)
             
-            await db_with_role.store_chat_message(
+            db_with_role.store_chat_message(
                 current_user,
                 f"✅ Audit completed! SEO Score: {audit_data['seo_score']}/100. Found {critical_count} critical issues out of {total_count} total issues.",
-                "ai", 
+                "ai",
                 "Solvia"
             )
             print(f"[AUDIT] Chat message stored successfully")
@@ -507,7 +507,7 @@ async def chat_with_agent(
         user_message = message.message.lower().strip()
         
         # Check if user wants to trigger an audit - be more specific to avoid false positives
-        audit_keywords = ['run audit', 'new audit', 'run a new audit', 'generate report', 'generate audit', 'analyze my site', 'run seo audit', 'start audit', 'perform audit', 'trigger audit', 'comprehensive audit']
+        audit_keywords = ['run audit', 'run the audit', 'new audit', 'run a new audit', 'generate report', 'generate audit', 'analyze my site', 'run seo audit', 'start audit', 'perform audit', 'trigger audit', 'comprehensive audit']
         # Check for exact phrases or with common prefixes
         should_trigger_audit = any(
             keyword in user_message for keyword in audit_keywords
@@ -560,7 +560,7 @@ Your current SEO score is {audit_response.seo_score}/100."""
                     website_url = user_data.get('selected_website') if user_data else None
                     
                     # Get chat history for conversation context
-                    chat_history = await db.get_chat_messages(current_user, limit=10)
+                    chat_history = db.get_chat_messages(current_user, limit=10)
                     
                     # Convert chat history to RAG format
                     conversation_history = []
@@ -582,9 +582,23 @@ Your current SEO score is {audit_response.seo_score}/100."""
                     )
                     
                     print(f"[CHAT-RAG] ✅ Generated response: {len(response_message)} chars")
-                    
+
                     # RAG system success - store messages and return
                     print(f"[CHAT-RAG] ✅ RAG response generated successfully")
+
+                    # Store messages via RAG system and return immediately
+                    # Always show suggestions for normal chat
+                    return ChatResponse(
+                        message=response_message,
+                        audit_triggered=False,
+                        audit_id=None,
+                        action_buttons=[
+                            "How was my SEO last week?",
+                            "Run a new audit",
+                            "What are my top issues?",
+                            "Show me traffic trends"
+                        ]
+                    )
                     
                 else:
                     print(f"[CHAT-RAG] ❌ No RAG agent available, falling back to basic OpenAI")
@@ -618,28 +632,31 @@ Your current SEO score is {audit_response.seo_score}/100."""
         
         # Store chat messages (for non-RAG fallback cases only)
         if 'response_message' in locals():
-            await db.store_chat_message(
+            db.store_chat_message(
                 current_user,
                 message.message,
                 'user',
                 current_user.split('@')[0]
             )
-            
-            await db.store_chat_message(
+
+            db.store_chat_message(
                 current_user,
                 response_message,
                 'ai',
                 'Solvia'
             )
         
-        # Suggest action buttons based on context
-        action_buttons = [
-            "How was my SEO last week?",
-            "Run a new audit",
-            "What are my top issues?",
-            "Show me traffic trends"
-        ]
-        
+        # Return with appropriate action buttons
+        action_buttons = []
+        if not audit_triggered:
+            # Only show suggestions if not triggering audit
+            action_buttons = [
+                "How was my SEO last week?",
+                "Run a new audit",
+                "What are my top issues?",
+                "Show me traffic trends"
+            ]
+
         return ChatResponse(
             message=response_message,
             audit_triggered=audit_triggered,

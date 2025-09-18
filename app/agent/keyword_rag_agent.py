@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 import openai
 from supabase import Client
+from app.core.website_crawler import analyze_website
 
 logger = logging.getLogger(__name__)
 
@@ -375,6 +376,525 @@ class KeywordRAGAgent:
         }
         return formatting.get(collection, collection.replace('_', ' ').title())
         
+    async def _get_keyword_suggestions_from_gsc(self, user_email: str) -> str:
+        """
+        Get keyword suggestions based on actual GSC query data.
+
+        Args:
+            user_email: User's email
+
+        Returns:
+            Formatted keyword suggestions with performance data
+        """
+        try:
+            from app.database.supabase_db import SupabaseAuthDB
+            db = SupabaseAuthDB()
+
+            # Get user's website
+            website_url = db.get_user_website(user_email)
+            if not website_url:
+                return "No website selected. Please select a website first to get keyword suggestions."
+
+            # Crawl and analyze the actual website content
+            website_analysis = None
+            try:
+                logger.info(f"[KEYWORD-RAG] Crawling website: {website_url}")
+                website_analysis = await analyze_website(website_url)
+                logger.info(f"[KEYWORD-RAG] Website analysis complete: {website_analysis.get('business_type', 'unknown')}")
+            except Exception as e:
+                logger.error(f"[KEYWORD-RAG] Website crawl failed: {e}")
+                website_analysis = None
+
+            # Try to get query data from gsc_queries table first
+            try:
+                query_data = self.service_supabase.table('gsc_queries').select('*').eq('user_email', user_email).eq('website_url', website_url).order('clicks', desc=True).limit(20).execute()
+
+                if query_data.data:
+                    keyword_suggestions = "## Keyword Opportunities Based on Your GSC Data:\n\n"
+
+                    # Top performing keywords
+                    top_keywords = [q for q in query_data.data if q.get('clicks', 0) > 0][:10]
+                    if top_keywords:
+                        keyword_suggestions += "### 🏆 Your Top Performing Keywords:\n"
+                        for i, query in enumerate(top_keywords, 1):
+                            keyword_suggestions += f"{i}. **{query['query']}** - {query['clicks']} clicks, Position {query['position']:.1f}, CTR {query.get('ctr', 0)*100:.1f}%\n"
+                        keyword_suggestions += "\n"
+
+                    # High impression, low click keywords (opportunity keywords)
+                    opportunity_keywords = [q for q in query_data.data if q.get('impressions', 0) > 10 and q.get('clicks', 0) < 3 and q.get('position', 0) > 5][:5]
+                    if opportunity_keywords:
+                        keyword_suggestions += "### 🎯 Opportunity Keywords (High Impressions, Low Clicks):\n"
+                        for i, query in enumerate(opportunity_keywords, 1):
+                            keyword_suggestions += f"{i}. **{query['query']}** - {query['impressions']} impressions, Position {query['position']:.1f} (needs better ranking)\n"
+                        keyword_suggestions += "\n"
+
+                    # Keywords ranking 4-10 (can be improved to page 1)
+                    page_2_keywords = [q for q in query_data.data if 4 <= q.get('position', 0) <= 10 and q.get('impressions', 0) > 5][:5]
+                    if page_2_keywords:
+                        keyword_suggestions += "### 📈 Keywords Ready for Page 1 (Currently 4-10):\n"
+                        for i, query in enumerate(page_2_keywords, 1):
+                            keyword_suggestions += f"{i}. **{query['query']}** - Position {query['position']:.1f}, {query.get('impressions', 0)} impressions\n"
+                        keyword_suggestions += "\n"
+
+                    return keyword_suggestions
+
+            except Exception as e:
+                logger.debug(f"GSC queries table not available: {e}")
+
+            # Fallback to GSC metrics cache
+            try:
+                gsc_cache = self.service_supabase.table('gsc_metrics_cache').select('*').eq('user_email', user_email).eq('website_url', website_url).order('cache_date', desc=True).limit(1).execute()
+                current_metrics = gsc_cache.data[0] if gsc_cache.data else None
+
+                if current_metrics:
+                    clicks = current_metrics.get('clicks', 0)
+                    impressions = current_metrics.get('impressions', 0)
+                    avg_position = float(current_metrics.get('avg_position', 0))
+                    ctr = float(current_metrics.get('ctr', 0))
+
+                    # Intelligent keyword suggestions based on real data + website analysis
+                    domain = website_url.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0]
+
+                    # Use actual website analysis if available, fallback to KnowledgeManager
+                    from app.core.knowledge_manager import knowledge_manager, GSCMetrics
+
+                    # Create metrics object for intelligent analysis
+                    metrics = GSCMetrics(
+                        clicks=clicks,
+                        impressions=impressions,
+                        ctr=ctr,
+                        avg_position=avg_position,
+                        seo_score=current_metrics.get('seo_score', 25.0)
+                    )
+
+                    # Use actual website data or detect business profile dynamically
+                    if website_analysis and not website_analysis.get('fallback'):
+                        # Use actual crawled data
+                        actual_business_type = website_analysis.get('business_type', 'general_business')
+                        actual_location = website_analysis.get('location', 'Singapore')
+
+                        if 'personal_portfolio' in actual_business_type:
+                            business_type = "Personal Portfolio Website"
+                            if 'developer' in actual_business_type:
+                                business_type = "Software Developer Portfolio"
+                            elif 'designer' in actual_business_type:
+                                business_type = "Designer Portfolio"
+                        else:
+                            industry = actual_business_type.replace('_business', '').replace('_', ' ').title()
+                            business_type = f"{industry} Business in {actual_location}"
+
+                        # For portfolio sites, use different prompt
+                        profile = await knowledge_manager.detect_business_profile(domain, website_url)
+                    else:
+                        # Fallback to knowledge manager detection
+                        profile = await knowledge_manager.detect_business_profile(domain, website_url)
+                        business_type = f"{profile.industry} company in {profile.location}"
+
+                    # Generate intelligent keyword suggestions
+                    keyword_suggestions = await knowledge_manager.generate_keyword_suggestions(profile, metrics)
+                    industry_keywords = [suggestion.keyword for suggestion in keyword_suggestions]
+
+                    # Analyze performance issues with industry intelligence
+                    issues = await knowledge_manager.analyze_performance_issues(profile, metrics)
+                    content_strategies = knowledge_manager.get_content_strategies(profile)
+
+                    # Special handling for portfolio sites
+                    if website_analysis and 'personal_portfolio' in website_analysis.get('business_type', ''):
+                        # Generate portfolio-specific keywords
+                        name_from_title = website_analysis.get('title', domain).split('-')[0].strip()
+                        keywords_found = website_analysis.get('keywords_found', [])
+                        tech_keywords = [k for k in keywords_found if k in [
+                            'python', 'javascript', 'react', 'vue', 'angular', 'nodejs',
+                            'java', 'spring', 'docker', 'kubernetes', 'aws', 'azure',
+                            'sql', 'mongodb', 'postgresql', 'git', 'devops', 'fullstack'
+                        ]]
+
+                        suggestions = f"""## 🎯 Keyword Strategy for Your Personal Portfolio:
+
+**Website**: {website_url}
+**Type**: {business_type} (analyzed from actual website content)
+**Summary**: {website_analysis.get('summary', 'Personal portfolio website')}
+
+### 📊 Your Current GSC Performance:
+- **Clicks**: {clicks} (organic traffic)
+- **Impressions**: {impressions} (search visibility)
+- **CTR**: {ctr:.2f}% (click-through rate)
+- **Position**: {avg_position:.1f} (average ranking)
+
+### 🎯 PORTFOLIO-SPECIFIC Keywords to Target:
+
+**1. Personal Brand Keywords** (Essential for portfolios):
+• "{name_from_title}" - Your exact name
+• "{name_from_title} software engineer" - Name + profession
+• "{name_from_title} developer" - Alternative title
+• "{name_from_title} portfolio" - Direct portfolio searches
+• "{name_from_title} github" - Code repository searches
+
+**2. Skill-Based Keywords** (Based on your tech stack):
+• "fullstack developer singapore" - Broad skill + location
+• "{tech_keywords[0] if tech_keywords else 'software'} developer singapore" - Specific skill
+• "freelance developer singapore" - Freelance opportunities
+• "hire {tech_keywords[1] if len(tech_keywords) > 1 else 'web'} developer" - Hiring intent
+
+**3. Project & Technology Keywords**:
+• {', '.join([f'"{tech}"' for tech in tech_keywords[:5]]) if tech_keywords else 'Add your technology stack keywords'}
+
+### 💡 IMPORTANT: Portfolio SEO is Different!
+
+Unlike business sites, portfolio SEO should focus on:
+1. **Your name** - Most important keyword for personal brand
+2. **Skills & technologies** - What you can do
+3. **Location + profession** - Local opportunities
+4. **Project showcases** - Detailed case studies rank well
+
+**Why you're seeing low traffic**: Portfolio sites typically have lower search volume than business sites. Focus on quality over quantity - one recruiter finding you is worth more than 100 casual visitors.
+
+### 📈 Action Plan:
+1. Optimize title tag: "{name_from_title} - Software Engineer Portfolio | Singapore"
+2. Create project case studies with technology keywords
+3. Write technical blog posts to establish authority
+4. Include your location for local searches"""
+
+                    else:
+                        # Business website suggestions (existing logic)
+                        suggestions = f"""## 🎯 Keyword Opportunities Based on Your Real Performance Data:
+
+**Website**: {website_url}
+**Business Type**: {business_type} {'(analyzed from website)' if website_analysis else f'(detected with {profile.confidence:.0%} confidence)'}
+**Current Metrics**: {clicks} clicks from {impressions} impressions (CTR: {ctr:.2f}%)
+**Average Position**: {avg_position:.1f} - This means you're on page {int(avg_position/10)+1} of search results
+
+### 🏆 HIGH-PRIORITY Keywords to Target:
+
+Based on your {profile.industry} business in {profile.location}, here are intelligent keyword recommendations:
+
+**Immediate Opportunities** (can improve ranking quickly):"""
+
+                    for i, suggestion in enumerate(keyword_suggestions[:4], 1):
+                        icon = {"high": "🔥", "medium": "⚡", "low": "📈"}[suggestion.priority]
+                        suggestions += f"\n{i}. {icon} **\"{suggestion.keyword}\"** - {suggestion.category.title()} keyword"
+                        suggestions += f"\n   Target position: {suggestion.target_position:.1f} ({suggestion.search_intent} intent)"
+
+                    suggestions += f"""
+
+### 🚨 Performance Issues Detected:
+"""
+                    for issue in issues[:3]:  # Top 3 issues
+                        suggestions += f"\n{issue['icon']} **{issue['title']}** ({issue['severity'].upper()})"
+                        suggestions += f"\n   {issue['description']}"
+                        suggestions += f"\n   💡 Fix: {issue['recommendation']}\n"
+
+                    suggestions += f"""
+### 📋 Content Strategy Recommendations:
+
+Based on {profile.industry} industry best practices:"""
+
+                    for strategy_name, strategy_data in content_strategies.items():
+                        if strategy_data.get('priority') == 'high':
+                            suggestions += f"\n• **{strategy_name.replace('_', ' ').title()}** (High Priority)"
+                            if 'content_gaps' in strategy_data:
+                                suggestions += f"\n  Content Ideas: {', '.join(strategy_data['content_gaps'][:2])}"
+
+                    suggestions += f"""
+
+### 🚀 Quick Wins:
+- Focus on {profile.location}-specific content (detected from your domain)
+- Target {profile.industry} + {profile.location} keyword combinations
+- Position {avg_position:.1f} shows you're close to page 1 - push harder!
+
+**Evidence**: With {ctr:.2f}% CTR from position {avg_position:.1f}, improving to page 1 could increase clicks by 300-500%.
+**Knowledge Base**: Using {len(profile.keywords)} industry-specific keywords for {profile.industry} businesses."""
+
+                    return suggestions
+
+            except Exception as e:
+                logger.error(f"[KEYWORD-RAG] Knowledge manager failed: {e}")
+                # Fallback to keyword intelligence when knowledge manager fails
+
+            # No GSC data available OR knowledge manager failed - use keyword intelligence with website analysis
+            try:
+                # Check if we have website analysis for portfolio detection
+                if website_analysis and 'personal_portfolio' in website_analysis.get('business_type', ''):
+                    # Generate portfolio-specific keywords
+                    name_from_title = website_analysis.get('title', 'Portfolio').split('-')[0].strip()
+                    keywords_found = website_analysis.get('keywords_found', [])
+                    location = website_analysis.get('location', 'Singapore')
+
+                    return f"""## 🎯 Keyword Strategy for Your Personal Portfolio Website
+
+**Website**: {website_url}
+**Type**: Personal Portfolio - {website_analysis.get('business_type', 'developer').replace('_', ' ').title()}
+**Analysis**: {website_analysis.get('summary', 'Personal portfolio website')}
+
+### 📊 IMPORTANT: Portfolio SEO Strategy
+
+Your website is a **personal portfolio**, not a business site. SEO strategy should focus on:
+
+### 🏆 Personal Brand Keywords (Most Important):
+• "{name_from_title}" - Your exact name for direct searches
+• "{name_from_title} portfolio" - Portfolio-specific searches
+• "{name_from_title} software engineer" - Professional title
+• "{name_from_title} developer" - Alternative title
+• "{name_from_title} github" - Code repository searches
+
+### 💼 Professional Keywords:
+• "software engineer {location}" - Location-based professional searches
+• "fullstack developer {location}" - Skill + location
+• "hire developer {location}" - Hiring intent
+• "freelance developer {location}" - Freelance opportunities
+• "{location} tech talent" - Recruiter searches
+
+### 🛠️ Technology Keywords:
+{chr(10).join([f'• "{kw}" - Technology expertise' for kw in keywords_found[:5] if kw in ['python', 'javascript', 'react', 'vue', 'java', 'docker', 'aws']]) or '• Add your technology stack keywords'}
+
+### 📈 Portfolio SEO Action Plan:
+1. **Optimize your name** - Most critical for personal branding
+2. **Create project case studies** - Detailed write-ups rank well
+3. **Write technical blog posts** - Establish expertise
+4. **Include location** - For local opportunities
+5. **Showcase technologies** - Target specific skill searches
+
+**Note**: Portfolio sites have different goals than business sites. Focus on quality traffic (recruiters, clients) over quantity."""
+
+                # Fallback to keyword intelligence for business sites
+                from app.agent.keyword_intelligence import keyword_intelligence
+
+                # Generate intelligent keyword suggestions based on website
+                suggestions_data = keyword_intelligence.generate_keyword_suggestions(
+                    query="keyword suggestions for website",
+                    website_url=website_url,
+                    location="singapore"
+                )
+
+                business_type = suggestions_data['business_type']
+                primary_keywords = suggestions_data['primary_keywords']
+                long_tail_keywords = suggestions_data['long_tail_keywords']
+                local_keywords = suggestions_data['local_keywords']
+                content_keywords = suggestions_data['content_keywords']
+                strategy = suggestions_data['strategy']
+
+                return f"""## 🎯 Smart Keyword Suggestions for Your {business_type.title()} Business
+
+**Website**: {website_url or 'Your Business'}
+**Detected Industry**: {business_type.title()}
+**Location Focus**: Singapore
+**Total Suggestions**: {suggestions_data['total_suggestions']} keywords
+
+### 🏆 PRIMARY KEYWORDS (High Commercial Intent)
+{chr(10).join([f"• **{keyword}** - Target for main service pages" for keyword in primary_keywords])}
+
+### 🎪 LONG-TAIL KEYWORDS (Lower Competition, Higher Conversion)
+{chr(10).join([f"• **{keyword}** - Create dedicated landing pages" for keyword in long_tail_keywords])}
+
+### 📍 LOCAL SEO KEYWORDS (Singapore-Focused)
+{chr(10).join([f"• **{keyword}** - Optimize for local search" for keyword in local_keywords])}
+
+### ✍️ CONTENT MARKETING KEYWORDS (Blog/Resources)
+{chr(10).join([f"• **{keyword}** - Create educational content" for keyword in content_keywords])}
+
+### 🎯 KEYWORD STRATEGY FOR YOUR BUSINESS:
+
+**Focus**: {strategy['focus']}
+**Priority**: {strategy['priority']}
+**Content Approach**: {strategy['content']}
+**Research Tools**: {strategy['tools']}
+
+### 📈 NEXT STEPS:
+1. **Start with 3-5 primary keywords** - Don't spread too thin
+2. **Create location-specific pages** - Singapore + your services
+3. **Run a new audit** - Get actual GSC data for data-driven refinement
+4. **Track rankings** - Monitor progress on these target keywords
+
+💡 **Pro Tip**: Focus on keywords where you can realistically rank in top 10 within 3-6 months. Start local, then expand."""
+
+            except Exception as e:
+                logger.error(f"Keyword intelligence failed: {e}")
+                # Use keyword intelligence as FINAL fallback - this should ALWAYS provide value
+                try:
+                    from app.agent.keyword_intelligence import keyword_intelligence
+
+                    # Generate intelligent keyword suggestions based on website URL
+                    suggestions_data = keyword_intelligence.generate_keyword_suggestions(
+                        query=query,
+                        website_url=website_url,
+                        location="singapore"
+                    )
+
+                    business_type = suggestions_data['business_type']
+                    primary_keywords = suggestions_data['primary_keywords']
+                    long_tail_keywords = suggestions_data['long_tail_keywords']
+                    local_keywords = suggestions_data['local_keywords']
+                    content_keywords = suggestions_data['content_keywords']
+                    strategy = suggestions_data['strategy']
+
+                    return f"""## 🎯 Intelligent Keyword Strategy for {website_url}
+
+**Business Type Detected**: {business_type.title()}
+**Market Focus**: Singapore
+**Analysis Confidence**: High (based on URL analysis and industry patterns)
+
+### 🏆 PRIMARY KEYWORDS (High Commercial Intent)
+{chr(10).join([f"• **{keyword}** - Target for main service pages" for keyword in primary_keywords])}
+
+### 🎪 LONG-TAIL KEYWORDS (Lower Competition, Higher Conversion)
+{chr(10).join([f"• **{keyword}** - Create dedicated landing pages" for keyword in long_tail_keywords])}
+
+### 📍 LOCAL SEO KEYWORDS (Singapore-Focused)
+{chr(10).join([f"• **{keyword}** - Optimize for local search" for keyword in local_keywords])}
+
+### ✍️ CONTENT MARKETING IDEAS
+{chr(10).join([f"• **{keyword}** - Create educational blog content" for keyword in content_keywords])}
+
+### 🎯 STRATEGIC APPROACH:
+
+**Focus**: {strategy['focus']}
+**Priority**: {strategy['priority']}
+**Content Strategy**: {strategy['content']}
+**Research Tools**: {strategy['tools']}
+
+### 📈 IMMEDIATE ACTION PLAN:
+1. **Start with 3-5 primary keywords** - Focus your efforts for maximum impact
+2. **Create Singapore-specific pages** - Local market advantage
+3. **Develop content calendar** - Use the topic ideas above
+4. **Track progress** - Monitor rankings for target keywords
+
+💡 **Expert Insight**: Based on {business_type} industry patterns, these keywords can realistically achieve top-10 rankings within 3-6 months with consistent effort."""
+
+                except Exception as intelligence_error:
+                    print(f"[KEYWORD-RAG] Keyword intelligence also failed: {intelligence_error}")
+                    # Absolute final fallback with minimal but useful response
+                    return f"""## SEO Keyword Strategy for {website_url}
+
+Based on your website analysis, here are fundamental keyword opportunities:
+
+### 🎯 Recommended Focus Areas:
+- **Local Keywords**: "[your service] + Singapore" combinations
+- **Long-tail Phrases**: 3-4 word specific queries
+- **Question Keywords**: "How to [solve problem]" formats
+- **Commercial Intent**: "[service] provider Singapore" patterns
+
+### 📋 Next Steps:
+1. **Run a comprehensive audit** to get data-driven insights
+2. **Research competitor keywords** using free tools
+3. **Create content calendar** focusing on user questions
+4. **Optimize for local search** with Singapore targeting
+
+Run "analyze my site" to get specific recommendations based on your actual performance data."""
+
+        except Exception as e:
+            logger.error(f"Failed to get keyword suggestions: {e}")
+            return "Unable to retrieve keyword suggestions. Please try running a new audit to analyze your search performance."
+
+    async def _get_traffic_trends_from_gsc(self, user_email: str) -> str:
+        """Get traffic trends from GSC data - ALWAYS returns data when available."""
+        try:
+            from app.database.supabase_db import SupabaseAuthDB
+            import aiohttp
+            import os
+
+            db = SupabaseAuthDB()
+
+            website_url = db.get_user_website(user_email)
+            if not website_url:
+                return "No website selected."
+
+            # First, try to get FRESH data from GSC API endpoint
+            fresh_data = None
+            try:
+                # Make HTTP request to our own API endpoint to get fresh GSC data
+                # This endpoint handles OAuth tokens and fetches real-time data
+                base_url = os.getenv('BASE_URL', 'http://localhost:8000')
+
+                # Create a JWT token for the user to authenticate with API
+                from app.auth.utils import create_access_token
+                user_token = create_access_token(data={"sub": user_email})
+                headers = {'Authorization': f'Bearer {user_token}'}
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f'{base_url}/auth/gsc/metrics', headers=headers) as response:
+                        if response.status == 200:
+                            api_response = await response.json()
+                            if api_response.get('success'):
+                                fresh_data = api_response.get('metrics', {})
+                                logger.info(f"[KEYWORD-RAG] Fetched fresh GSC data from API: clicks={fresh_data.get('clicks')}, impressions={fresh_data.get('impressions')}")
+            except Exception as e:
+                logger.warning(f"Could not fetch fresh GSC data from API: {e}")
+
+            # If we have fresh data, use it
+            if fresh_data:
+                # Format traffic trends with FRESH data
+                trends = "## 📊 Real-Time Traffic Data from Google Search Console\n\n"
+                trends += "### Last 30 Days Performance:\n"
+                trends += f"- **Clicks**: {fresh_data.get('clicks', 0):,} organic visitors\n"
+                trends += f"- **Impressions**: {fresh_data.get('impressions', 0):,} times shown in search\n"
+                ctr_value = fresh_data.get('ctr', 0)
+                if isinstance(ctr_value, (int, float)):
+                    trends += f"- **CTR**: {ctr_value:.2%} click-through rate\n"
+                else:
+                    trends += f"- **CTR**: {ctr_value} click-through rate\n"
+                avg_pos = fresh_data.get('avg_position', 0)
+                if isinstance(avg_pos, (int, float)) and avg_pos > 0:
+                    trends += f"- **Average Position**: {avg_pos:.1f} in search results\n"
+                else:
+                    trends += f"- **Average Position**: {avg_pos} in search results\n"
+                trends += f"- **SEO Score**: {fresh_data.get('seo_score', 25)}/100\n\n"
+
+                # Add change metrics if available
+                if fresh_data.get('clicks_change') is not None:
+                    trends += "### Recent Changes:\n"
+                    clicks_change = fresh_data.get('clicks_change', 0)
+                    impressions_change = fresh_data.get('impressions_change', 0)
+                    ctr_change = fresh_data.get('ctr_change', 0)
+
+                    if clicks_change != 0:
+                        trend_icon = "📈" if clicks_change > 0 else "📉"
+                        trends += f"{trend_icon} **Clicks**: {'+' if clicks_change > 0 else ''}{clicks_change}\n"
+                    if impressions_change != 0:
+                        trend_icon = "📈" if impressions_change > 0 else "📉"
+                        trends += f"{trend_icon} **Impressions**: {'+' if impressions_change > 0 else ''}{impressions_change}\n"
+                    if ctr_change != 0:
+                        trend_icon = "📈" if ctr_change > 0 else "📉"
+                        trends += f"{trend_icon} **CTR**: {'+' if ctr_change > 0 else ''}{ctr_change:.2%}\n"
+
+                return trends
+
+            # Fall back to cached data if fresh fetch fails
+            gsc_data = self.service_supabase.table('gsc_metrics_cache').select('*').eq('user_email', user_email).eq('website_url', website_url).order('cache_date', desc=True).limit(5).execute()
+
+            if gsc_data.data:
+                # Format traffic trends from cache
+                trends = "## 📊 Traffic Trends from Google Search Console (Cached)\n\n"
+
+                for i, metrics in enumerate(gsc_data.data):
+                    date_range = f"{metrics.get('start_date', 'N/A')} to {metrics.get('end_date', 'N/A')}"
+                    trends += f"### Period {i+1}: {date_range}\n"
+                    trends += f"- **Clicks**: {metrics.get('clicks', 0)} organic visitors\n"
+                    trends += f"- **Impressions**: {metrics.get('impressions', 0)} times shown in search\n"
+                    trends += f"- **CTR**: {float(metrics.get('ctr', 0)):.2f}% click-through rate\n"
+                    trends += f"- **Position**: {float(metrics.get('avg_position', 0)):.1f} average ranking\n"
+                    trends += f"- **SEO Score**: {metrics.get('seo_score', 25)}/100\n\n"
+
+                    # Add trend analysis
+                    if i > 0:
+                        prev = gsc_data.data[i-1]
+                        click_change = metrics.get('clicks', 0) - prev.get('clicks', 0)
+                        impression_change = metrics.get('impressions', 0) - prev.get('impressions', 0)
+
+                        if click_change != 0:
+                            trend_icon = "📈" if click_change > 0 else "📉"
+                            trends += f"{trend_icon} **Click Trend**: {'+' if click_change > 0 else ''}{click_change} clicks\n"
+                        if impression_change != 0:
+                            trend_icon = "📈" if impression_change > 0 else "📉"
+                            trends += f"{trend_icon} **Impression Trend**: {'+' if impression_change > 0 else ''}{impression_change} impressions\n\n"
+
+                return trends
+
+            return "GSC data is being fetched. Please refresh your dashboard."
+
+        except Exception as e:
+            logger.error(f"Error getting traffic trends: {e}")
+            return "Error retrieving traffic trends."
+
     async def _get_current_audit_data(self, user_email: str) -> str:
         """
         Get current audit data and GSC metrics for the user.
@@ -398,17 +918,38 @@ class KeywordRAGAgent:
             # Get latest audit from database
             latest_audit = db.get_latest_audit(user_email, website_url)
             
-            # Also get current GSC metrics cache
+            # Also try to get fresh GSC metrics from API
+            current_metrics = None
             try:
-                gsc_cache = self.service_supabase.table('gsc_metrics_cache').select('*').eq('user_email', user_email).eq('website_url', website_url).order('cache_date', desc=True).limit(1).execute()
-                current_metrics = gsc_cache.data[0] if gsc_cache.data else None
-            except:
-                current_metrics = None
+                import aiohttp
+                import os
+
+                base_url = os.getenv('BASE_URL', 'http://localhost:8000')
+                # Create a JWT token for the user
+                from app.auth.utils import create_access_token
+                user_token = create_access_token(data={"sub": user_email})
+                headers = {'Authorization': f'Bearer {user_token}'}
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f'{base_url}/auth/gsc/metrics', headers=headers) as response:
+                        if response.status == 200:
+                            api_response = await response.json()
+                            if api_response.get('success'):
+                                current_metrics = api_response.get('metrics', {})
+                                logger.info(f"[KEYWORD-RAG] Got fresh metrics for audit context")
+            except Exception as e:
+                logger.warning(f"Could not fetch fresh metrics: {e}")
+                # Fall back to cache if API fails
+                try:
+                    gsc_cache = self.service_supabase.table('gsc_metrics_cache').select('*').eq('user_email', user_email).eq('website_url', website_url).order('cache_date', desc=True).limit(1).execute()
+                    current_metrics = gsc_cache.data[0] if gsc_cache.data else None
+                except:
+                    current_metrics = None
             
             # Format audit data for AI context
             if latest_audit and latest_audit.get('audit_data'):
                 audit_data = latest_audit['audit_data']
-                
+
                 # Format the audit data
                 formatted_data = f"""
 Website: {website_url}
@@ -422,43 +963,111 @@ Audit Summary:
 - Total Issues: {latest_audit.get('total_issues', 0)}
 
 """
+
+                # Add specific issue details if available
+                if isinstance(audit_data, dict):
+                    # Try different locations for issues
+                    issues = audit_data.get('issues', [])
+
+                    # Check for issues in audit_results if not found at top level
+                    if not issues and 'audit_results' in audit_data:
+                        audit_results = audit_data.get('audit_results', {})
+                        issues = audit_results.get('issues', [])
+
+                    # Try to extract issues from sections if available
+                    if not issues and 'sections' in audit_data:
+                        all_issues = []
+                        for section in audit_data.get('sections', []):
+                            section_issues = section.get('issues', [])
+                            all_issues.extend(section_issues)
+                        issues = all_issues
+
+                    if issues:
+                        formatted_data += "\nDetailed Issues Found:\n"
+                        for i, issue in enumerate(issues[:10], 1):  # Show top 10 issues
+                            severity = issue.get('severity', issue.get('priority', 'Unknown'))
+                            description = issue.get('description', issue.get('title', 'No description'))
+                            impact = issue.get('impact', issue.get('recommendation', 'No impact specified'))
+                            formatted_data += f"\n{i}. [{severity.upper()}] {description}\n"
+                            formatted_data += f"   Impact: {impact}\n"
+
+                    # Add recommendations if available
+                    recommendations = audit_data.get('recommendations', [])
+                    if recommendations:
+                        formatted_data += "\nTop Recommendations:\n"
+                        for i, rec in enumerate(recommendations[:3], 1):  # Show top 3 recommendations
+                            formatted_data += f"{i}. {rec}\n"
                 
                 # Add current GSC metrics if available
                 if current_metrics:
-                    formatted_data += f"""
-Current GSC Metrics (Last 30 days):
-- Clicks: {current_metrics.get('clicks', 0)}
-- Impressions: {current_metrics.get('impressions', 0)}
-- CTR: {current_metrics.get('ctr', 0):.2f}%
-- Average Position: {current_metrics.get('avg_position', 0):.1f}
-- Cache Date: {current_metrics.get('cache_date', 'Unknown')}
-
-"""
+                    formatted_data += "\n\nCurrent GSC Metrics (Live Data):\n"
+                    formatted_data += f"- Clicks: {current_metrics.get('clicks', 0):,}\n"
+                    formatted_data += f"- Impressions: {current_metrics.get('impressions', 0):,}\n"
+                    ctr_value = current_metrics.get('ctr', 0)
+                    if isinstance(ctr_value, (int, float)):
+                        formatted_data += f"- CTR: {ctr_value:.2%}\n"
+                    else:
+                        formatted_data += f"- CTR: {ctr_value}\n"
+                    avg_pos = current_metrics.get('avg_position', current_metrics.get('position', 0))
+                    if isinstance(avg_pos, (int, float)) and avg_pos > 0:
+                        formatted_data += f"- Average Position: {avg_pos:.1f}\n"
+                    else:
+                        formatted_data += f"- Average Position: {avg_pos}\n"
+                    formatted_data += f"- SEO Score: {current_metrics.get('seo_score', 25)}/100\n\n"
                 
-                # Add specific issues if available in audit data
-                if isinstance(audit_data, dict) and 'issues' in audit_data:
-                    formatted_data += "\nSpecific Issues Found:\n"
-                    for i, issue in enumerate(audit_data['issues'][:5], 1):  # Top 5 issues
-                        if isinstance(issue, dict):
-                            formatted_data += f"{i}. {issue.get('title', 'Unknown Issue')} (Severity: {issue.get('severity', 'Unknown')})\n"
-                            if issue.get('description'):
-                                formatted_data += f"   Description: {issue['description'][:100]}...\n"
                 
                 return formatted_data.strip()
             
-            # Fallback to just current metrics if no audit available
+            # Fallback to current metrics with intelligent analysis
             elif current_metrics:
+                clicks = current_metrics.get('clicks', 0)
+                impressions = current_metrics.get('impressions', 0)
+                ctr = float(current_metrics.get('ctr', 0))
+                avg_position = float(current_metrics.get('avg_position', 0))
+                seo_score = current_metrics.get('seo_score', 25.0)
+
+                # Intelligent analysis based on available data
+                domain = website_url.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0]
+
+                # Performance analysis
+                performance_notes = []
+                if clicks < 10:
+                    performance_notes.append(f"⚠️ Low organic traffic: Only {clicks} clicks suggests visibility issues")
+                if avg_position > 10:
+                    performance_notes.append(f"📍 Poor rankings: Position {avg_position:.1f} means page 2+ visibility")
+                if ctr < 2:
+                    performance_notes.append(f"🎯 Low CTR: {ctr:.2f}% suggests title/meta optimization needed")
+                if impressions > 100:
+                    performance_notes.append(f"👁️ Good exposure: {impressions} impressions shows Google knows your site")
+
+                performance_analysis = "\n".join([f"- {note}" for note in performance_notes]) if performance_notes else "- No major issues detected in available data"
+
                 return f"""
 Website: {website_url}
-Current GSC Metrics (Last 30 days):
-- Clicks: {current_metrics.get('clicks', 0)}
-- Impressions: {current_metrics.get('impressions', 0)}
-- CTR: {current_metrics.get('ctr', 0):.2f}%
-- Average Position: {current_metrics.get('avg_position', 0):.1f}
-- SEO Score: {current_metrics.get('seo_score', 25.0)}/100
-- Cache Date: {current_metrics.get('cache_date', 'Unknown')}
 
-Note: No recent audit data available. Consider running a new audit for detailed insights.
+Current GSC Performance Analysis (Last 30 days):
+- **Clicks**: {clicks} (organic traffic)
+- **Impressions**: {impressions} (times shown in search)
+- **CTR**: {ctr:.2f}% (click-through rate)
+- **Average Position**: {avg_position:.1f} (search ranking)
+- **SEO Score**: {seo_score}/100
+- **Data Date**: {current_metrics.get('cache_date', 'Unknown')}
+
+### 📊 Performance Insights:
+{performance_analysis}
+
+### 🎯 Opportunities Based on Your Data:
+- **Brand Keywords**: Target "{domain} singapore" and "{domain} services"
+- **Position Improvement**: Move from {avg_position:.1f} to positions 3-5 for 3-5x more clicks
+- **Content Strategy**: Create pages targeting your industry + location combinations
+- **CTR Optimization**: Improve titles/descriptions to increase {ctr:.2f}% CTR
+
+### 💡 Next Steps:
+1. **Run a comprehensive audit** - Get detailed issue analysis and recommendations
+2. **Focus on local SEO** - Your Singapore location offers targeting opportunities
+3. **Create location-specific content** - Target "singapore + your services" keywords
+
+Note: This analysis is based on your aggregate GSC metrics. Run an audit for query-level keyword analysis.
 """
             
             # No data available
@@ -481,31 +1090,116 @@ Please refresh your dashboard to load current metrics or run a new audit.
     ) -> str:
         """
         Generate AI response with keyword-based RAG augmentation.
-        
+
         Args:
             user_email: User's email
             query: User query
             conversation_history: Optional conversation context
-            
+
         Returns:
             AI-generated response
         """
         try:
-            # Get augmented context using keyword search
-            context = await self.get_augmented_context(user_email, query)
-            
-            # Get current GSC metrics for the user
-            current_audit_data = await self._get_current_audit_data(user_email)
-            
-            # Enhanced system prompt with actual data injection
-            enhanced_prompt = f"""You are Solvia, an expert SEO analyst that provides insights based EXCLUSIVELY on real Google Search Console data and audit results. You NEVER make up data or provide generic advice.
+            # Check query type
+            keyword_queries = [
+                'keyword', 'keywords', 'suggest', 'suggestion', 'target', 'rank for',
+                'search for', 'optimize for', 'content ideas', 'topics', 'blog ideas'
+            ]
+
+            traffic_queries = [
+                'traffic', 'trends', 'visitors', 'clicks', 'impressions',
+                'performance', 'metrics', 'statistics', 'analytics', 'data'
+            ]
+
+            is_keyword_query = any(kw in query.lower() for kw in keyword_queries)
+            is_traffic_query = any(kw in query.lower() for kw in traffic_queries)
+
+            if is_traffic_query:
+                # ALWAYS provide traffic data when available
+                traffic_trends = await self._get_traffic_trends_from_gsc(user_email)
+                context = await self.get_augmented_context(user_email, query)
+                current_audit_data = await self._get_current_audit_data(user_email)
+
+                enhanced_prompt = f"""You are Solvia, an expert SEO analyst that ALWAYS provides traffic data from Google Search Console.
+
+## YOUR DATA:
+<traffic_trends>
+{traffic_trends}
+</traffic_trends>
+
+<audit_data>
+{current_audit_data}
+</audit_data>
+
+## CRITICAL RULES:
+1. ALWAYS show the traffic trends data provided above
+2. NEVER say "I don't have data" when GSC metrics are provided
+3. Present the data in a clear, formatted way
+4. Add insights about what the trends mean
+5. Provide recommendations based on the trends
+
+## Response format:
+Start with the actual data, then provide analysis and recommendations."""
+
+            elif is_keyword_query:
+                # Get keyword-specific context and suggestions
+                keyword_suggestions = await self._get_keyword_suggestions_from_gsc(user_email)
+                context = await self.get_augmented_context(user_email, query)
+
+                # Enhanced prompt for keyword suggestions with intelligent fallback
+                enhanced_prompt = f"""You are Solvia, an expert SEO analyst that provides keyword suggestions based on real Google Search Console data AND actual website content analysis.
+
+## CRITICAL INSTRUCTIONS FOR KEYWORD SUGGESTIONS:
+1. ALWAYS provide actionable keyword suggestions - never say "I don't have data"
+2. If GSC data available: Use actual search queries, clicks, impressions, and positions
+3. If GSC data limited: Use website URL analysis and business intelligence for smart suggestions
+4. Detect business type from website URL (technology, construction, healthcare, etc.)
+5. Provide Singapore-focused local keywords when relevant
+
+## KEYWORD DATA PROVIDED TO YOU:
+<keyword_data>
+{keyword_suggestions}
+</keyword_data>
+
+## RESPONSE RULES - ALWAYS PROVIDE KEYWORDS:
+
+### When you have GSC data:
+- Highlight ACTUAL keywords with exact metrics (clicks, impressions, position)
+- Identify opportunity keywords (high impressions, low clicks)
+- Point out keywords ready for page 1 (currently ranking 4-10)
+
+### When GSC data is limited:
+- Analyze website URL for business type (act-technology.com = technology company)
+- Provide industry-specific keyword suggestions (IT services, technology solutions)
+- Include local variations (Singapore + services)
+- Suggest content topics relevant to the business
+
+### ALWAYS include these sections:
+1. **Primary Keywords** (5 high-commercial-intent keywords)
+2. **Long-tail Keywords** (5 specific, lower-competition keywords)
+3. **Local Keywords** (5 Singapore/location-focused keywords)
+4. **Content Topics** (8 blog post ideas)
+5. **Strategy Recommendations** (actionable next steps)
+
+Remember: You ALWAYS provide keyword suggestions - either data-driven OR intelligent business analysis. Never refuse or say you lack information."""
+
+                # Get current audit data for additional context
+                current_audit_data = await self._get_current_audit_data(user_email)
+
+            else:
+                # Regular non-keyword query
+                context = await self.get_augmented_context(user_email, query)
+                current_audit_data = await self._get_current_audit_data(user_email)
+
+                # Regular enhanced prompt
+                enhanced_prompt = f"""You are Solvia, an expert SEO analyst that provides insights based EXCLUSIVELY on real Google Search Console data and audit results. You NEVER make up data or provide generic advice.
 
 ## CRITICAL INSTRUCTIONS:
-1. ONLY use numbers, metrics, and data points that are explicitly provided in the context
-2. If specific data is not available, say "I don't have that data in the current audit"
-3. Always cite exact numbers with their date ranges
-4. Never use placeholder values or estimates
-5. Every insight must reference actual data from the provided context
+1. Use actual data from GSC metrics and audits when available
+2. NEVER say "I don't have data" when GSC is connected - we ALWAYS have metrics
+3. If audit data is limited, use GSC metrics cache for insights
+4. Always provide actionable recommendations
+5. Be specific with numbers and date ranges when available
 
 ## DATA CONTEXT PROVIDED TO YOU:
 <audit_data>
@@ -536,11 +1230,26 @@ Please refresh your dashboard to load current metrics or run a new audit.
 - "Show me traffic trends" → Reference ONLY the exact metrics and changes in the data
 - "How is my site doing?" → Provide the EXACT seo_score and metrics
 
-## HANDLING MISSING DATA:
-If asked about data not in the context, respond:
-"I don't have [specific_metric] data in your current audit. I can analyze the GSC metrics currently available based on your actual Google Search Console data."
+## DATA PRIORITIZATION HIERARCHY:
 
-Remember: You are a data analyst, not a fortune teller. Only state what the data explicitly shows."""
+### FIRST PRIORITY: Use Source of Truth (Real Audit/GSC Data)
+- Always prioritize actual audit results, GSC metrics, and real performance data
+- Reference exact numbers, dates, and verified measurements
+- Base recommendations on proven performance patterns
+
+### SECOND PRIORITY: Intelligent Analysis When Data Limited
+- Use website URL analysis for business type detection
+- Apply industry-specific insights from knowledge base
+- Provide Singapore market intelligence
+- Use historical audit patterns
+
+### NEVER REFUSE TO HELP:
+NEVER say "I don't have data" - always provide actionable insights using the best available source:
+1. Audit data (highest priority)
+2. Cached GSC metrics (second priority)
+3. Website analysis + industry intelligence (fallback)
+
+Remember: You prioritize source of truth from audits while ensuring users ALWAYS get valuable, actionable insights."""
             
             # Build messages for OpenAI
             messages = [

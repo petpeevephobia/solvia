@@ -103,30 +103,44 @@ def get_authenticated_user(credentials: HTTPAuthorizationCredentials = Depends(s
     Get current user with GSC credential validation.
     Use this for endpoints that require valid GSC access.
     """
+    print(f"[GET_AUTH_USER] 🔍 Starting authentication check...")
+
     from app.auth.utils import verify_token, verify_gsc_credentials
-    
+
     token = credentials.credentials
+    print(f"[GET_AUTH_USER] 🎫 Token received: {'Yes' if token else 'No'}")
+
     email = verify_token(token)
-    
+    print(f"[GET_AUTH_USER] 📧 Email from token: {email}")
+
     if email is None:
+        print(f"[GET_AUTH_USER] ❌ Token verification failed - invalid token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    # Check if user has valid GSC credentials
-    if not verify_gsc_credentials(email):
+
+    print(f"[GET_AUTH_USER] ✅ Token valid, now checking GSC credentials...")
+
+    # Check if user has valid GSC credentials with automatic refresh attempt
+    gsc_valid = verify_gsc_credentials(email)
+    print(f"[GET_AUTH_USER] 🔍 GSC credentials check result: {'Valid' if gsc_valid else 'Invalid'}")
+
+    if not gsc_valid:
+        print(f"[GET_AUTH_USER] ❌ GSC credentials invalid/expired, returning 401")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google Search Console credentials expired. Please re-authenticate.",
+            detail="Google Search Console credentials expired. Please re-authenticate with Google to access your real SEO data.",
             headers={
                 "WWW-Authenticate": "Bearer",
                 "X-Auth-Required": "google",
-                "X-Redirect-URL": "/domain-selection"
+                "X-Redirect-URL": "/auth/google/authorize",
+                "X-Auto-Refresh": "failed"
             }
         )
-    
+
+    print(f"[GET_AUTH_USER] 🎉 ✅ Authentication successful for {email}")
     return email
 
 
@@ -433,11 +447,11 @@ async def get_dashboard_data(current_user: str = Depends(get_current_user)):
 # Google OAuth and Search Console Integration
 @router.get("/google/authorize")
 async def google_authorize(request: Request, email: Optional[str] = None):
-    """Generate Google OAuth authorization URL."""
+    """Generate Google OAuth authorization URL with automatic device remembering."""
     try:
         # Get email from query parameter or from JWT token
         user_email = email
-        
+
         if not user_email:
             # Try to get from JWT token
             credentials = request.headers.get("authorization")
@@ -445,14 +459,38 @@ async def google_authorize(request: Request, email: Optional[str] = None):
                 token = credentials.split(" ", 1)[1]
                 from app.auth.utils import verify_token
                 user_email = verify_token(token)
-        
+
         if not user_email:
             # For OAuth flow, email will be available after authentication
             user_email = "oauth_user"
-        
-        # Generate OAuth URL with email as state parameter
-        auth_url = google_oauth.get_auth_url(state=user_email)
-        
+
+        # Check if device is trusted (for returning users)
+        device_fingerprint = None
+        remember_device = False
+
+        if user_email != "oauth_user":
+            # Generate device fingerprint for all users
+            device_fingerprint = google_oauth.generate_device_fingerprint(
+                request_headers=dict(request.headers),
+                user_agent=request.headers.get('user-agent'),
+                ip_address=request.client.host if hasattr(request, 'client') else None
+            )
+
+            # Check if this device is already trusted
+            remember_device = google_oauth.is_device_trusted(user_email, device_fingerprint)
+
+            if remember_device:
+                print(f"[DEVICE TRUST] Device {device_fingerprint[:8]}... is trusted for {user_email}")
+            else:
+                print(f"[DEVICE TRUST] Device {device_fingerprint[:8]}... is NOT trusted for {user_email}")
+
+        # Generate OAuth URL with device remembering preference
+        auth_url = google_oauth.get_auth_url(state=user_email, remember_device=remember_device)
+
+        # Store device fingerprint in state for callback processing
+        if device_fingerprint:
+            auth_url += f"&device_fp={device_fingerprint}"
+
         # Redirect directly to Google OAuth
         return RedirectResponse(url=auth_url, status_code=302)
         
@@ -466,22 +504,23 @@ async def google_callback(
     code: str,
     state: Optional[str] = None,
     error: Optional[str] = None,
+    device_fp: Optional[str] = None,
     request: Request = None
 ):
-    """Handle Google OAuth callback."""
-    
+    """Handle Google OAuth callback with automatic device trust management."""
+
     if error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"OAuth error: {error}"
         )
-    
+
     if not code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Authorization code not provided"
         )
-    
+
     try:
         # Get JWT from Authorization header
         jwt_token = None
@@ -492,25 +531,44 @@ async def google_callback(
         
         # Handle OAuth callback
         result = await google_oauth.handle_callback(code, jwt_token=jwt_token)
-        
+
         # Get the actual user email from the OAuth response
         actual_user_email = result.get('email')
-        
+
         if not actual_user_email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Could not retrieve user email from OAuth response"
             )
-        
+
+        # Always mark device as trusted for better UX
+        trust_device = True
+        if trust_device:
+            # Generate or use provided device fingerprint
+            if not device_fp and request:
+                device_fp = google_oauth.generate_device_fingerprint(
+                    request_headers=dict(request.headers),
+                    user_agent=request.headers.get('user-agent'),
+                    ip_address=request.client.host if hasattr(request, 'client') else None
+                )
+
+            if device_fp:
+                google_oauth.mark_device_trusted(
+                    user_email=actual_user_email,
+                    device_fingerprint=device_fp,
+                    user_agent=request.headers.get('user-agent') if request else None
+                )
+                print(f"[DEVICE TRUST] Device {device_fp[:8]}... marked as trusted for {actual_user_email}")
+
         # If no JWT token was provided, create a user session
         if not jwt_token:
             # Create or get user session using the actual email
             user_session = await db.get_or_create_user_session(actual_user_email)
-            
+
             # Generate JWT token for the user
             from app.auth.utils import create_access_token
             access_token = create_access_token(data={"sub": actual_user_email})
-            
+
             # Redirect to domain selection with token in URL
             return RedirectResponse(url=f"/domain-selection?token={access_token}")
         else:
@@ -531,6 +589,126 @@ async def google_callback_test():
     return {"message": "Google callback route is working!"}
 
 
+@router.post("/google/clear-credentials")
+async def clear_google_credentials(current_user: str = Depends(get_current_user)):
+    """Clear expired Google Search Console credentials and force re-authentication."""
+    try:
+        print(f"[CLEAR CREDENTIALS] Clearing credentials for user: {current_user}")
+
+        # Clear credentials from the oauth manager
+        google_oauth._clear_credentials(current_user)
+
+        # Also clear from cache
+        cache_key = f"creds_{current_user}"
+        if cache_key in google_oauth._credentials_cache:
+            del google_oauth._credentials_cache[cache_key]
+            print(f"[CLEAR CREDENTIALS] Removed from cache: {cache_key}")
+
+        return {
+            "success": True,
+            "message": "Google Search Console credentials cleared. Please re-authenticate.",
+            "redirect_url": "/auth/google/authorize"
+        }
+
+    except Exception as e:
+        print(f"[CLEAR CREDENTIALS] Error clearing credentials: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to clear credentials"
+        )
+
+
+@router.post("/google/expire-credentials")
+async def expire_google_credentials(current_user: str = Depends(get_current_user)):
+    """Expire Google Search Console credentials (for testing refresh functionality)."""
+    try:
+        print(f"[EXPIRE CREDENTIALS] Expiring credentials for testing refresh for user: {current_user}")
+
+        # Expire credentials (keeps refresh tokens for testing)
+        google_oauth._expire_credentials_for_testing(current_user)
+
+        # Also clear from cache
+        cache_key = f"creds_{current_user}"
+        if cache_key in google_oauth._credentials_cache:
+            del google_oauth._credentials_cache[cache_key]
+            print(f"[EXPIRE CREDENTIALS] Removed from cache: {cache_key}")
+
+        return {
+            "success": True,
+            "message": "Google Search Console credentials expired. Refresh page to test automatic token refresh.",
+            "test_mode": True
+        }
+
+    except Exception as e:
+        print(f"[EXPIRE CREDENTIALS] Error expiring credentials: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to expire credentials"
+        )
+
+
+@router.get("/google/debug-credentials")
+async def debug_google_credentials(current_user: str = Depends(get_current_user)):
+    """Debug endpoint to check current GSC credential status."""
+    try:
+        from app.database.supabase_db import SupabaseAuthDB
+        from datetime import datetime
+
+        print(f"[DEBUG CREDENTIALS] 🔍 Checking credentials for user: {current_user}")
+
+        db = SupabaseAuthDB()
+
+        # Get GSC credentials using service role (bypasses RLS)
+        response = db.service_supabase.table('gsc_connections').select('*').eq('email', current_user).execute()
+
+        if not response.data:
+            return {
+                "success": False,
+                "message": "No GSC credentials found",
+                "user": current_user,
+                "has_credentials": False
+            }
+
+        credentials = response.data[0]
+
+        # Parse expiry time if it exists
+        expires_at_str = credentials.get('expires_at')
+        is_expired = None
+        time_until_expiry = None
+
+        if expires_at_str:
+            expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+            now = datetime.now(expires_at.tzinfo)
+            is_expired = now > expires_at
+            time_until_expiry = (expires_at - now).total_seconds()
+
+        debug_info = {
+            "success": True,
+            "user": current_user,
+            "has_credentials": True,
+            "credential_status": {
+                "has_access_token": bool(credentials.get('access_token')),
+                "has_refresh_token": bool(credentials.get('refresh_token')),
+                "expires_at": expires_at_str,
+                "is_expired": is_expired,
+                "time_until_expiry_seconds": time_until_expiry,
+                "created_at": credentials.get('created_at'),
+                "updated_at": credentials.get('updated_at')
+            }
+        }
+
+        print(f"[DEBUG CREDENTIALS] 📊 Debug info: {debug_info}")
+        return debug_info
+
+    except Exception as e:
+        print(f"[DEBUG CREDENTIALS] ❌ Error: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "user": current_user
+        }
+
+
 # Chat endpoints
 @router.post("/chat/send")
 async def send_message(
@@ -543,15 +721,15 @@ async def send_message(
         from app.agent.chat_integration_supabase import chat_integration
         
         # Store user message
-        user_message_id = await db.store_chat_message(
-            current_user, 
-            message.message_content, 
-            "user", 
+        user_message_id = db.store_chat_message(
+            current_user,
+            message.message_content,
+            "user",
             message.sender_name
         )
         
         # Get user's selected website for context
-        selected_website = await db.get_user_website(current_user)
+        selected_website = db.get_user_website(current_user)
         
         # Generate AI response using Supabase RAG-enhanced processing
         ai_response = await chat_integration.process_chat_message(
@@ -590,10 +768,10 @@ async def send_message(
         
         # If only one paragraph, send as single message
         if len(paragraphs) <= 1:
-            ai_message_id = await db.store_chat_message(
-                current_user, 
-                ai_response, 
-                "ai", 
+            ai_message_id = db.store_chat_message(
+                current_user,
+                ai_response,
+                "ai",
                 "Solvia"
             )
             
@@ -610,10 +788,10 @@ async def send_message(
             ai_responses = []
             
             for paragraph in paragraphs:
-                ai_message_id = await db.store_chat_message(
-                    current_user, 
-                    paragraph, 
-                    "ai", 
+                ai_message_id = db.store_chat_message(
+                    current_user,
+                    paragraph,
+                    "ai",
                     "Solvia"
                 )
                 ai_message_ids.append(ai_message_id)
@@ -641,7 +819,7 @@ async def get_chat_history(
     """Get chat history for the current user."""
     try:
         print(f"[CHAT API] Getting messages for user: {current_user}")
-        messages = await db.get_chat_messages(current_user, limit)
+        messages = db.get_chat_messages(current_user, limit)
         print(f"[CHAT API] Database returned {len(messages)} messages")
         
         chat_responses = []
@@ -694,7 +872,7 @@ async def generate_ai_response(user_message: str, user_email: str) -> str:
     
     try:
         # Get recent conversation history (last 10 messages)
-        recent_messages = await db.get_chat_messages(user_email, 10)
+        recent_messages = db.get_chat_messages(user_email, 10)
         
         # Always include GSC metrics context for Solvia
         # Detect date range in user message
@@ -704,7 +882,7 @@ async def generate_ai_response(user_message: str, user_email: str) -> str:
         gsc_context = ""
         try:
             # Get user's selected website
-            selected_website = await db.get_user_website(user_email)
+            selected_website = db.get_user_website(user_email)
             if selected_website:
                 # Get OAuth handler
                 oauth_handler = GoogleOAuthHandler()
@@ -719,7 +897,7 @@ async def generate_ai_response(user_message: str, user_email: str) -> str:
                     gsc_metrics = oauth_handler.get_gsc_metrics(user_email, selected_website, date_range)
                 else:
                     # Default 30-day range - check cache first, then fetch if needed
-                    cached_metrics = await db.get_gsc_metrics_cache(user_email, selected_website, date_range)
+                    cached_metrics = db.get_gsc_metrics_cache(user_email, selected_website, date_range)
                     if cached_metrics:
                         print(f"Using cached GSC metrics for {user_email}")
                         gsc_metrics = cached_metrics
@@ -728,7 +906,7 @@ async def generate_ai_response(user_message: str, user_email: str) -> str:
                         gsc_metrics = oauth_handler.get_gsc_metrics(user_email, selected_website, date_range)
                         # Cache the results for default range
                         if gsc_metrics:
-                            await db.store_gsc_metrics_cache(user_email, selected_website, gsc_metrics, date_range)
+                            db.store_gsc_metrics_cache(user_email, selected_website, gsc_metrics, date_range)
                 
                 if gsc_metrics:
                     # Get actual clicks count from GSC data
@@ -973,10 +1151,15 @@ async def get_selected_website(current_user: str = Depends(get_current_user)):
         )
 
 @router.get("/gsc/metrics")
-async def get_gsc_metrics(current_user: str = Depends(get_authenticated_user)):
+async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
     """Get Google Search Console metrics for the authenticated user's selected property."""
     try:
         print(f"[GSC METRICS] Getting metrics for user: {current_user}")
+        
+        # Check GSC credentials first, but don't fail immediately
+        from app.auth.utils import verify_gsc_credentials
+        has_valid_gsc_credentials = verify_gsc_credentials(current_user)
+        print(f"[GSC METRICS] GSC credentials valid: {has_valid_gsc_credentials}")
         
         # Get user's selected website
         user_website = db.get_user_website(current_user)
@@ -984,6 +1167,50 @@ async def get_gsc_metrics(current_user: str = Depends(get_authenticated_user)):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No website selected. Please select a domain first."
+            )
+        
+        # If GSC credentials are invalid, try cached data immediately
+        if not has_valid_gsc_credentials:
+            print(f"[GSC METRICS] GSC credentials invalid, trying cache fallback immediately")
+            try:
+                # Default 30-day date range for dashboard
+                from datetime import datetime, timedelta
+                end_date = datetime.now().date()
+                start_date = end_date - timedelta(days=30)
+                date_range = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'is_custom_range': False
+                }
+                
+                cached_metrics = db.get_gsc_metrics_cache(current_user, user_website, date_range)
+                if cached_metrics:
+                    print(f"[GSC METRICS] ✅ Using cached metrics - GSC credentials expired")
+                    print(f"[GSC METRICS] Cached data: {cached_metrics}")
+                    # Return cached data with indicator that credentials need refresh
+                    return {
+                        "success": True,
+                        "metrics": {
+                            **cached_metrics,
+                            "source": "cached-expired-credentials"
+                        },
+                        "website": user_website,
+                        "cache_notice": "Data from cache - GSC credentials expired. Please re-authenticate for live data."
+                    }
+                else:
+                    print(f"[GSC METRICS] ❌ No cached data available for expired credentials")
+                    
+            except Exception as cache_error:
+                print(f"[GSC METRICS] Cache fallback failed: {cache_error}")
+            
+            # If no cached data available, return 401 with re-authentication guidance
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google Search Console credentials expired. Please re-authenticate with Google to access your real SEO data.",
+                headers={
+                    "X-Auth-Required": "google",
+                    "X-Redirect-URL": "/auth/google/authorize"
+                }
             )
         
         print(f"[GSC METRICS] User website: {user_website}")
@@ -1089,17 +1316,76 @@ async def get_gsc_metrics(current_user: str = Depends(get_authenticated_user)):
         
     except Exception as e:
         print(f"Error getting GSC metrics: {e}")
-        if "No credentials found" in str(e) or "object NoneType can't be used in 'await' expression" in str(e):
-            # Enhanced error response with re-authentication guidance
+        if "No credentials found" in str(e) or "object NoneType can't be used in 'await' expression" in str(e) or "credentials expired" in str(e).lower():
+            # GSC credentials issue - try to fall back to cached data before failing
+            print(f"[GSC METRICS] GSC credentials issue, trying cached data fallback")
+            try:
+                # Try to get cached metrics as fallback
+                from datetime import datetime, timedelta
+                end_date = datetime.now().date()
+                start_date = end_date - timedelta(days=30)
+                date_range = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'is_custom_range': False
+                }
+                
+                cached_metrics = db.get_gsc_metrics_cache(current_user, user_website, date_range)
+                if cached_metrics:
+                    print(f"[GSC METRICS] ✅ Using cached metrics as fallback - GSC credentials expired")
+                    # Return cached data with indicator that credentials need refresh
+                    return {
+                        "success": True,
+                        "metrics": {
+                            **cached_metrics,
+                            "source": "cached-expired-credentials"
+                        },
+                        "website": user_website,
+                        "cache_notice": "Data from cache - GSC credentials expired. Please re-authenticate for live data."
+                    }
+                else:
+                    print(f"[GSC METRICS] ❌ No cached data available for fallback")
+                    
+            except Exception as cache_error:
+                print(f"[GSC METRICS] Cache fallback failed: {cache_error}")
+            
+            # If no cached data available, return 401 with re-authentication guidance
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Google Search Console credentials not found. Please re-authenticate with Google to access your real SEO data.",
+                detail="Google Search Console credentials expired. Please re-authenticate with Google to access your real SEO data.",
                 headers={
-                    "X-Auth-Required": "google_oauth",
+                    "X-Auth-Required": "google",
                     "X-Redirect-URL": "/auth/google/authorize"
                 }
             )
         else:
+            # Other errors - also try cache fallback
+            print(f"[GSC METRICS] General error, trying cached data fallback")
+            try:
+                from datetime import datetime, timedelta
+                end_date = datetime.now().date()
+                start_date = end_date - timedelta(days=30)
+                date_range = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'is_custom_range': False
+                }
+                
+                cached_metrics = db.get_gsc_metrics_cache(current_user, user_website, date_range)
+                if cached_metrics:
+                    print(f"[GSC METRICS] ✅ Using cached metrics as fallback after general error")
+                    return {
+                        "success": True,
+                        "metrics": {
+                            **cached_metrics,
+                            "source": "cached-after-error"
+                        },
+                        "website": user_website,
+                        "cache_notice": "Data from cache due to API error. Some features may be limited."
+                    }
+            except Exception as cache_error:
+                print(f"[GSC METRICS] Cache fallback after error failed: {cache_error}")
+                
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to get GSC metrics"

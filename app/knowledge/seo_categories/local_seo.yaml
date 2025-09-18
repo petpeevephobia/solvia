@@ -1,0 +1,390 @@
+# Local SEO Knowledge Base
+# Comprehensive local search optimization guidance
+
+category: local_seo
+description: "Location-based search optimization for local businesses"
+
+# Local SEO fundamentals
+fundamentals:
+  google_business_profile:
+    setup_optimization:
+      - "Complete all profile sections with accurate information"
+      - "Verify business location through Google verification process"
+      - "Add high-quality photos of business, team, and services"
+      - "Write compelling business description with keywords"
+      - "Select accurate business categories (primary + secondary)"
+      - "Add business hours including holiday schedules"
+      - "Enable messaging and Q&A features"
+
+    ongoing_management:
+      - "Post regular updates and offers"
+      - "Respond to customer reviews promptly"
+      - "Upload new photos monthly"
+      - "Update business information for changes"
+      - "Monitor and respond to customer questions"
+
+  nap_consistency:
+    critical_elements:
+      name: "Use exact business name across all listings"
+      address: "Consistent format and spelling (including suite numbers)"
+      phone: "Primary business phone number (local is preferred)"
+
+    consistency_rules:
+      - "Use same business name format everywhere"
+      - "Standardize address format (St. vs Street, Suite vs Ste)"
+      - "Use local phone number when possible"
+      - "Include country/region code for international businesses"
+
+# Citation building and management
+citations:
+  tier_1_directories:
+    primary:
+      - "Google Business Profile (most important)"
+      - "Bing Places for Business"
+      - "Apple Maps (Apple Business Connect)"
+      - "Facebook Business Page"
+      - "Yelp for Business"
+
+    singapore_specific:
+      - "Yellow Pages Singapore"
+      - "SingaporeBusiness.com"
+      - "HungryGoWhere (for restaurants)"
+      - "PropertyGuru (for real estate)"
+
+  industry_specific_citations:
+    construction:
+      - "BuildersDirectory.sg"
+      - "ConstructionCompanies.sg"
+      - "HomeAdvisor (international presence)"
+      - "Houzz (design and construction)"
+      - "Better Business Bureau"
+
+    healthcare:
+      - "Healthline Provider Directory"
+      - "Singapore Medical Directory"
+      - "DocDoc (medical appointments)"
+      - "WhiteCoat (healthcare platform)"
+      - "HealthHub Singapore"
+
+    technology:
+      - "Crunchbase (for startups)"
+      - "AngelList (tech companies)"
+      - "ProductHunt (product launches)"
+      - "GitHub (for development companies)"
+      - "TechDirectory.sg"
+
+  citation_quality_factors:
+    - "Domain authority of the directory"
+    - "Relevance to business industry"
+    - "Geographic relevance (local vs national)"
+    - "User traffic and engagement"
+    - "Editorial review process"
+
+# Local keyword strategy
+keyword_optimization:
+  local_keyword_types:
+    geo_modifiers:
+      city: "[service] + [city name]"
+      neighborhood: "[service] + [neighborhood]"
+      near_me: "[service] + near me"
+      area: "[service] + [area/region]"
+
+    intent_modifiers:
+      commercial: "best [service] in [location]"
+      emergency: "emergency [service] [location]"
+      reviews: "[service] [location] reviews"
+      hours: "[service] [location] hours"
+
+  singapore_local_keywords:
+    construction:
+      primary:
+        - "construction company singapore"
+        - "building contractor singapore"
+        - "renovation contractor singapore"
+        - "commercial construction singapore"
+
+      long_tail:
+        - "best construction company in singapore"
+        - "commercial building contractor singapore"
+        - "residential renovation singapore"
+        - "construction services near me singapore"
+
+    healthcare:
+      primary:
+        - "clinic singapore"
+        - "medical center singapore"
+        - "family doctor singapore"
+        - "specialist clinic singapore"
+
+      long_tail:
+        - "best family clinic in singapore"
+        - "24 hour clinic singapore"
+        - "medical center near me"
+        - "singapore medical specialist"
+
+  keyword_research_tools:
+    free:
+      - "Google Keyword Planner (local keyword ideas)"
+      - "Google Trends (local search trends)"
+      - "Google Search suggestions and related searches"
+      - "Answer The Public (local question keywords)"
+
+    paid:
+      - "BrightLocal (local keyword tracking)"
+      - "SEMrush (local keyword analysis)"
+      - "Ahrefs (local search volume data)"
+      - "Moz Local (local keyword opportunities)"
+
+# Review management strategy
+reviews_reputation:
+  review_platforms:
+    primary:
+      - "Google Business Profile reviews"
+      - "Facebook page reviews"
+      - "Yelp business reviews"
+      - "Industry-specific review sites"
+
+    singapore_specific:
+      - "SingaporeBusiness reviews"
+      - "HungryGoWhere (F&B)"
+      - "PropertyGuru (real estate)"
+      - "Carousell (retail/services)"
+
+  review_generation:
+    strategies:
+      - "Ask satisfied customers directly"
+      - "Send follow-up emails after service completion"
+      - "Include review requests in receipts/invoices"
+      - "Use QR codes linking to review platforms"
+      - "Offer small incentives (where allowed by platform)"
+
+    timing:
+      - "Request reviews immediately after positive experience"
+      - "Wait 24-48 hours for service-based businesses"
+      - "Follow up within one week of transaction"
+
+  review_response:
+    positive_reviews:
+      - "Thank the customer by name"
+      - "Mention specific service or experience"
+      - "Invite them to return or refer others"
+      - "Keep responses personal but professional"
+
+    negative_reviews:
+      - "Respond promptly (within 24 hours)"
+      - "Acknowledge the concern professionally"
+      - "Offer to resolve the issue offline"
+      - "Show commitment to improvement"
+      - "Never argue or become defensive"
+
+# Local content strategy
+content_optimization:
+  local_content_types:
+    location_pages:
+      - "Service area pages for each location served"
+      - "City-specific landing pages"
+      - "Neighborhood guides and local information"
+      - "Local event coverage and community involvement"
+
+    local_blog_content:
+      - "Local market trends and insights"
+      - "Community event participation"
+      - "Local case studies and success stories"
+      - "Area-specific tips and advice"
+
+  construction_local_content:
+    - "Singapore building codes and regulations"
+    - "Local construction project showcases"
+    - "Weather considerations for construction in Singapore"
+    - "Local supplier and material recommendations"
+    - "Community construction projects and involvement"
+
+  healthcare_local_content:
+    - "Singapore healthcare system guides"
+    - "Local health screenings and programs"
+    - "Community health initiatives"
+    - "Location-specific health tips"
+    - "Healthcare facility tours and introductions"
+
+# Technical local SEO
+technical_implementation:
+  schema_markup:
+    local_business:
+      required:
+        - "@type: LocalBusiness or specific type"
+        - "name: Official business name"
+        - "address: Complete address with postal code"
+        - "telephone: Primary phone number"
+        - "url: Website URL"
+        - "openingHours: Business hours"
+
+      enhanced:
+        - "geo: Latitude and longitude coordinates"
+        - "areaServed: Service areas"
+        - "hasOfferCatalog: Services offered"
+        - "aggregateRating: Review ratings"
+        - "priceRange: Price indicators"
+
+    multi_location:
+      - "Use LocalBusiness schema for each location"
+      - "Create separate pages for each location"
+      - "Implement organization schema for parent company"
+      - "Link locations through sameAs properties"
+
+  local_seo_technical:
+    url_structure:
+      single_location: "/contact/, /about/, /services/"
+      multi_location: "/locations/singapore/, /locations/malaysia/"
+
+    hreflang_implementation:
+      - "Use for multi-country businesses"
+      - "Specify language and region (en-SG, en-MY)"
+      - "Include self-referencing hreflang tags"
+
+# Local link building
+local_link_building:
+  strategies:
+    community_involvement:
+      - "Sponsor local events and organizations"
+      - "Participate in community projects"
+      - "Join local business associations"
+      - "Partner with complementary local businesses"
+
+    local_pr:
+      - "Contribute to local news and publications"
+      - "Offer expert commentary on industry topics"
+      - "Participate in local interviews and podcasts"
+      - "Create newsworthy local initiatives"
+
+  singapore_opportunities:
+    business_associations:
+      - "Singapore Business Federation"
+      - "Singapore Chinese Chamber of Commerce"
+      - "Singapore International Chamber of Commerce"
+      - "Industry-specific associations"
+
+    local_publications:
+      - "The Straits Times business section"
+      - "Business Times Singapore"
+      - "Singapore Business Magazine"
+      - "Industry trade publications"
+
+    community_organizations:
+      - "Community centers and grassroots organizations"
+      - "Local charities and non-profits"
+      - "Educational institutions"
+      - "Sports clubs and recreational organizations"
+
+# Local SEO measurement
+tracking_monitoring:
+  key_metrics:
+    visibility:
+      - "Local pack rankings for target keywords"
+      - "Google Business Profile views and clicks"
+      - "Local organic traffic growth"
+      - "Brand searches from local area"
+
+    engagement:
+      - "Direction requests from Google Business Profile"
+      - "Phone calls from local search"
+      - "Website visits from local searches"
+      - "Review quantity and rating average"
+
+  tools_tracking:
+    free_tools:
+      - "Google Business Profile Insights"
+      - "Google Search Console (local search performance)"
+      - "Google Analytics (local traffic analysis)"
+      - "Google My Business messages and reviews"
+
+    paid_tools:
+      - "BrightLocal (local rank tracking)"
+      - "SEMrush (local keyword monitoring)"
+      - "Moz Local (citation monitoring)"
+      - "Whitespark (local citation finder)"
+
+# Common local SEO issues
+troubleshooting:
+  google_business_profile:
+    suspension_issues:
+      causes:
+        - "Fake or inaccurate business information"
+        - "Policy violations or spam"
+        - "Unverified or duplicate listings"
+        - "Unusual activity or rapid changes"
+
+      solutions:
+        - "Submit reinstatement request with documentation"
+        - "Ensure compliance with Google guidelines"
+        - "Provide business registration documents"
+        - "Remove duplicate or conflicting listings"
+
+    low_visibility:
+      common_causes:
+        - "Incomplete or inconsistent NAP information"
+        - "Limited or poor quality reviews"
+        - "Insufficient local content and optimization"
+        - "Weak local citation profile"
+
+      improvement_strategies:
+        - "Complete all Google Business Profile sections"
+        - "Actively collect customer reviews"
+        - "Create location-specific content"
+        - "Build consistent local citations"
+
+  citation_problems:
+    inconsistent_information:
+      - "Audit all existing citations for accuracy"
+      - "Update incorrect information systematically"
+      - "Create style guide for consistent formatting"
+      - "Monitor for new inconsistent citations"
+
+    duplicate_listings:
+      - "Identify and claim duplicate listings"
+      - "Request removal of unclaimed duplicates"
+      - "Merge similar listings when possible"
+      - "Prevent future duplicates through monitoring"
+
+# Industry-specific local SEO strategies
+industry_focus:
+  construction_local:
+    unique_considerations:
+      - "Service area radius and travel limitations"
+      - "Project portfolio and local case studies"
+      - "Seasonal demand variations"
+      - "Emergency service availability"
+      - "Local permit and regulation expertise"
+
+    optimization_priorities:
+      - "Service area pages for each location served"
+      - "Local project galleries and testimonials"
+      - "Emergency service keyword optimization"
+      - "Local building code and regulation content"
+
+  healthcare_local:
+    unique_considerations:
+      - "Appointment booking integration"
+      - "Insurance and payment information"
+      - "Specialty services and expertise"
+      - "Emergency hours and availability"
+      - "Patient privacy and HIPAA compliance"
+
+    optimization_priorities:
+      - "Medical service pages with local focus"
+      - "Doctor profiles and credentials"
+      - "Patient education content for local audience"
+      - "Health screening and prevention programs"
+
+  technology_local:
+    unique_considerations:
+      - "Remote service capabilities"
+      - "Local client base and case studies"
+      - "Technical support and consultation"
+      - "Industry event participation"
+      - "Local partnership opportunities"
+
+    optimization_priorities:
+      - "Local client success stories"
+      - "Technical consultation service pages"
+      - "Local event and meetup participation"
+      - "Regional technology industry involvement"

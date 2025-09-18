@@ -88,7 +88,7 @@ class ChatIntegrationSupabase:
                 return "I'm having trouble accessing the knowledge base. Please try again."
                 
             # Store user message in chat history
-            await self.db.store_chat_message(
+            self.db.store_chat_message(
                 user_email=user_email,
                 message_content=message,
                 message_type="user",
@@ -116,7 +116,7 @@ class ChatIntegrationSupabase:
             )
             
             # Store AI response
-            await self.db.store_chat_message(
+            self.db.store_chat_message(
                 user_email=user_email,
                 message_content=response,
                 message_type="ai",

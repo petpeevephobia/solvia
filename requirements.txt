@@ -24,6 +24,7 @@ email-validator>=2.2.0
 openai>=1.101.0
 markdown>=3.8.2
 aiohttp>=3.12.15
+beautifulsoup4>=4.12.0
 
 # Mathematical computations (CRITICAL for audit engine)
 numpy>=1.24.0

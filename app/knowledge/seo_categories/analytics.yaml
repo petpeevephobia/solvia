@@ -1,0 +1,234 @@
+# SEO Analytics & Tracking Knowledge
+# Comprehensive guidance for SEO measurement and optimization
+
+category: analytics
+description: "SEO tracking, measurement, and performance analysis"
+
+# Core analytics concepts
+fundamentals:
+  tracking_essentials:
+    - "Google Analytics 4 setup and configuration"
+    - "Google Search Console connection and verification"
+    - "UTM parameter tracking for organic traffic"
+    - "Goal and conversion tracking setup"
+    - "Custom dimension configuration for SEO data"
+
+  key_metrics:
+    primary:
+      - "Organic traffic volume and trends"
+      - "Keyword rankings and visibility"
+      - "Click-through rates (CTR) from search"
+      - "Conversion rates from organic traffic"
+      - "Page load speed and Core Web Vitals"
+    secondary:
+      - "Bounce rate and session duration"
+      - "Pages per session from organic traffic"
+      - "Brand vs non-brand keyword performance"
+      - "Mobile vs desktop organic performance"
+      - "Local search visibility and rankings"
+
+# Industry-specific benchmarks
+industry_benchmarks:
+  construction:
+    organic_ctr:
+      position_1: 28.5%
+      position_3: 15.7%
+      position_5: 9.9%
+      position_10: 2.5%
+    bounce_rate:
+      good: "< 40%"
+      average: "40-60%"
+      poor: "> 60%"
+    conversion_rate:
+      good: "> 3%"
+      average: "1-3%"
+      poor: "< 1%"
+
+  healthcare:
+    organic_ctr:
+      position_1: 31.7%
+      position_3: 18.2%
+      position_5: 11.3%
+      position_10: 3.1%
+    bounce_rate:
+      good: "< 35%"
+      average: "35-55%"
+      poor: "> 55%"
+    conversion_rate:
+      good: "> 4%"
+      average: "2-4%"
+      poor: "< 2%"
+
+  technology:
+    organic_ctr:
+      position_1: 25.2%
+      position_3: 14.1%
+      position_5: 8.7%
+      position_10: 2.1%
+    bounce_rate:
+      good: "< 45%"
+      average: "45-65%"
+      poor: "> 65%"
+    conversion_rate:
+      good: "> 2%"
+      average: "0.5-2%"
+      poor: "< 0.5%"
+
+# Tracking implementations
+tracking_guides:
+  google_analytics_setup:
+    steps:
+      - "Create GA4 property and configure data streams"
+      - "Install Google Tag Manager for flexible tracking"
+      - "Set up organic traffic goals and events"
+      - "Configure enhanced ecommerce (if applicable)"
+      - "Create custom reports for SEO performance"
+
+    seo_specific_tracking:
+      - "Track organic keyword performance"
+      - "Monitor landing page effectiveness"
+      - "Measure content engagement metrics"
+      - "Track local search performance"
+      - "Monitor technical SEO health"
+
+  google_search_console:
+    essential_reports:
+      - "Performance report: clicks, impressions, CTR, position"
+      - "Coverage report: indexing status and errors"
+      - "Core Web Vitals: page experience metrics"
+      - "Mobile usability: mobile-friendliness issues"
+      - "Security issues: malware and hacking detection"
+
+    optimization_insights:
+      - "Identify high-impression, low-CTR keywords"
+      - "Find pages with declining performance"
+      - "Discover new keyword opportunities"
+      - "Monitor technical SEO health"
+      - "Track mobile vs desktop performance"
+
+# Performance analysis templates
+analysis_templates:
+  monthly_seo_report:
+    traffic_analysis:
+      - "Organic traffic growth/decline percentage"
+      - "Top performing pages and content"
+      - "Keyword ranking improvements/declines"
+      - "Technical issues discovered and resolved"
+      - "Competitor performance comparison"
+
+    kpi_tracking:
+      - "Organic traffic: {current_month} vs {previous_month}"
+      - "Average position: {current_avg} (target: < 5.0)"
+      - "CTR improvement: {ctr_change}% change"
+      - "Conversions from organic: {conversion_count}"
+      - "Technical issues: {issues_count} active"
+
+  quarterly_strategy_review:
+    performance_assessment:
+      - "Goal achievement against quarterly targets"
+      - "ROI calculation for SEO investments"
+      - "Competitive landscape changes"
+      - "Technical SEO health score"
+      - "Content performance analysis"
+
+# Tools and integrations
+recommended_tools:
+  free_tools:
+    - "Google Analytics 4 (traffic and behavior analysis)"
+    - "Google Search Console (search performance)"
+    - "Google PageSpeed Insights (Core Web Vitals)"
+    - "Google My Business Insights (local performance)"
+    - "Bing Webmaster Tools (alternative search data)"
+
+  paid_tools:
+    - "SEMrush/Ahrefs (keyword tracking and analysis)"
+    - "Screaming Frog (technical SEO auditing)"
+    - "Hotjar/Crazy Egg (user behavior analysis)"
+    - "BrightLocal (local SEO tracking)"
+    - "DataStudio (custom reporting dashboards)"
+
+# ROI calculation methods
+roi_measurement:
+  basic_calculation:
+    formula: "(Organic Revenue - SEO Investment) / SEO Investment * 100"
+    considerations:
+      - "Attribution modeling for multi-touch conversions"
+      - "Lifetime value of organic customers"
+      - "Brand awareness and indirect benefits"
+      - "Long-term compound growth effects"
+
+  advanced_metrics:
+    - "Customer acquisition cost (CAC) from organic traffic"
+    - "Revenue per organic visitor"
+    - "Organic traffic value using PPC equivalent"
+    - "Brand search volume growth"
+    - "Share of voice in target keywords"
+
+# Common analytics issues and solutions
+troubleshooting:
+  data_discrepancies:
+    ga_vs_gsc:
+      cause: "Different tracking methodologies and data sampling"
+      solution: "Use both tools complementarily, focus on trends over absolute numbers"
+
+    traffic_drops:
+      investigation_steps:
+        - "Check Google Search Console for indexing issues"
+        - "Review algorithm update timeline"
+        - "Analyze technical SEO health"
+        - "Compare competitor performance"
+        - "Verify tracking implementation"
+
+  setup_issues:
+    missing_data:
+      - "Verify Google Analytics tracking code installation"
+      - "Check Google Search Console property verification"
+      - "Confirm UTM parameter consistency"
+      - "Test conversion tracking functionality"
+
+    incorrect_attribution:
+      - "Review attribution model settings"
+      - "Check cross-domain tracking setup"
+      - "Verify organic traffic source definitions"
+      - "Test goal and event configuration"
+
+# Reporting templates by business type
+business_specific_reports:
+  construction:
+    key_metrics:
+      - "Local search visibility for 'contractor [city]' keywords"
+      - "Lead form submissions from organic traffic"
+      - "Project inquiry conversion rate"
+      - "Seasonal traffic patterns and planning"
+
+    content_performance:
+      - "Service page engagement and conversions"
+      - "Project gallery and case study performance"
+      - "Blog content for construction topics"
+      - "Local citation and review impact"
+
+  healthcare:
+    key_metrics:
+      - "Appointment booking conversion rate"
+      - "Health information content engagement"
+      - "Local search for medical services"
+      - "Patient review and rating correlation"
+
+    compliance_considerations:
+      - "HIPAA-compliant analytics setup"
+      - "Patient privacy in tracking implementation"
+      - "Medical content performance measurement"
+      - "Local healthcare search optimization"
+
+  technology:
+    key_metrics:
+      - "SaaS trial signup conversion rate"
+      - "Technical content engagement depth"
+      - "Demo request and sales qualified leads"
+      - "Developer community engagement"
+
+    advanced_tracking:
+      - "Product usage correlation with organic traffic"
+      - "Developer documentation performance"
+      - "Technical blog content effectiveness"
+      - "B2B lead quality from organic search"

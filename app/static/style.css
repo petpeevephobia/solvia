@@ -48,6 +48,86 @@ body {
     text-align: center;
 }
 
+/* === Device Trust Checkbox Styles === */
+.device-trust-option {
+    margin: 20px 0;
+    padding: 16px;
+    background: #F8F9FA;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-dark);
+    margin-bottom: 8px;
+    position: relative;
+}
+
+.checkbox-container input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    height: 20px;
+    width: 20px;
+    background-color: #fff;
+    border: 2px solid #D1D5DB;
+    border-radius: 4px;
+    margin-right: 12px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+    border-color: var(--color-primary);
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-text {
+    user-select: none;
+}
+
+.trust-info {
+    margin-left: 32px;
+    color: #6B7280;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.trust-info small {
+    display: block;
+}
+
 .loading {
     display: inline-block;
     width: 20px;

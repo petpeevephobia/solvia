@@ -260,7 +260,7 @@ class AuditEngine:
                 total_impressions = sum(day['total_impressions'] for day in summary_data.data)
                 avg_ctr = sum(day['average_ctr'] for day in summary_data.data) / len(summary_data.data) if summary_data.data else 0
                 avg_position = sum(day['average_position'] for day in summary_data.data) / len(summary_data.data) if summary_data.data else 0
-                
+
                 return {
                     'total_clicks': total_clicks,
                     'total_impressions': total_impressions,
@@ -271,26 +271,84 @@ class AuditEngine:
                     'queries': query_data.data[:100] if query_data.data else [],  # Top 100 queries
                     'pages': page_data.data[:50] if page_data.data else []  # Top 50 pages
                 }
+            else:
+                # No daily summary data - try multiple cache fallback strategies
+                print(f"[AUDIT] No daily summary data, trying cache fallback immediately")
+
+                # Strategy 1: Try exact date match
+                cached_metrics = self.db.get_gsc_metrics_cache(
+                    user_email,
+                    website_url,
+                    {'start_date': start_date, 'end_date': end_date}
+                )
+
+                # Strategy 2: If no match, try any recent cache for this user/website
+                if not cached_metrics:
+                    print(f"[AUDIT] No exact date match, trying ANY recent cache")
+                    try:
+                        # Direct query for most recent cache entry
+                        cache_response = self.db.service_supabase.table('gsc_metrics_cache') \
+                            .select('*') \
+                            .eq('user_email', user_email) \
+                            .eq('website_url', website_url) \
+                            .order('created_at', desc=True) \
+                            .limit(1) \
+                            .execute()
+
+                        if cache_response.data:
+                            cache_entry = cache_response.data[0]
+                            cached_metrics = {
+                                'clicks': cache_entry.get('clicks', 0),
+                                'impressions': cache_entry.get('impressions', 0),
+                                'ctr': cache_entry.get('ctr', 0),
+                                'avg_position': cache_entry.get('avg_position', 0),
+                                'keywords': cache_entry.get('impressions', 0) // 10  # Estimate keywords from impressions
+                            }
+                            print(f"[AUDIT] ✅ Found direct cache: {cached_metrics}")
+                    except Exception as cache_error:
+                        print(f"[AUDIT] Direct cache query failed: {cache_error}")
+
+                if cached_metrics:
+                    result = {
+                        'total_clicks': cached_metrics.get('clicks', 0),
+                        'total_impressions': cached_metrics.get('impressions', 0),
+                        'average_ctr': float(cached_metrics.get('ctr', 0)) / 100.0 if cached_metrics.get('ctr', 0) > 1 else float(cached_metrics.get('ctr', 0)),
+                        'average_position': float(cached_metrics.get('avg_position', 0)),
+                        'total_queries': cached_metrics.get('keywords', 0),
+                        'total_pages': 0,
+                        'queries': [],
+                        'pages': []
+                    }
+                    print(f"[AUDIT] ✅ SUCCESS: Using cache data - impressions: {result['total_impressions']}, clicks: {result['total_clicks']}")
+                    return result
         except Exception as e:
             print(f"[AUDIT] Error fetching enhanced data: {e}")
             # Fallback to cached metrics if enhanced tables don't exist yet
-            cached_metrics = await self.db.get_gsc_metrics_cache(
-                user_email, 
+            print(f"[AUDIT] Trying cached metrics fallback for {user_email} - {website_url}")
+            print(f"[AUDIT] Date range: {start_date} to {end_date}")
+
+            cached_metrics = self.db.get_gsc_metrics_cache(
+                user_email,
                 website_url,
                 {'start_date': start_date, 'end_date': end_date}
             )
-            
+
+            print(f"[AUDIT] Cached metrics result: {cached_metrics}")
+
             if cached_metrics:
-                return {
+                # Fix field mapping - use organic_traffic for impressions
+                result = {
                     'total_clicks': cached_metrics.get('clicks', 0),
-                    'total_impressions': cached_metrics.get('impressions', 0),
-                    'average_ctr': cached_metrics.get('ctr', 0),
-                    'average_position': cached_metrics.get('avg_position', 0),
+                    'total_impressions': cached_metrics.get('organic_traffic', cached_metrics.get('impressions', 0)),
+                    'average_ctr': float(cached_metrics.get('ctr', 0)),
+                    'average_position': float(cached_metrics.get('avg_position', 0)),
                     'total_queries': cached_metrics.get('keywords', 0),
                     'total_pages': 0,
                     'queries': [],
                     'pages': []
                 }
+                print(f"[AUDIT] ✅ Using cached metrics - impressions: {result['total_impressions']}, clicks: {result['total_clicks']}")
+                return result
         
         # Default empty data
         return {
@@ -322,7 +380,7 @@ class AuditEngine:
         daily_metrics = []
         for i in range(days):
             date = start_date + timedelta(days=i)
-            metrics = await self.db.get_gsc_metrics_cache(
+            metrics = self.db.get_gsc_metrics_cache(
                 user_email,
                 website_url,
                 {'start_date': date, 'end_date': date}
