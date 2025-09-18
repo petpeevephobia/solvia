@@ -116,6 +116,142 @@ export class StorageUtils {
     }
 }
 
+export class TextUtils {
+    static formatAuditResponse(message) {
+        let formatted = message;
+
+        // Add proper line breaks and sections
+        formatted = formatted.replace(/🚀/g, '\n\n🚀');
+        formatted = formatted.replace(/•/g, '\n• ');
+        formatted = formatted.replace(/Your audit ID is:/g, '\n\n**Your audit ID is:**');
+        formatted = formatted.replace(/Your current SEO score is/g, '\n\n**Your current SEO score is**');
+        formatted = formatted.replace(/The report will be emailed/g, '\n\nThe report will be emailed');
+
+        // Clean up excessive line breaks
+        formatted = formatted.replace(/\n{3,}/g, '\n\n');
+        formatted = formatted.trim();
+
+        return formatted;
+    }
+
+    static convertMarkdownToHTML(markdown) {
+        let html = markdown;
+
+        // Convert headers (### Header -> <h3>Header</h3>)
+        html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+        html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+        html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+        // Convert bold text (**text** -> <strong>text</strong>)
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+        // Process line by line for more reliable results
+        const lines = html.split('\n');
+        const processedLines = [];
+        let inOrderedList = false;
+        let inUnorderedList = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            // Check for numbered list items (handles both 1. 2. 3. and 1. 1. 1.)
+            if (/^\d+\.\s/.test(line)) {
+                if (!inOrderedList) {
+                    processedLines.push('<ol>');
+                    inOrderedList = true;
+                }
+                // Close any open unordered list
+                if (inUnorderedList) {
+                    processedLines.push('</ul>');
+                    inUnorderedList = false;
+                }
+                // Extract content after the number and period
+                const content = line.replace(/^\d+\.\s+/, '');
+                processedLines.push(`<li>${content}</li>`);
+            }
+            // Check for bullet points
+            else if (line.startsWith('- ')) {
+                if (!inUnorderedList) {
+                    processedLines.push('<ul>');
+                    inUnorderedList = true;
+                }
+                // Close any open ordered list
+                if (inOrderedList) {
+                    processedLines.push('</ol>');
+                    inOrderedList = false;
+                }
+                const content = line.replace(/^-\s/, '');
+                processedLines.push(`<li>${content}</li>`);
+            }
+            // Handle empty lines or non-list content
+            else {
+                // Only close lists if we hit actual content (not just empty lines)
+                if (line.trim() !== '') {
+                    // Close any open lists
+                    if (inOrderedList) {
+                        processedLines.push('</ol>');
+                        inOrderedList = false;
+                    }
+                    if (inUnorderedList) {
+                        processedLines.push('</ul>');
+                        inUnorderedList = false;
+                    }
+
+                    // Process regular content
+                    if (!line.includes('<')) {
+                        // Wrap in paragraph if not already HTML
+                        processedLines.push(`<p>${line}</p>`);
+                    } else {
+                        // Already HTML (like headers)
+                        processedLines.push(line);
+                    }
+                } else {
+                    // Empty line - add break but keep lists open
+                    processedLines.push('<br>');
+                }
+            }
+        }
+
+        // Close any remaining open lists
+        if (inOrderedList) {
+            processedLines.push('</ol>');
+        }
+        if (inUnorderedList) {
+            processedLines.push('</ul>');
+        }
+
+        html = processedLines.join('');
+
+        // CRITICAL FIX: Merge consecutive <ol> tags into single lists
+        // This fixes the "1. 1. 1." issue by combining separate ordered lists
+        html = html.replace(/<\/ol>\s*<ol>/g, '');  // Remove </ol><ol> boundaries
+        html = html.replace(/<\/ul>\s*<ul>/g, '');  // Same for unordered lists
+
+        // Clean up formatting
+        html = html.replace(/<br><br>/g, '<br>'); // Reduce multiple breaks
+        html = html.replace(/<\/p><p>/g, '</p><p>'); // Clean paragraph joins
+        html = html.replace(/<p>\s*<\/p>/g, ''); // Remove empty paragraphs
+        html = html.replace(/<br><p>/g, '<p>'); // Clean break-paragraph combinations
+        html = html.replace(/<\/ol><br>/g, '</ol>'); // Clean list-break combinations
+        html = html.replace(/<\/ul><br>/g, '</ul>'); // Clean list-break combinations
+
+        // FINAL AGGRESSIVE FIX: If we still have raw numbered lists, convert them
+        // This handles cases where the line-by-line processing missed something
+        if (html.includes('1.') && !html.includes('<ol>')) {
+            // Emergency fix: find any remaining "number. text" patterns and convert them
+            html = html.replace(/(\d+\.\s+[^<\n]*?)(?=\s*\d+\.\s|\s*$|\s*<)/g, function(match, item) {
+                const content = item.replace(/^\d+\.\s+/, '');
+                return `<li>${content}</li>`;
+            });
+
+            // Wrap consecutive <li> tags in <ol>
+            html = html.replace(/(<li>.*?<\/li>)(\s*<li>.*?<\/li>)*/g, '<ol>$&</ol>');
+        }
+
+        return html;
+    }
+}
+
 export class AuthUtils {
     static async logout() {
         try {
@@ -336,6 +472,7 @@ window.SolviaUtils = {
     ApiUtils,
     DomUtils,
     StorageUtils,
+    TextUtils,
     AuthUtils,
     UtilityFunctions
 };
