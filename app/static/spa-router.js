@@ -1938,66 +1938,14 @@ function toggleSidebar() {
 }
 
 async function logout() {
-    try {
-        const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-        if (token) {
-            await fetch('/auth/logout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-        }
-
-        // Clear tokens
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('token');
-        localStorage.removeItem('cachedMetrics');
-        localStorage.removeItem('cachedIssues');
-
-        // Redirect to login
-        window.location.href = '/login';
-    } catch (error) {
-        console.error('Logout error:', error);
-        // Still redirect to login on error
-        window.location.href = '/login';
-    }
+    // ✅ CLEAN CODE: Function extracted to utility module
+    return await window.SolviaUtils.AuthUtils.logout();
 }
 
 // Save website selection in Settings
 async function saveWebsiteSelection() {
-    try {
-        const selectedWebsite = window.selectedWebsite;
-        if (!selectedWebsite) {
-            alert('Please select a website');
-            return;
-        }
-
-        const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-        const response = await fetch('/auth/gsc/select-property', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ website_url: selectedWebsite })
-        });
-
-        if (response.ok) {
-            alert('Website selection saved successfully!');
-            // Clear cached data
-            localStorage.removeItem('cachedMetrics');
-            localStorage.removeItem('cachedIssues');
-            // Navigate to dashboard
-            window.solviaRouter.navigateTo('dashboard');
-        } else {
-            alert('Failed to save website selection');
-        }
-    } catch (error) {
-        console.error('Error saving website selection:', error);
-        alert('Error saving website selection');
-    }
+    // ✅ CLEAN CODE: Function extracted to utility module
+    return await window.SolviaUtils.AuthUtils.saveWebsiteSelection();
 }
 
 // Toggle issue description visibility
@@ -2121,11 +2069,8 @@ function runAuditInBackground() {
 }
 
 function hideSuccessToast() {
-    const toast = document.getElementById('auditSuccessToast');
-    if (toast) {
-        toast.style.transform = 'translateX(400px)';
-        setTimeout(() => toast.style.display = 'none', 400);
-    }
+    // ✅ CLEAN CODE: Function extracted to utility module
+    return window.SolviaUtils.UtilityFunctions.hideSuccessToast();
 }
 
 // Show audit modal
@@ -2222,49 +2167,22 @@ function showAuditModal() {
 
 // Reset modal progress
 function resetModalProgress() {
-    // Reset progress bar
-    const progressBar = document.getElementById('progressBar');
-    if (progressBar) progressBar.style.setProperty('width', '0%', 'important');
-
-    // Reset progress text
-    const progressPercent = document.getElementById('progressPercent');
-    if (progressPercent) progressPercent.textContent = '0%';
-
-    const progressTime = document.getElementById('progressTime');
-    if (progressTime) progressTime.textContent = 'Starting...';
-
-    // Reset all steps to pending
-    document.querySelectorAll('.step .step-status').forEach(status => {
-        status.textContent = 'pending';
-        status.className = 'step-status pending';
-    });
-
-    // Reset status messages
-    const statusTitle = document.getElementById('auditStatusTitle');
-    if (statusTitle) statusTitle.textContent = 'Analyzing your website...';
-
-    const statusMessage = document.getElementById('auditStatusMessage');
-    if (statusMessage) statusMessage.textContent = 'Starting comprehensive SEO audit for your website';
+    // ✅ CLEAN CODE: Function extracted to utility module
+    return window.SolviaUtils.UtilityFunctions.resetModalProgress();
 }
 
 // Close audit modal
 function closeAuditModal() {
-    const modal = document.getElementById('auditModalSPA');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    // ✅ CLEAN CODE: Function extracted to utility module
+    return window.SolviaUtils.UtilityFunctions.closeAuditModal();
 }
 
 // OLD DUPLICATE FUNCTION REMOVED - using enhanced version above
 
 // View audit results
 function viewAuditResults() {
-    console.log('Viewing audit results...');
-    closeAuditModal();
-    // Refresh dashboard to show new results
-    if (window.solviaRouter) {
-        window.solviaRouter.navigateTo('dashboard');
-    }
+    // ✅ CLEAN CODE: Function extracted to utility module
+    return window.SolviaUtils.UtilityFunctions.viewAuditResults();
 }
 
 // Trigger the actual audit

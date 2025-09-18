@@ -116,6 +116,70 @@ export class StorageUtils {
     }
 }
 
+export class AuthUtils {
+    static async logout() {
+        try {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            if (token) {
+                await fetch('/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            }
+
+            // Clear tokens
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('token');
+            localStorage.removeItem('cachedMetrics');
+            localStorage.removeItem('cachedIssues');
+
+            // Redirect to login
+            window.location.href = '/login';
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Still redirect to login on error
+            window.location.href = '/login';
+        }
+    }
+
+    static async saveWebsiteSelection() {
+        try {
+            const selectedWebsite = window.selectedWebsite;
+            if (!selectedWebsite) {
+                alert('Please select a website');
+                return;
+            }
+
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const response = await fetch('/auth/gsc/select-property', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ website_url: selectedWebsite })
+            });
+
+            if (response.ok) {
+                alert('Website selection saved successfully!');
+                // Clear cached data
+                localStorage.removeItem('cachedMetrics');
+                localStorage.removeItem('cachedIssues');
+                // Navigate to dashboard
+                window.solviaRouter.navigateTo('dashboard');
+            } else {
+                alert('Failed to save website selection');
+            }
+        } catch (error) {
+            console.error('Error saving website selection:', error);
+            alert('Error saving website selection');
+        }
+    }
+}
+
 export class UtilityFunctions {
     static toggleSidebar() {
         console.log('🔧 SPA: toggleSidebar function called!');
@@ -215,6 +279,56 @@ export class UtilityFunctions {
             }
         }
     }
+
+    static hideSuccessToast() {
+        const toast = document.getElementById('auditSuccessToast');
+        if (toast) {
+            toast.style.transform = 'translateX(400px)';
+            setTimeout(() => toast.style.display = 'none', 400);
+        }
+    }
+
+    static resetModalProgress() {
+        // Reset progress bar
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) progressBar.style.setProperty('width', '0%', 'important');
+
+        // Reset progress text
+        const progressPercent = document.getElementById('progressPercent');
+        if (progressPercent) progressPercent.textContent = '0%';
+
+        const progressTime = document.getElementById('progressTime');
+        if (progressTime) progressTime.textContent = 'Starting...';
+
+        // Reset all steps to pending
+        document.querySelectorAll('.step .step-status').forEach(status => {
+            status.textContent = 'pending';
+            status.className = 'step-status pending';
+        });
+
+        // Reset status messages
+        const statusTitle = document.getElementById('auditStatusTitle');
+        if (statusTitle) statusTitle.textContent = 'Analyzing your website...';
+
+        const statusMessage = document.getElementById('auditStatusMessage');
+        if (statusMessage) statusMessage.textContent = 'Starting comprehensive SEO audit for your website';
+    }
+
+    static closeAuditModal() {
+        const modal = document.getElementById('auditModalSPA');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    static viewAuditResults() {
+        console.log('Viewing audit results...');
+        UtilityFunctions.closeAuditModal();
+        // Refresh dashboard to show new results
+        if (window.solviaRouter) {
+            window.solviaRouter.navigateTo('dashboard');
+        }
+    }
 }
 
 // Make available globally for spa-router.js to use
@@ -222,5 +336,6 @@ window.SolviaUtils = {
     ApiUtils,
     DomUtils,
     StorageUtils,
+    AuthUtils,
     UtilityFunctions
 };
