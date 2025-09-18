@@ -1,9 +1,9 @@
 /* Solvia Main Stylesheet - Imports all modular CSS files */
 
-@import url('global.css');
-@import url('sidebar.css');
-@import url('dashboard.css');
-@import url('chat.css');
-@import url('modals.css');
-@import url('components.css');
-@import url('responsive.css');
+@import url('/static/styles/global.css');
+@import url('/static/styles/sidebar.css');
+@import url('/static/styles/dashboard.css');
+@import url('/static/styles/chat.css');
+@import url('/static/styles/modals.css');
+@import url('/static/styles/components.css');
+@import url('/static/styles/responsive.css');
