@@ -93,6 +93,7 @@ async def health_check():
         "service": "solvia-auth"
     }
 
+
 @app.get("/ui")
 def serve_ui():
     return FileResponse("app/static/index.html")
