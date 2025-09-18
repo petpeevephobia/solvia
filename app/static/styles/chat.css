@@ -1,0 +1,377 @@
+/* Chat Section */
+        .chat-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .chat-header {
+            margin-bottom: 20px;
+        }
+
+        .chat-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1F2937;
+            margin-bottom: 4px;
+        }
+
+        .chat-header p {
+            font-size: 13px;
+            color: #6B7280;
+        }
+
+        .chat-container {
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 15px; /* Add right padding for scrollbar */
+            margin-top: 10px; /* Add top margin */
+        }
+
+        .chat-message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            align-items: flex-end; /* Align to bottom */
+        }
+
+        .chat-message.user {
+            flex-direction: row;
+            justify-content: flex-end;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .message-avatar.ai {
+            background: #EC6019;
+            color: white;
+            padding: 7px;
+        }
+
+        .message-avatar.ai svg {
+            width: 18px;
+            height: 18px;
+            color: white;
+        }
+
+        .message-avatar.ai svg.loading-spinner {
+            animation: spin 1.5s linear infinite;
+        }
+
+        .message-avatar.ai svg.loading-fade {
+            animation: fade 2s ease-in-out infinite;
+        }
+
+        @keyframes fade {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .message-avatar.user {
+            background-color: #FFEADE;
+            border: none;
+            box-shadow: none;
+        }
+
+        .message-avatar.user svg {
+            width: 18px;
+            height: 18px;
+            stroke: #EC6019;
+        }
+
+        .message-content {
+            display: flex;
+            max-width: 70%;
+        }
+
+        .message-content.ai {
+            justify-content: flex-start;
+        }
+
+        .chat-message.user .message-content {
+            justify-content: flex-end;
+            order: 1;
+        }
+
+        .chat-message.user .message-avatar {
+            order: 2;
+        }
+
+        .message-text {
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            color: #1F2937;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message-content.ai .message-text {
+            background: #F3F4F6;
+            /* margin-left: 12px; */
+            margin-right: 20px;
+            padding: 16px 20px;
+            border-bottom-left-radius: 6px;
+        }
+
+        .message-content.user .message-text {
+            background: #EC6019;
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+
+        /* Chat Message Lists Styling */
+        .message-text ol {
+            margin: 8px 0;
+            padding-left: 20px;
+            list-style-type: decimal;
+        }
+
+        .message-text ol li {
+            margin: 4px 0;
+            padding-left: 4px;
+            line-height: 1.6;
+        }
+
+        .message-text ul {
+            margin: 8px 0;
+            padding-left: 20px;
+            list-style-type: disc;
+        }
+
+        .message-text ul li {
+            margin: 4px 0;
+            padding-left: 4px;
+            line-height: 1.6;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 12px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #EC6019;
+        }
+
+        .chat-send-btn {
+            padding: 12px;
+            background: #EC6019;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .chat-send-btn svg {
+            width: 24px;
+            height: 24px;
+            transform: rotate(-45deg);
+        }
+
+        .chat-send-btn:hover {
+            background: #DC2626;
+        }
+
+        .chat-send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .chat-suggestions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .suggestion-btn {
+            padding: 8px 12px;
+            background: white;
+            color: #EC6019;
+            border: 1px solid #EC6019;
+            border-radius: 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggestion-btn:hover {
+            background: #EC6019;
+            color: white;
+        }
+
+        /* Chat Skeleton Loading */
+        .chat-skeleton {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 20px 0;
+        }
+
+        .skeleton-message {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .skeleton-message.user {
+            justify-content: flex-end;
+        }
+
+        .skeleton-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-message-content {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 70%;
+        }
+
+        .skeleton-message.user .skeleton-message-content {
+            align-items: flex-end;
+        }
+
+        .skeleton-message-line {
+            height: 16px;
+            border-radius: 8px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-message.user .skeleton-message-line {
+            background: linear-gradient(90deg, #e8f0ff 25%, #d6e5ff 50%, #e8f0ff 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        /* Complete Original Dashboard Styles - Missing from SPA */
+
+        /* Chat Loading State */
+        .chat-message.loading {
+            opacity: 0.8;
+        }
+
+        .chat-message.loading .message-text {
+            background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        /* ENHANCED TOOLTIP - Maximum compatibility and visibility */
+        .email-tooltip, #userEmail.email-tooltip, #userEmail {
+            position: relative !important;
+            cursor: pointer !important;
+            color: #6B7280 !important;
+            display: block !important;
+            min-height: 20px !important;
+            overflow: visible !important;
+        }
+
+        /* Tooltip bubble on hover */
+        .email-tooltip:hover::after, #userEmail.email-tooltip:hover::after, #userEmail:hover::after {
+            content: attr(data-full-email) !important;
+            position: absolute !important;
+            top: -50px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            background: #1a1a1a !important;
+            color: white !important;
+            padding: 10px 14px !important;
+            border-radius: 8px !important;
+            font-size: 13px !important;
+            font-weight: 500 !important;
+            white-space: nowrap !important;
+            z-index: 99999 !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
+            border: 1px solid #333 !important;
+            pointer-events: none !important;
+            opacity: 1 !important;
+        }
+
+        /* Tooltip arrow on hover */
+        .email-tooltip:hover::before, #userEmail.email-tooltip:hover::before, #userEmail:hover::before {
+            content: '' !important;
+            position: absolute !important;
+            top: -8px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            border: 8px solid transparent !important;
+            border-top-color: #1a1a1a !important;
+            z-index: 99999 !important;
+            pointer-events: none !important;
+        }
+
+        /* Force visibility for the user email container */
+        .user-email, .nav-item-text {
+            overflow: visible !important;
+            position: relative !important;
+        }
+
+        /* Beautiful hover effect for user email */
+        #userEmail.email-tooltip:hover {
+            color: #EC6019 !important;
+            transform: translateY(-1px) !important;
+            transition: all 0.2s ease !important;
+        }

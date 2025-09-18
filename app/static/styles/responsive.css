@@ -1,0 +1,274 @@
+@media (max-width: 640px) {
+            .modal-content {
+                margin: 20px auto;
+                width: 95%;
+            }
+
+            .modal-header, .modal-body, .modal-footer {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+
+            .audit-progress-container {
+                flex-direction: column;
+                text-align: center;
+                gap: 16px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .issues-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .issues-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .issue-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .issue-card.critical {
+            background: #FFD8D8;
+        }
+
+        .issue-card.warning {
+            background: #FFF1D8;
+        }
+
+        .issue-card.medium {
+            background: #FFF1D8;
+        }
+
+        .issue-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .issue-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .issue-icon.critical {
+            color: #EF4444;
+        }
+
+        .issue-icon.warning {
+            color: #F59E0B;
+        }
+
+        .issue-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1F2937;
+        }
+
+        .issue-description {
+            margin-bottom: 12px;
+        }
+
+        .issue-description-text {
+            font-size: 13px;
+            color: #6B7280;
+            line-height: 1.5;
+            margin: 0 0 12px 0;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+        }
+
+        .issue-fix {
+            font-size: 13px;
+            color: #6B7280;
+            line-height: 1.5;
+        }
+
+        .issue-fix strong {
+            color: #1F2937;
+        }
+
+        /* Progressive disclosure for issue descriptions */
+        .issue-description-short {
+            display: block;
+        }
+
+        .issue-description-full {
+            display: none;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #E5E7EB;
+            background-color: #F9FAFB;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .issue-expand-btn {
+            background: none;
+            border: none;
+            color: #EC6019;
+            font-size: 12px;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 8px;
+            display: inline-block;
+            font-family: inherit;
+            padding: 0;
+            transition: color 0.2s ease;
+        }
+
+        .issue-expand-btn:hover {
+            color: #D97706;
+        }
+
+        /* Empty state styles for no issues */
+        .no-issues-message {
+            background: white;
+            border-radius: 12px;
+            padding: 60px 40px;
+            text-align: center;
+            margin: 20px 0;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            grid-column: 1 / -1;
+        }
+
+        .no-issues-message .emoji {
+            font-size: 64px;
+            margin-bottom: 24px;
+            display: block;
+        }
+
+        .no-issues-message h3 {
+            color: #1F2937;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+        }
+
+        .no-issues-message p {
+            color: #6B7280;
+            font-size: 16px;
+            margin: 0 0 32px 0;
+            line-height: 1.5;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .no-issues-message .action-btn {
+            background: #EC6019;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-block;
+        }
+
+        .no-issues-message .action-btn:hover {
+            background: #DC2626;
+            transform: translateY(-1px);
+        }
+
+        .issues-skeleton {
+            display: contents;
+        }
+
+        .issues-skeleton.hidden {
+            display: none !important;
+        }
+
+        .skeleton-issue-card {
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #E5E7EB;
+            margin-bottom: 16px;
+        }
+
+        .skeleton-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .skeleton-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            margin-right: 12px;
+        }
+
+        .skeleton-title {
+            height: 20px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            flex: 1;
+        }
+
+        .skeleton-description {
+            height: 16px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-description.short {
+            width: 75%;
+        }
+
+        .skeleton-fix {
+            height: 14px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            margin-top: 12px;
+            width: 85%;
+        }
+
+        /* General Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Loading Spinner Animation */
+        .loading-spinner {
+            display: inline-block;
+            animation: pulse 1.5s ease-in-out infinite;
+            font-size: 16px;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.1);
+            }
+        }
