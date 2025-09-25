@@ -478,10 +478,13 @@ export class ChatService {
                 // Check if an audit was triggered
                 if (data.audit_triggered || shouldTriggerAudit) {
                     // Refresh dashboard data after audit completes
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         if (window.solviaRouter) {
                             console.log('🔄 Refreshing dashboard after chat audit...');
-                            window.solviaRouter.loadDashboardData();
+                            // Refresh both metrics and issues to ensure consistency
+                            await window.solviaRouter.loadDashboardMetrics();
+                            await window.solviaRouter.loadCurrentIssues();
+                            console.log('✅ Dashboard refresh complete - both metrics and issues updated');
                         }
                     }, 5000); // Wait 5 seconds for audit to complete
                 }
@@ -673,6 +676,72 @@ export class ChatService {
 }
 
 export class AuditService {
+    // Helper function to show audit success modal
+    static showAuditSuccessModal() {
+        console.log('🎊 Showing success modal...');
+
+        const successToast = document.createElement('div');
+        successToast.style.cssText = `
+            position: fixed; top: 20px; right: 20px; z-index: 60000;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white; padding: 16px 20px; border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+            max-width: 350px; transform: translateX(400px);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        `;
+        successToast.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="font-size: 24px;">✅</div>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Audit Complete</div>
+                    <div style="font-size: 13px; opacity: 0.9;">Your website audit has been completed successfully.</div>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()"
+                        style="background: none; border: none; color: white; opacity: 0.7; cursor: pointer; padding: 4px; margin-left: auto;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(successToast);
+
+        // Show toast with slide-in animation
+        setTimeout(() => successToast.style.transform = 'translateX(0)', 100);
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            successToast.style.transform = 'translateX(400px)';
+            setTimeout(() => successToast.remove(), 400);
+        }, 5000);
+    }
+
+    // Helper function to cleanup audit UI
+    static cleanupAuditUI(auditBtn) {
+        console.log('🧹 Cleaning up audit UI...');
+
+        // Remove progress overlay
+        const overlay = document.getElementById('auditProgressOverlay');
+        if (overlay) {
+            overlay.style.transform = 'translateY(-100%)';
+            setTimeout(() => overlay.style.display = 'none', 400);
+        }
+
+        // Remove background indicator (if it exists - currently disabled)
+        const backgroundIndicator = document.getElementById('auditBackgroundIndicator');
+        if (backgroundIndicator) {
+            backgroundIndicator.style.transform = 'translateX(300px)';
+            setTimeout(() => backgroundIndicator.remove(), 400);
+        }
+
+        // Re-enable audit button
+        if (auditBtn) {
+            auditBtn.disabled = false;
+            auditBtn.textContent = 'Run a new audit';
+        }
+    }
+
     static async triggerAudit() {
         console.log('🚀 Starting audit trigger...');
         const startTime = Date.now();
@@ -682,8 +751,8 @@ export class AuditService {
             { id: 'analyzing', progress: 50, message: 'Analyzing with AI...' },
             { id: 'detecting', progress: 70, message: 'Detecting issues...' },
             { id: 'recommendations', progress: 85, message: 'Generating recommendations...' },
-            { id: 'report', progress: 95, message: 'Creating report...' },
-            { id: 'completed', progress: 100, message: 'Audit completed!' }
+            { id: 'processing', progress: 90, message: 'Processing final results...' }
+            // Note: Removed 100% step - only show 100% after API confirms success
         ];
 
         let currentStepIndex = 0;
@@ -779,7 +848,6 @@ export class AuditService {
                 const progressBar = overlay.querySelector('.progress-bar');
                 const progressText = overlay.querySelector('.progress-text');
                 const progressPercent = overlay.querySelector('.progress-percent');
-                const stepStatus = overlay.querySelector(`[data-step="${stepId}"]`);
 
                 if (progressBar) {
                     progressBar.style.setProperty('width', `${progress}%`, 'important');
@@ -793,52 +861,87 @@ export class AuditService {
                     progressPercent.textContent = `${progress}%`;
                 }
 
-                if (stepStatus) {
-                    // Update step status
-                    stepStatus.textContent = 'completed';
-                    stepStatus.className = 'step-status completed';
+                // Update step statuses correctly - mark completed steps as completed, current as processing, rest as pending
+                const allStepStatuses = overlay.querySelectorAll('[data-step]');
+                const currentStepIndex = steps.findIndex(step => step.id === stepId);
+
+                allStepStatuses.forEach((stepElement, index) => {
+                    const stepData = steps[index];
+                    if (!stepData) return;
+
+                    if (index < currentStepIndex) {
+                        // Previous steps are completed
+                        stepElement.textContent = 'COMPLETED';
+                        stepElement.className = 'step-status completed';
+                    } else if (index === currentStepIndex) {
+                        // Current step is processing
+                        stepElement.textContent = 'PROCESSING';
+                        stepElement.className = 'step-status processing';
+                    } else {
+                        // Future steps are pending
+                        stepElement.textContent = 'PENDING';
+                        stepElement.className = 'step-status pending';
+                    }
+                });
+
+                console.log(`📊 Progress overlay updated: ${progress}% (Step ${currentStepIndex + 1}/${steps.length})`);
+            }
+
+            // ===== BACKGROUND INDICATOR DISABLED =====
+            // Since we now have a working top progress bar, disable the duplicate right notification
+            // to avoid confusion and duplicate progress indicators
+            console.log(`📊 Background indicator disabled (using top progress bar instead)`);
+
+            // ===== UPDATE TOP PROGRESS BAR =====
+            // Update the top progress bar elements that were missing
+            const topProgressPercent = document.getElementById('auditProgressPercent');
+            const topProgressTitle = document.getElementById('auditProgressTitle');
+            const topTimeEstimate = document.getElementById('auditTimeEstimate');
+            const topProgressFill = document.getElementById('auditProgressFill');
+            const topProgressText = document.getElementById('auditProgressText');
+
+            if (topProgressPercent) {
+                topProgressPercent.textContent = `${progress}%`;
+                console.log(`📊 Top progress percent updated: ${progress}%`);
+            }
+
+            if (topProgressTitle) {
+                // Update title based on progress
+                if (progress >= 100) {
+                    topProgressTitle.textContent = 'Audit Complete!';
+                } else if (progress >= 90) {
+                    topProgressTitle.textContent = 'Almost Complete';
+                } else if (progress >= 70) {
+                    topProgressTitle.textContent = 'Finalizing Results';
+                } else if (progress >= 40) {
+                    topProgressTitle.textContent = 'Analyzing Data';
+                } else {
+                    topProgressTitle.textContent = 'Running SEO Audit';
                 }
-
-                console.log(`📊 Progress overlay updated: ${progress}%`);
             }
 
-            // ===== FALLBACK BACKGROUND INDICATOR =====
-            let backgroundIndicator = document.getElementById('auditBackgroundIndicator');
-            if (!backgroundIndicator) {
-                // Create background indicator if not exists
-                backgroundIndicator = document.createElement('div');
-                backgroundIndicator.id = 'auditBackgroundIndicator';
-                backgroundIndicator.style.cssText = `
-                    position: fixed; top: 20px; right: 20px; z-index: 55000;
-                    background: linear-gradient(135deg, #EC6019 0%, #d97706 100%);
-                    color: white; padding: 12px 16px; border-radius: 10px;
-                    box-shadow: 0 6px 20px rgba(236, 96, 25, 0.3);
-                    font-size: 14px; font-weight: 500; max-width: 250px;
-                    transform: translateX(300px);
-                    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                `;
-                document.body.appendChild(backgroundIndicator);
-
-                // Show with slide-in animation
-                setTimeout(() => backgroundIndicator.style.transform = 'translateX(0)', 100);
+            if (topTimeEstimate && progress < 100) {
+                // Calculate estimated time remaining based on progress
+                const remainingPercent = 100 - progress;
+                const estimatedSeconds = Math.max(10, Math.round(remainingPercent * 0.6));
+                topTimeEstimate.textContent = `~${estimatedSeconds}s remaining`;
+            } else if (topTimeEstimate && progress >= 100) {
+                topTimeEstimate.textContent = 'Complete!';
             }
 
-            // Update background indicator content
-            backgroundIndicator.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div class="loading-spinner" style="
-                        width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
-                        border-top-color: white; border-radius: 50%;
-                        animation: spin 1s linear infinite;
-                    "></div>
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 2px;">Running Audit</div>
-                        <div style="font-size: 12px; opacity: 0.9;">${progress}% - ${message}</div>
-                    </div>
-                </div>
-            `;
+            // Update the visual progress bar fill
+            if (topProgressFill) {
+                topProgressFill.style.width = `${progress}%`;
+                console.log(`📊 Top progress fill updated: ${progress}%`);
+            }
 
-            console.log(`📊 Background indicator updated: ${progress}%`);
+            // Update the progress message text
+            if (topProgressText) {
+                topProgressText.textContent = message;
+                console.log(`📊 Top progress text updated: ${message}`);
+            }
+
+            console.log(`📊 Top progress bar elements updated`);
         };
 
         // ===== START AUDIT PROCESS =====
@@ -868,12 +971,17 @@ export class AuditService {
             auditTimeoutId = setTimeout(handleAuditTimeout, 32000);
 
             const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-            const response = await fetch('/agent/audit/trigger', {
+            const response = await fetch('/agent/trigger-audit', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
-                }
+                },
+                body: JSON.stringify({
+                    force_refresh: false,
+                    include_recommendations: true,
+                    date_range_days: 30
+                })
             });
 
             // Clear timeout on response (success or error)
@@ -891,83 +999,166 @@ export class AuditService {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ Audit triggered successfully:', data);
+                console.log('✅ Audit API response:', data);
 
-                // Show 100% completion briefly
-                updateProgress('completed', 100, 'Audit completed!');
+                // Smart progress completion based on actual status
+                const auditStatus = data.status || 'unknown';
+                const auditId = data.id || data.audit_id;
 
-                // Clean up UI after short delay
-                setTimeout(() => {
-                    // Remove progress overlay
+                // The trigger-audit endpoint runs synchronously and returns 'completed'
+                // when the audit is done. No need to poll in that case.
+                if (auditStatus === 'completed' || auditStatus === 'success') {
+                    // Mark all steps as completed when audit finishes
                     const overlay = document.getElementById('auditProgressOverlay');
                     if (overlay) {
-                        overlay.style.transform = 'translateY(-100%)';
-                        setTimeout(() => overlay.style.display = 'none', 400);
+                        const allStepStatuses = overlay.querySelectorAll('[data-step]');
+                        allStepStatuses.forEach(stepElement => {
+                            stepElement.textContent = 'COMPLETED';
+                            stepElement.className = 'step-status completed';
+                        });
                     }
 
-                    // Remove background indicator
-                    const backgroundIndicator = document.getElementById('auditBackgroundIndicator');
-                    if (backgroundIndicator) {
-                        backgroundIndicator.style.transform = 'translateX(300px)';
-                        setTimeout(() => backgroundIndicator.remove(), 400);
-                    }
+                    updateProgress('completed', 100, 'Audit completed!');
+                    console.log('🎉 Audit fully completed!');
 
-                    // Re-enable audit button
-                    if (auditBtn) {
-                        auditBtn.disabled = false;
-                        auditBtn.textContent = 'Run a new audit';
-                    }
-
-                    // Show success notification
-                    const successToast = document.createElement('div');
-                    successToast.style.cssText = `
-                        position: fixed; top: 20px; right: 20px; z-index: 60000;
-                        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                        color: white; padding: 16px 20px; border-radius: 12px;
-                        box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
-                        max-width: 350px; transform: translateX(400px);
-                        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                    `;
-                    successToast.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="font-size: 24px;">✅</div>
-                            <div>
-                                <div style="font-weight: 600; margin-bottom: 4px;">Audit Complete</div>
-                                <div style="font-size: 13px; opacity: 0.9;">Your website audit has been completed successfully.</div>
-                            </div>
-                            <button onclick="this.parentElement.parentElement.remove()"
-                                    style="background: none; border: none; color: white; opacity: 0.7; cursor: pointer; padding: 4px; margin-left: auto;">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M18 6L6 18M6 6l12 12"/>
-                                </svg>
-                            </button>
-                        </div>
-                    `;
-
-                    document.body.appendChild(successToast);
-
-                    // Show toast with slide-in animation
-                    setTimeout(() => successToast.style.transform = 'translateX(0)', 100);
-
-                    // Auto-hide after 5 seconds
+                    // Show success modal immediately for completed audits
                     setTimeout(() => {
-                        successToast.style.transform = 'translateX(400px)';
-                        setTimeout(() => successToast.remove(), 400);
-                    }, 5000);
+                        AuditService.cleanupAuditUI(auditBtn);
+                        AuditService.showAuditSuccessModal();
 
-                    // Refresh dashboard after 2 seconds
-                    setTimeout(() => {
-                        if (window.solviaRouter) {
-                            console.log('🔄 Refreshing dashboard after audit completion...');
-                            window.solviaRouter.loadDashboardData();
+                        // Refresh dashboard after 2 seconds with targeted updates
+                        setTimeout(async () => {
+                            if (window.solviaRouter) {
+                                console.log('🔄 Refreshing dashboard after audit completion...');
+                                // Refresh both metrics and issues to ensure consistency
+                                await window.solviaRouter.loadDashboardMetrics();
+                                await window.solviaRouter.loadCurrentIssues();
+                                console.log('✅ Dashboard refresh complete - both metrics and issues updated');
+                            }
+                        }, 2000);
+                    }, 1000);
+
+                    // Exit early, no need to run the cleanup code below
+                    const endTime = Date.now();
+                    const duration = (endTime - startTime) / 1000;
+                    console.log(`⏱️ Total audit time: ${duration.toFixed(1)}s`);
+                    return;
+
+                } else if (auditStatus === 'pending' || auditStatus === 'processing') {
+                    // Keep at 90% for pending/processing status
+                    updateProgress('processing', 90, 'Audit in progress, please wait...');
+                    console.log('⏳ Audit still processing, staying at 90%');
+
+                    // Poll for completion status
+                    let pollCount = 0;
+                    const maxPolls = 30; // Max 30 polls (60 seconds)
+
+                    const pollInterval = setInterval(async () => {
+                        pollCount++;
+                        console.log(`🔄 Polling audit status (attempt ${pollCount}/${maxPolls})...`);
+
+                        try {
+                            const checkResponse = await fetch(`/agent/progress/status/${auditId}`, {
+                                headers: {
+                                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                                    'X-Email': email
+                                }
+                            });
+
+                            if (checkResponse.ok) {
+                                const statusData = await checkResponse.json();
+                                console.log('📊 Audit status check:', statusData);
+
+                                if (statusData.status === 'completed' || statusData.status === 'success') {
+                                    clearInterval(pollInterval);
+
+                                    // Mark all steps as completed when audit finishes
+                                    const overlay = document.getElementById('auditProgressOverlay');
+                                    if (overlay) {
+                                        const allStepStatuses = overlay.querySelectorAll('[data-step]');
+                                        allStepStatuses.forEach(stepElement => {
+                                            stepElement.textContent = 'COMPLETED';
+                                            stepElement.className = 'step-status completed';
+                                        });
+                                    }
+
+                                    // Update to 100% completion
+                                    updateProgress('completed', 100, 'Audit completed!');
+                                    console.log('🎉 Audit completed after polling!');
+
+                                    // Show success modal after completion
+                                    setTimeout(() => {
+                                        AuditService.showAuditSuccessModal();
+                                        AuditService.cleanupAuditUI(auditBtn);
+
+                                        // Refresh dashboard after 2 seconds with targeted updates
+                                        setTimeout(async () => {
+                                            if (window.solviaRouter) {
+                                                console.log('🔄 Refreshing dashboard after audit completion...');
+                                                // Refresh both metrics and issues to ensure consistency
+                                                await window.solviaRouter.loadDashboardMetrics();
+                                                await window.solviaRouter.loadCurrentIssues();
+                                                console.log('✅ Dashboard refresh complete - both metrics and issues updated');
+                                            }
+                                        }, 2000);
+                                    }, 1000);
+
+                                } else if (statusData.status === 'failed' || statusData.status === 'error') {
+                                    clearInterval(pollInterval);
+                                    console.error('❌ Audit failed:', statusData.message || 'Unknown error');
+                                    AuditService.cleanupAuditUI(auditBtn);
+                                }
+                            }
+                        } catch (error) {
+                            console.error('❌ Error polling audit status:', error);
                         }
-                    }, 2000);
 
-                }, 1000); // Short delay to show completion
+                        // Stop polling after max attempts
+                        if (pollCount >= maxPolls) {
+                            clearInterval(pollInterval);
+                            console.warn('⚠️ Audit status polling timeout');
+                            AuditService.cleanupAuditUI(auditBtn);
+                        }
+                    }, 2000); // Poll every 2 seconds
 
-                const endTime = Date.now();
-                const duration = (endTime - startTime) / 1000;
-                console.log(`⏱️ Total audit time: ${duration.toFixed(1)}s`);
+                    // Don't clean up UI yet, audit is still running
+                    return;
+                } else {
+                    // Mark all steps as completed for unknown status
+                    const overlay = document.getElementById('auditProgressOverlay');
+                    if (overlay) {
+                        const allStepStatuses = overlay.querySelectorAll('[data-step]');
+                        allStepStatuses.forEach(stepElement => {
+                            stepElement.textContent = 'COMPLETED';
+                            stepElement.className = 'step-status completed';
+                        });
+                    }
+
+                    // Unknown status, treat as completed for backward compatibility
+                    updateProgress('completed', 100, 'Audit completed!');
+                    console.log('🔄 Unknown status, assuming completed:', auditStatus);
+
+                    // Show success modal for unknown status (backward compatibility)
+                    setTimeout(() => {
+                        AuditService.cleanupAuditUI(auditBtn);
+                        AuditService.showAuditSuccessModal();
+
+                        // Refresh dashboard after 2 seconds with targeted updates
+                        setTimeout(async () => {
+                            if (window.solviaRouter) {
+                                console.log('🔄 Refreshing dashboard after audit completion...');
+                                // Refresh both metrics and issues to ensure consistency
+                                await window.solviaRouter.loadDashboardMetrics();
+                                await window.solviaRouter.loadCurrentIssues();
+                                console.log('✅ Dashboard refresh complete - both metrics and issues updated');
+                            }
+                        }, 2000);
+                    }, 1000);
+
+                    const endTime = Date.now();
+                    const duration = (endTime - startTime) / 1000;
+                    console.log(`⏱️ Total audit time: ${duration.toFixed(1)}s`);
+                }
 
             } else {
                 console.error('❌ Audit trigger failed:', response.status, response.statusText);
@@ -1147,54 +1338,8 @@ export class UIService {
             modal.style.display = 'none';
         }
 
-        // Create or update background indicator
-        let backgroundIndicator = document.getElementById('auditBackgroundIndicator');
-
-        if (!backgroundIndicator) {
-            const indicatorHTML = `
-                <div id="auditBackgroundIndicator" style="
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    background: linear-gradient(135deg, #EC6019 0%, #d97706 100%);
-                    color: white;
-                    padding: 12px 16px;
-                    border-radius: 10px;
-                    box-shadow: 0 6px 20px rgba(236, 96, 25, 0.3);
-                    z-index: 55000;
-                    font-size: 14px;
-                    font-weight: 500;
-                    max-width: 280px;
-                    transform: translateX(300px);
-                    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                ">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="loading-spinner" style="
-                            width: 16px;
-                            height: 16px;
-                            border: 2px solid rgba(255,255,255,0.3);
-                            border-top-color: white;
-                            border-radius: 50%;
-                            animation: spin 1s linear infinite;
-                        "></div>
-                        <div>
-                            <div style="font-weight: 600; margin-bottom: 2px;">Running Audit</div>
-                            <div style="font-size: 12px; opacity: 0.9;">Your SEO audit is running in the background</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', indicatorHTML);
-            backgroundIndicator = document.getElementById('auditBackgroundIndicator');
-
-            // Show with slide-in animation
-            setTimeout(() => {
-                backgroundIndicator.style.transform = 'translateX(0)';
-            }, 100);
-        }
-
-        console.log('🚀 Background indicator active');
+        // Background indicator disabled - using top progress bar instead
+        console.log('🚀 Background indicator disabled (using top progress bar)');
     }
 
     static hideSuccessToast() {
