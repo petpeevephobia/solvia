@@ -215,7 +215,10 @@ class SolviaRouter {
 
                 <section class="overview">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h2 style="margin: 0;">Overview</h2>
+                        <div>
+                            <h2 style="margin: 0;">Overview</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 13px; color: #6B7280;">All data displayed are from the past 30 days</p>
+                        </div>
                         <div id="inline-audit-info" style="display: none; font-size: 14px; color: #6B7280;">
                             <span style="margin-right: 20px;">Latest Audit: <span id="audit-time" style="color: #1F2937; font-weight: 600;"></span></span>
                             <div style="position: relative; display: inline-block;">
@@ -359,7 +362,7 @@ class SolviaRouter {
                                 <div class="metric-content">
                                     <div class="metric-label">Organic Traffic</div>
                                     <div class="metric-value" id="organicTraffic">Loading...</div>
-                                    <div class="metric-change neutral" id="trafficChange">Clicks from last 30 days</div>
+                                    <div class="metric-change neutral" id="trafficChange">Search impressions</div>
                                 </div>
                             </div>
 
@@ -370,7 +373,7 @@ class SolviaRouter {
                                     </svg>
                                 </div>
                                 <div class="metric-content">
-                                    <div class="metric-label">Avg. Keyword Position</div>
+                                    <div class="metric-label">Avg. Position</div>
                                     <div class="metric-value" id="avgPosition">Loading...</div>
                                     <div class="metric-change neutral" id="positionChange">Search ranking position</div>
                                 </div>
@@ -383,9 +386,9 @@ class SolviaRouter {
                                     </svg>
                                 </div>
                                 <div class="metric-content">
-                                    <div class="metric-label">Backlinks</div>
+                                    <div class="metric-label">No. of Clicks</div>
                                     <div class="metric-value" id="backlinks">Loading...</div>
-                                    <div class="metric-change neutral" id="backlinksChange">External sites linking to you</div>
+                                    <div class="metric-change neutral" id="backlinksChange">Clicks from Google Search</div>
                                 </div>
                             </div>
                         </div>
@@ -1633,67 +1636,102 @@ class SolviaRouter {
                 const positionChangeEl = document.getElementById('positionChange');
                 const backlinksChangeEl = document.getElementById('backlinksChange');
 
-                // Update values
-                if (seoScoreEl) seoScoreEl.textContent = data.seo_score ? `${Math.round(data.seo_score)}/100` : '25/100';
-                if (organicTrafficEl) organicTrafficEl.textContent = data.clicks || '0';
-                if (avgPositionEl) avgPositionEl.textContent = data.avg_position ? Math.round(data.avg_position * 10) / 10 : '-';
-                if (backlinksEl) backlinksEl.textContent = data.impressions ? Math.round(data.impressions / 10) : '0';
+                // Helper function to format large numbers
+                const formatNumber = (num) => {
+                    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                    return num.toString();
+                };
 
-                // Update change text with dynamic colors and realistic data
-                if (seoChangeEl) {
-                    const score = data.seo_score || 25;
-                    if (score >= 70) {
-                        seoChangeEl.textContent = 'Good SEO performance';
-                        seoChangeEl.className = 'metric-change';
-                    } else if (score <= 30) {
-                        seoChangeEl.textContent = 'Needs improvement';
+                // Helper function to calculate percentage change
+                const calculatePercentageChange = (current, change) => {
+                    if (!current || current === 0) return 0;
+                    return Math.round((change / current) * 100);
+                };
+
+                // Get summary data
+                const summary = data.summary || data;
+
+                // Update values with correct mappings
+                if (seoScoreEl) seoScoreEl.textContent = summary.seo_score ? `${Math.round(summary.seo_score)}/100` : '25/100';
+                if (organicTrafficEl) organicTrafficEl.textContent = formatNumber(summary.total_impressions || 0);
+                if (avgPositionEl) avgPositionEl.textContent = summary.avg_position ? Math.round(summary.avg_position * 10) / 10 : '-';
+                if (backlinksEl) backlinksEl.textContent = formatNumber(summary.total_clicks || 0);
+
+                // Update SEO score change with growth indicator
+                if (seoChangeEl && summary.seo_score_change !== undefined) {
+                    const scoreChange = summary.seo_score_change;
+                    const changePercentage = calculatePercentageChange(summary.seo_score, scoreChange);
+                    if (scoreChange > 0) {
+                        seoChangeEl.innerHTML = `<span style="color: #10b981;">↑ ${Math.abs(scoreChange)} pts (${changePercentage}%)</span>`;
+                        seoChangeEl.className = 'metric-change positive';
+                    } else if (scoreChange < 0) {
+                        seoChangeEl.innerHTML = `<span style="color: #ef4444;">↓ ${Math.abs(scoreChange)} pts (${Math.abs(changePercentage)}%)</span>`;
                         seoChangeEl.className = 'metric-change negative';
                     } else {
-                        seoChangeEl.textContent = 'Based on real GSC data';
+                        seoChangeEl.textContent = 'No change from previous period';
                         seoChangeEl.className = 'metric-change neutral';
                     }
+                } else if (seoChangeEl) {
+                    seoChangeEl.textContent = 'Based on real GSC data';
+                    seoChangeEl.className = 'metric-change neutral';
                 }
 
-                if (trafficChangeEl) {
-                    const clicks = data.clicks || 0;
-                    if (clicks > 100) {
-                        trafficChangeEl.textContent = 'Strong organic traffic';
-                        trafficChangeEl.className = 'metric-change';
-                    } else if (clicks < 10) {
-                        trafficChangeEl.textContent = 'Low traffic volume';
+                // Update Organic Traffic (impressions) change with growth indicator
+                if (trafficChangeEl && summary.impressions_change !== undefined) {
+                    const impressionsChange = summary.impressions_change;
+                    const changePercentage = calculatePercentageChange(summary.total_impressions, impressionsChange);
+                    if (impressionsChange > 0) {
+                        trafficChangeEl.innerHTML = `<span style="color: #10b981;">↑ ${Math.abs(changePercentage)}%</span> vs last 30 days`;
+                        trafficChangeEl.className = 'metric-change positive';
+                    } else if (impressionsChange < 0) {
+                        trafficChangeEl.innerHTML = `<span style="color: #ef4444;">↓ ${Math.abs(changePercentage)}%</span> vs last 30 days`;
                         trafficChangeEl.className = 'metric-change negative';
                     } else {
-                        trafficChangeEl.textContent = 'Clicks from last 30 days';
+                        trafficChangeEl.textContent = 'No change from previous period';
                         trafficChangeEl.className = 'metric-change neutral';
                     }
+                } else if (trafficChangeEl) {
+                    trafficChangeEl.textContent = 'Search impressions';
+                    trafficChangeEl.className = 'metric-change neutral';
                 }
 
-                if (positionChangeEl) {
-                    const position = data.avg_position || 0;
-                    if (position > 0 && position <= 5) {
-                        positionChangeEl.textContent = 'Excellent rankings';
-                        positionChangeEl.className = 'metric-change';
-                    } else if (position > 10) {
-                        positionChangeEl.textContent = 'Ranking needs work';
+                // Update Avg Position change with growth indicator (lower is better)
+                if (positionChangeEl && summary.position_change !== undefined) {
+                    const positionChange = summary.position_change;
+                    const changeValue = Math.abs(Math.round(positionChange * 10) / 10);
+                    if (positionChange < 0) { // Negative change means better position (lower number)
+                        positionChangeEl.innerHTML = `<span style="color: #10b981;">↑ ${changeValue}</span> positions improved`;
+                        positionChangeEl.className = 'metric-change positive';
+                    } else if (positionChange > 0) { // Positive change means worse position
+                        positionChangeEl.innerHTML = `<span style="color: #ef4444;">↓ ${changeValue}</span> positions dropped`;
                         positionChangeEl.className = 'metric-change negative';
                     } else {
-                        positionChangeEl.textContent = 'Search ranking position';
+                        positionChangeEl.textContent = 'No change from previous period';
                         positionChangeEl.className = 'metric-change neutral';
                     }
+                } else if (positionChangeEl) {
+                    positionChangeEl.textContent = 'Average search position';
+                    positionChangeEl.className = 'metric-change neutral';
                 }
 
-                if (backlinksChangeEl) {
-                    const impressions = data.impressions || 0;
-                    if (impressions > 1000) {
-                        backlinksChangeEl.textContent = 'Good search visibility';
-                        backlinksChangeEl.className = 'metric-change';
-                    } else if (impressions < 100) {
-                        backlinksChangeEl.textContent = 'Limited visibility';
+                // Update No. of Clicks change with growth indicator
+                if (backlinksChangeEl && summary.clicks_change !== undefined) {
+                    const clicksChange = summary.clicks_change;
+                    const changePercentage = calculatePercentageChange(summary.total_clicks, clicksChange);
+                    if (clicksChange > 0) {
+                        backlinksChangeEl.innerHTML = `<span style="color: #10b981;">↑ ${Math.abs(changePercentage)}%</span> vs last 30 days`;
+                        backlinksChangeEl.className = 'metric-change positive';
+                    } else if (clicksChange < 0) {
+                        backlinksChangeEl.innerHTML = `<span style="color: #ef4444;">↓ ${Math.abs(changePercentage)}%</span> vs last 30 days`;
                         backlinksChangeEl.className = 'metric-change negative';
                     } else {
-                        backlinksChangeEl.textContent = 'External sites linking to you';
+                        backlinksChangeEl.textContent = 'No change from previous period';
                         backlinksChangeEl.className = 'metric-change neutral';
                     }
+                } else if (backlinksChangeEl) {
+                    backlinksChangeEl.textContent = 'Clicks from Google Search';
+                    backlinksChangeEl.className = 'metric-change neutral';
                 }
 
                 // Show real metrics and hide skeleton
