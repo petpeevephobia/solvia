@@ -1649,19 +1649,20 @@ class SolviaRouter {
                     return Math.round((change / current) * 100);
                 };
 
-                // Get summary data
-                const summary = data.summary || data;
+                // Get metrics data (API returns data.metrics structure)
+                const metrics = data.metrics || data.summary || data;
+                console.log('📊 SPA: Using metrics data:', metrics);
 
-                // Update values with correct mappings
-                if (seoScoreEl) seoScoreEl.textContent = summary.seo_score ? `${Math.round(summary.seo_score)}/100` : '25/100';
-                if (organicTrafficEl) organicTrafficEl.textContent = formatNumber(summary.total_impressions || 0);
-                if (avgPositionEl) avgPositionEl.textContent = summary.avg_position ? Math.round(summary.avg_position * 10) / 10 : '-';
-                if (backlinksEl) backlinksEl.textContent = formatNumber(summary.total_clicks || 0);
+                // Update values with correct API mappings
+                if (seoScoreEl) seoScoreEl.textContent = metrics.seo_score ? `${Math.round(metrics.seo_score)}/100` : '25/100';
+                if (organicTrafficEl) organicTrafficEl.textContent = formatNumber(metrics.impressions || metrics.total_impressions || 0);
+                if (avgPositionEl) avgPositionEl.textContent = metrics.avg_position ? Math.round(metrics.avg_position * 10) / 10 : '-';
+                if (backlinksEl) backlinksEl.textContent = formatNumber(metrics.clicks || metrics.total_clicks || 0);
 
                 // Update SEO score change with growth indicator
-                if (seoChangeEl && summary.seo_score_change !== undefined) {
-                    const scoreChange = summary.seo_score_change;
-                    const changePercentage = calculatePercentageChange(summary.seo_score, scoreChange);
+                if (seoChangeEl && metrics.seo_score_change !== undefined) {
+                    const scoreChange = metrics.seo_score_change;
+                    const changePercentage = calculatePercentageChange(metrics.seo_score, scoreChange);
                     if (scoreChange > 0) {
                         seoChangeEl.innerHTML = `<span style="color: #10b981;">↑ ${Math.abs(scoreChange)} pts (${changePercentage}%)</span>`;
                         seoChangeEl.className = 'metric-change positive';
@@ -1678,9 +1679,9 @@ class SolviaRouter {
                 }
 
                 // Update Organic Traffic (impressions) change with growth indicator
-                if (trafficChangeEl && summary.impressions_change !== undefined) {
-                    const impressionsChange = summary.impressions_change;
-                    const changePercentage = calculatePercentageChange(summary.total_impressions, impressionsChange);
+                if (trafficChangeEl && metrics.impressions_change !== undefined) {
+                    const impressionsChange = metrics.impressions_change;
+                    const changePercentage = calculatePercentageChange(metrics.impressions || metrics.total_impressions, impressionsChange);
                     if (impressionsChange > 0) {
                         trafficChangeEl.innerHTML = `<span style="color: #10b981;">↑ ${Math.abs(changePercentage)}%</span> vs last 30 days`;
                         trafficChangeEl.className = 'metric-change positive';
@@ -1697,8 +1698,8 @@ class SolviaRouter {
                 }
 
                 // Update Avg Position change with growth indicator (lower is better)
-                if (positionChangeEl && summary.position_change !== undefined) {
-                    const positionChange = summary.position_change;
+                if (positionChangeEl && metrics.position_change !== undefined) {
+                    const positionChange = metrics.position_change;
                     const changeValue = Math.abs(Math.round(positionChange * 10) / 10);
                     if (positionChange < 0) { // Negative change means better position (lower number)
                         positionChangeEl.innerHTML = `<span style="color: #10b981;">↑ ${changeValue}</span> positions improved`;
@@ -1716,9 +1717,9 @@ class SolviaRouter {
                 }
 
                 // Update No. of Clicks change with growth indicator
-                if (backlinksChangeEl && summary.clicks_change !== undefined) {
-                    const clicksChange = summary.clicks_change;
-                    const changePercentage = calculatePercentageChange(summary.total_clicks, clicksChange);
+                if (backlinksChangeEl && metrics.clicks_change !== undefined) {
+                    const clicksChange = metrics.clicks_change;
+                    const changePercentage = calculatePercentageChange(metrics.clicks || metrics.total_clicks, clicksChange);
                     if (clicksChange > 0) {
                         backlinksChangeEl.innerHTML = `<span style="color: #10b981;">↑ ${Math.abs(changePercentage)}%</span> vs last 30 days`;
                         backlinksChangeEl.className = 'metric-change positive';
@@ -1808,6 +1809,16 @@ class SolviaRouter {
                     if (realIssuesEl) realIssuesEl.classList.remove('hidden');
 
                     console.log('✅ SPA: Issues loaded and displayed');
+
+                // Update SEO score with authoritative score from audit/issues API
+                if (data.seo_score !== undefined) {
+                    const seoScoreEl = document.getElementById('seoScore');
+                    if (seoScoreEl) {
+                        const authoritativeScore = Math.round(data.seo_score);
+                        seoScoreEl.textContent = `${authoritativeScore}/100`;
+                        console.log(`🎯 SPA: Updated SEO score to authoritative audit score: ${authoritativeScore}`);
+                    }
+                }
                 } else {
                     // Show no issues message
                     if (issuesContainer) {
