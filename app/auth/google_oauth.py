@@ -535,7 +535,7 @@ class GoogleOAuthHandler:
             # Set default date range if not provided
             if not date_range:
                 from datetime import datetime, timedelta
-                end_date = datetime.now().date()
+                end_date = datetime.now().date() - timedelta(days=1)  # GSC data available until yesterday
                 start_date = end_date - timedelta(days=30)
                 date_range = {
                     'start_date': start_date,
@@ -552,17 +552,21 @@ class GoogleOAuthHandler:
             
             # Execute the summary request
             try:
+                print(f"[GSC API CALL] ⚡ Making summary request to Google: {summary_request}")
                 summary_response = service.searchAnalytics().query(
                     siteUrl=website_url,
                     body=summary_request
                 ).execute()
+                print(f"[GSC API RESPONSE] 📊 Google summary response: {summary_response}")
             except AttributeError as attr_error:
                 print(f"[GSC OAUTH] AttributeError with searchAnalytics: {attr_error}")
                 # Try alternative method
+                print(f"[GSC API CALL] ⚡ Making summary request (fallback) to Google: {summary_request}")
                 summary_response = service.searchanalytics().query(
                     siteUrl=website_url,
                     body=summary_request
                 ).execute()
+                print(f"[GSC API RESPONSE] 📊 Google summary response (fallback): {summary_response}")
             
             # Get detailed data for other metrics
             detailed_request = {
@@ -574,17 +578,21 @@ class GoogleOAuthHandler:
             
             # Execute the detailed request
             try:
+                print(f"[GSC API CALL] ⚡ Making detailed request to Google: {detailed_request}")
                 detailed_response = service.searchAnalytics().query(
                     siteUrl=website_url,
                     body=detailed_request
                 ).execute()
+                print(f"[GSC API RESPONSE] 📊 Google detailed response: {detailed_response}")
             except AttributeError as attr_error:
                 print(f"[GSC OAUTH] AttributeError with searchAnalytics: {attr_error}")
                 # Try alternative method
+                print(f"[GSC API CALL] ⚡ Making detailed request (fallback) to Google: {detailed_request}")
                 detailed_response = service.searchanalytics().query(
                     siteUrl=website_url,
                     body=detailed_request
                 ).execute()
+                print(f"[GSC API RESPONSE] 📊 Google detailed response (fallback): {detailed_response}")
             
             # Calculate metrics using summary data for accurate CTR
             metrics = self._calculate_metrics_with_summary(summary_response, detailed_response.get('rows', []))
@@ -593,7 +601,65 @@ class GoogleOAuthHandler:
             return metrics
             
         except Exception as e:
+            error_str = str(e).lower()
             print(f"[GSC OAUTH] Error getting GSC metrics: {e}")
+
+            # ULTRATHINK AUTOMATIC RETRY: Check for 401/authentication errors
+            if '401' in error_str or 'unauthorized' in error_str or 'invalid_grant' in error_str or 'credentials' in error_str:
+                print(f"[GSC OAUTH AUTO-RETRY] 🔄 401/Auth error detected, attempting automatic token refresh...")
+
+                try:
+                    # Try to refresh credentials automatically
+                    from app.auth.utils import verify_gsc_credentials
+
+                    print(f"[GSC OAUTH AUTO-RETRY] 🚀 Calling verify_gsc_credentials for automatic refresh...")
+                    refresh_success = verify_gsc_credentials(user_email)
+
+                    if refresh_success:
+                        print(f"[GSC OAUTH AUTO-RETRY] 🎉 ✅ Automatic refresh successful! Retrying GSC API call...")
+
+                        # Get fresh credentials and retry the API call
+                        fresh_credentials = self.get_credentials(user_email)
+                        if fresh_credentials:
+                            print(f"[GSC OAUTH AUTO-RETRY] 🔄 Retrying API call with fresh credentials...")
+
+                            # Rebuild service with fresh credentials
+                            service = build('searchconsole', 'v1', credentials=fresh_credentials)
+
+                            # Retry the summary request
+                            try:
+                                print(f"[GSC OAUTH AUTO-RETRY] ⚡ Retry: Making summary request to Google: {summary_request}")
+                                summary_response = service.searchAnalytics().query(
+                                    siteUrl=website_url,
+                                    body=summary_request
+                                ).execute()
+                                print(f"[GSC OAUTH AUTO-RETRY] 📊 Retry: Google summary response: {summary_response}")
+
+                                # Retry the detailed request
+                                print(f"[GSC OAUTH AUTO-RETRY] ⚡ Retry: Making detailed request to Google: {detailed_request}")
+                                detailed_response = service.searchAnalytics().query(
+                                    siteUrl=website_url,
+                                    body=detailed_request
+                                ).execute()
+                                print(f"[GSC OAUTH AUTO-RETRY] 📊 Retry: Google detailed response: {detailed_response}")
+
+                                # Calculate metrics with the retry data
+                                metrics = self._calculate_metrics_with_summary(summary_response, detailed_response.get('rows', []))
+                                print(f"[GSC OAUTH AUTO-RETRY] 🎉 ✅ Retry successful! Returning metrics: {metrics}")
+                                return metrics
+
+                            except Exception as retry_error:
+                                print(f"[GSC OAUTH AUTO-RETRY] 💥 ❌ Retry API call failed: {retry_error}")
+                        else:
+                            print(f"[GSC OAUTH AUTO-RETRY] 💥 ❌ Could not get fresh credentials after refresh")
+                    else:
+                        print(f"[GSC OAUTH AUTO-RETRY] 💥 ❌ Automatic refresh failed")
+
+                except Exception as retry_exception:
+                    print(f"[GSC OAUTH AUTO-RETRY] 💥 ❌ Exception during automatic retry: {retry_exception}")
+
+                print(f"[GSC OAUTH AUTO-RETRY] 💥 ❌ All retry attempts failed, returning empty metrics")
+
             return self._get_empty_metrics()
     
     def _calculate_metrics_with_summary(self, summary_response: dict, detailed_rows: list) -> dict:

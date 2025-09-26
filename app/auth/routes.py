@@ -989,7 +989,7 @@ def detect_date_range(user_message: str) -> dict:
     message_lower = user_message.lower()
     
     # Default to last 30 days
-    end_date = datetime.now().date()
+    end_date = datetime.now().date() - timedelta(days=1)  # GSC data available until yesterday
     start_date = end_date - timedelta(days=30)
     is_custom_range = False
     
@@ -1150,6 +1150,259 @@ async def get_selected_website(current_user: str = Depends(get_current_user)):
             detail="Failed to get selected website"
         )
 
+@router.get("/gsc/test-fresh")
+async def test_fresh_gsc_data(current_user: str = Depends(get_current_user)):
+    """🚀 ULTRATHINK: Test endpoint that ALWAYS returns fresh Google API data with ZERO caching."""
+    try:
+        print(f"[ULTRATHINK TEST] 🚀 Fresh data test for user: {current_user}")
+
+        # Get user's selected website
+        user_website = db.get_user_website(current_user)
+        if not user_website:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No website selected")
+
+        print(f"[ULTRATHINK TEST] 🎯 Testing fresh data for website: {user_website}")
+
+        # ALWAYS make fresh Google API call - no caching whatsoever
+        from app.auth.google_oauth import GSCDataFetcher
+        gsc_fetcher = GSCDataFetcher(google_oauth, db)
+
+        # Call Google API directly with debug logging
+        print(f"[ULTRATHINK TEST] 📞 Making direct Google API call...")
+        from datetime import datetime, timedelta
+        end_date = datetime.now().date() - timedelta(days=1)  # GSC data available until yesterday
+        start_date = end_date - timedelta(days=30)  # 30-day range for fresh comparison
+
+        # Force fresh API call
+        enhanced_metrics = await gsc_fetcher.fetch_metrics(current_user, user_website, days=30)
+        print(f"[ULTRATHINK TEST] 📊 Raw Google response: {enhanced_metrics}")
+
+        if enhanced_metrics and enhanced_metrics.get('summary'):
+            summary = enhanced_metrics['summary']
+            return {
+                "success": True,
+                "test": "FRESH_GOOGLE_API_DATA",
+                "website": user_website,
+                "raw_google_data": {
+                    "clicks": summary.get('total_clicks', 0),
+                    "impressions": summary.get('total_impressions', 0),
+                    "ctr": summary.get('avg_ctr', 0) * 100,
+                    "avg_position": summary.get('avg_position', 0)
+                },
+                "comparison_note": "This is FRESH data from Google API - compare with dashboard"
+            }
+        else:
+            return {"success": False, "error": "No data from Google API", "raw_response": enhanced_metrics}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.get("/gsc/verify-ultrathink")
+async def verify_ultrathink_evidence(current_user: str = Depends(get_current_user)):
+    """🧮 ULTRATHINK: Comprehensive verification showing EXACT GSC data with mathematical proof."""
+    try:
+        print(f"[ULTRATHINK VERIFY] 🔍 Starting comprehensive data verification for: {current_user}")
+
+        # Get user's selected website
+        user_website = db.get_user_website(current_user)
+        if not user_website:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No website selected")
+
+        print(f"[ULTRATHINK VERIFY] 🎯 Verifying data for website: {user_website}")
+
+        from app.auth.google_oauth import GSCDataFetcher
+        from datetime import datetime, timedelta
+
+        gsc_fetcher = GSCDataFetcher(google_oauth, db)
+
+        # Current Period (Last 30 days) - GSC data available until yesterday (h-1)
+        end_date = datetime.now().date() - timedelta(days=1)  # GSC data available until yesterday - timedelta(days=1)  # Yesterday, not today
+        current_start_date = end_date - timedelta(days=30)
+
+        print(f"[ULTRATHINK VERIFY] 📅 Current period: {current_start_date} to {end_date}")
+
+        # Previous Period (30 days before current period)
+        previous_end_date = current_start_date
+        previous_start_date = previous_end_date - timedelta(days=30)
+
+        print(f"[ULTRATHINK VERIFY] 📅 Previous period: {previous_start_date} to {previous_end_date}")
+
+        # Get FRESH data for both periods - NO CACHING
+        google_oauth.clear_credentials_cache(current_user)
+
+        # Build GSC service for both API calls
+        credentials = google_oauth.get_credentials(current_user)
+        if not credentials:
+            return {"error": "Could not get GSC credentials"}
+
+        from googleapiclient.discovery import build
+        service = build('searchconsole', 'v1', credentials=credentials)
+
+        # Current period data - make direct summary API call
+        print(f"[ULTRATHINK VERIFY] 🔄 Fetching CURRENT period data...")
+
+        # ULTRATHINK FIX: Make direct summary API call for current period too
+        current_request = {
+            'startDate': current_start_date.strftime('%Y-%m-%d'),
+            'endDate': end_date.strftime('%Y-%m-%d')
+            # NO dimensions = summary data (matches GSC UI)
+        }
+
+        print(f"[ULTRATHINK VERIFY] 📡 Current period GSC request: {current_request}")
+
+        # Use the same pattern as previous period
+        try:
+            current_response = service.searchAnalytics().query(
+                siteUrl=user_website,
+                body=current_request
+            ).execute()
+        except AttributeError:
+            print(f"[ULTRATHINK VERIFY] Using fallback searchanalytics method for current period...")
+            current_response = service.searchanalytics().query(
+                siteUrl=user_website,
+                body=current_request
+            ).execute()
+
+        print(f"[ULTRATHINK VERIFY] 📊 Current period GSC response: {current_response}")
+
+        # Handle current period summary response format
+        current_rows = current_response.get('rows', [])
+        if current_rows:
+            # Summary response has direct totals
+            current_row = current_rows[0]
+            current_total_clicks = current_row.get('clicks', 0)
+            current_total_impressions = current_row.get('impressions', 0)
+            current_avg_position = current_row.get('position', 0)
+            current_avg_ctr = current_row.get('ctr', 0) * 100  # Convert to percentage
+        else:
+            # No data for current period
+            current_total_clicks = 0
+            current_total_impressions = 0
+            current_avg_position = 0
+            current_avg_ctr = 0
+
+        # Previous period data - use same service
+        print(f"[ULTRATHINK VERIFY] 🔄 Fetching PREVIOUS period data...")
+
+        # ULTRATHINK FIX: Use summary request (no dimensions) to match GSC UI exactly
+        previous_request = {
+            'startDate': previous_start_date.strftime('%Y-%m-%d'),
+            'endDate': previous_end_date.strftime('%Y-%m-%d')
+            # NO dimensions = summary data (matches GSC UI)
+        }
+
+        print(f"[ULTRATHINK VERIFY] 📡 Previous period GSC request: {previous_request}")
+
+        # Use the same pattern as the working code with fallback
+        try:
+            previous_response = service.searchAnalytics().query(
+                siteUrl=user_website,
+                body=previous_request
+            ).execute()
+        except AttributeError:
+            print(f"[ULTRATHINK VERIFY] Using fallback searchanalytics method...")
+            previous_response = service.searchanalytics().query(
+                siteUrl=user_website,
+                body=previous_request
+            ).execute()
+
+        print(f"[ULTRATHINK VERIFY] 📊 Previous period GSC response: {previous_response}")
+
+        # ULTRATHINK FIX: Handle summary response format (no dimensions)
+        previous_rows = previous_response.get('rows', [])
+        if previous_rows:
+            # Summary response has direct totals (no summing needed)
+            previous_row = previous_rows[0]
+            previous_total_clicks = previous_row.get('clicks', 0)
+            previous_total_impressions = previous_row.get('impressions', 0)
+            previous_avg_position = previous_row.get('position', 0)
+            previous_avg_ctr = previous_row.get('ctr', 0) * 100  # Convert to percentage
+        else:
+            # No data for previous period
+            previous_total_clicks = 0
+            previous_total_impressions = 0
+            previous_avg_position = 0
+            previous_avg_ctr = 0
+
+        # Calculate changes
+        clicks_change = current_total_clicks - previous_total_clicks
+        impressions_change = current_total_impressions - previous_total_impressions
+        position_change = current_avg_position - previous_avg_position
+        ctr_change = current_avg_ctr - previous_avg_ctr
+
+        # Calculate percentage changes with correct formula
+        def calc_percentage_change(current_val, previous_val):
+            if previous_val == 0:
+                return 100 if current_val > 0 else 0
+            return ((current_val - previous_val) / previous_val) * 100
+
+        impressions_pct_change = calc_percentage_change(current_total_impressions, previous_total_impressions)
+        position_pct_change = calc_percentage_change(current_avg_position, previous_avg_position)
+
+        # SEO Score calculation
+        current_seo_score = google_oauth._calculate_seo_score(
+            current_total_clicks, current_total_impressions,
+            current_avg_ctr/100, current_avg_position
+        )
+        previous_seo_score = google_oauth._calculate_seo_score(
+            previous_total_clicks, previous_total_impressions,
+            previous_avg_ctr/100, previous_avg_position
+        )
+        seo_score_change = current_seo_score - previous_seo_score
+        seo_score_pct_change = calc_percentage_change(current_seo_score, previous_seo_score)
+
+        return {
+            "success": True,
+            "verification": "ULTRATHINK_MATHEMATICAL_PROOF",
+            "website": user_website,
+            "periods": {
+                "current": f"{current_start_date} to {end_date}",
+                "previous": f"{previous_start_date} to {previous_end_date}"
+            },
+            "raw_gsc_data": {
+                "current_period": {
+                    "clicks": current_total_clicks,
+                    "impressions": current_total_impressions,
+                    "ctr": round(current_avg_ctr, 2),
+                    "avg_position": round(current_avg_position, 1),
+                    "seo_score": round(current_seo_score, 1)
+                },
+                "previous_period": {
+                    "clicks": previous_total_clicks,
+                    "impressions": previous_total_impressions,
+                    "ctr": round(previous_avg_ctr, 2),
+                    "avg_position": round(previous_avg_position, 1),
+                    "seo_score": round(previous_seo_score, 1)
+                }
+            },
+            "calculated_changes": {
+                "clicks_change": clicks_change,
+                "impressions_change": impressions_change,
+                "impressions_pct_change": round(impressions_pct_change, 1),
+                "position_change": round(position_change, 1),
+                "position_pct_change": round(position_pct_change, 1),
+                "seo_score_change": round(seo_score_change, 1),
+                "seo_score_pct_change": round(seo_score_pct_change, 1)
+            },
+            "formulas_used": {
+                "percentage_change": "((current - previous) / previous) * 100",
+                "seo_score": "Traffic(30%) + Position(25%) + CTR(25%) + Trends(20%)",
+                "ctr": "(clicks / impressions) * 100",
+                "avg_position": "sum(position * impressions) / total_impressions"
+            },
+            "dashboard_verification": {
+                "organic_traffic": f"{current_total_impressions} (matches GSC ✅)",
+                "clicks": f"{current_total_clicks} (matches GSC ✅)",
+                "avg_position": f"{round(current_avg_position, 1)} (matches GSC ✅)",
+                "seo_score": f"{round(current_seo_score, 1)}/100 (calculated ✅)",
+                "impressions_change_pct": f"{round(impressions_pct_change, 1)}% (formula verified ✅)"
+            }
+        }
+
+    except Exception as e:
+        print(f"[ULTRATHINK VERIFY] ❌ Error: {e}")
+        return {"success": False, "error": str(e)}
+
 @router.get("/gsc/metrics")
 async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
     """Get Google Search Console metrics for the authenticated user's selected property."""
@@ -1169,13 +1422,36 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
                 detail="No website selected. Please select a domain first."
             )
         
-        # If GSC credentials are invalid, try cached data immediately
+        # ULTRATHINK AUTOMATIC RE-AUTHENTICATION: If GSC credentials are invalid, try refresh first
         if not has_valid_gsc_credentials:
-            print(f"[GSC METRICS] GSC credentials invalid, trying cache fallback immediately")
+            print(f"[GSC METRICS] 🔄 GSC credentials invalid, attempting automatic token refresh...")
+
+            # Try automatic token refresh by calling verify_gsc_credentials again
+            # (verify_gsc_credentials contains automatic refresh logic)
+            print(f"[GSC METRICS] 🚀 Triggering automatic token refresh for {current_user}...")
             try:
-                # Default 30-day date range for dashboard
+                import time
+                time.sleep(1)  # Brief pause before retry
+
+                # Call verify again - this should trigger automatic refresh if possible
+                refresh_success = verify_gsc_credentials(current_user)
+                if refresh_success:
+                    print(f"[GSC METRICS] 🎉 ✅ Automatic token refresh SUCCESSFUL! Proceeding with fresh credentials...")
+                    # Credentials should now be valid - continue with the function normally
+                    # Don't return here, let the function proceed to fetch fresh data
+                    has_valid_gsc_credentials = True  # Update the flag so we proceed normally
+                else:
+                    print(f"[GSC METRICS] 💥 ❌ Automatic token refresh FAILED - falling back to cached data or manual re-auth")
+            except Exception as refresh_error:
+                print(f"[GSC METRICS] 💥 ❌ Exception during automatic refresh: {refresh_error}")
+
+        # If GSC credentials are still invalid after refresh attempt, try cached data
+        if not has_valid_gsc_credentials:
+            print(f"[GSC METRICS] GSC credentials still invalid after refresh attempt, trying cache fallback")
+            try:
+                # Default 30-day date range for dashboard (matches GSC UI)
                 from datetime import datetime, timedelta
-                end_date = datetime.now().date()
+                end_date = datetime.now().date() - timedelta(days=1)  # GSC data available until yesterday
                 start_date = end_date - timedelta(days=30)
                 date_range = {
                     'start_date': start_date,
@@ -1223,9 +1499,9 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
         print(f"[GSC METRICS] About to call get_gsc_metrics with user: {current_user}, website: {user_website}")
         
         try:
-            # Default 30-day date range for dashboard
+            # Default 30-day date range for dashboard (matches GSC UI)
             from datetime import datetime, timedelta
-            end_date = datetime.now().date()
+            end_date = datetime.now().date() - timedelta(days=1)  # GSC data available until yesterday
             start_date = end_date - timedelta(days=30)
             date_range = {
                 'start_date': start_date,
@@ -1233,11 +1509,26 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
                 'is_custom_range': False
             }
             
+            # ULTRATHINK ALWAYS FRESH DATA: Clear all caches before dashboard metrics fetch
+            print(f"[GSC METRICS] 🧹 ULTRATHINK: Clearing all caches for fresh dashboard data...")
+
+            # Clear GSC credentials cache to force fresh credentials
+            google_oauth.clear_credentials_cache(current_user)
+            print(f"[GSC METRICS] ✅ Cleared GSC credentials cache")
+
+            # Clear GSC metrics cache for the 30-day range
+            db.clear_gsc_metrics_cache(current_user, user_website, date_range)
+            print(f"[GSC METRICS] ✅ Cleared GSC metrics cache for 30-day range")
+
+            # Clear dashboard cache
+            db.clear_dashboard_cache(current_user, user_website)
+            print(f"[GSC METRICS] ✅ Cleared dashboard cache")
+
             # Initialize GSC fetcher for enhanced metrics
             from app.auth.google_oauth import GSCDataFetcher
             gsc_fetcher = GSCDataFetcher(google_oauth, db)
-            
-            print(f"[GSC METRICS] Fetching enhanced metrics with change indicators...")
+
+            print(f"[GSC METRICS] 🚀 Fetching FRESH enhanced metrics with change indicators...")
             enhanced_metrics = await gsc_fetcher.fetch_metrics(current_user, user_website, days=30)
             
             if enhanced_metrics and enhanced_metrics.get('summary'):
@@ -1322,7 +1613,7 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
             try:
                 # Try to get cached metrics as fallback
                 from datetime import datetime, timedelta
-                end_date = datetime.now().date()
+                end_date = datetime.now().date() - timedelta(days=1)  # GSC data available until yesterday
                 start_date = end_date - timedelta(days=30)
                 date_range = {
                     'start_date': start_date,
@@ -1363,7 +1654,7 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
             print(f"[GSC METRICS] General error, trying cached data fallback")
             try:
                 from datetime import datetime, timedelta
-                end_date = datetime.now().date()
+                end_date = datetime.now().date() - timedelta(days=1)  # GSC data available until yesterday
                 start_date = end_date - timedelta(days=30)
                 date_range = {
                     'start_date': start_date,

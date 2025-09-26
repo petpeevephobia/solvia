@@ -1,0 +1,222 @@
+# Caddyfile for Solvia SEO Audit Tool
+# Handles both development (localhost) and production domains
+
+# Global options
+{
+	# Enable debug mode in development
+	# debug
+
+	# Admin API endpoint
+	admin off
+
+	# Global server options
+	servers {
+		metrics
+		timeouts {
+			read_body   10s
+			read_header 5s
+			write       30s
+			idle        2m
+		}
+	}
+}
+
+# Import environment variable for domain (defaults to localhost)
+{$DOMAIN:localhost} {
+	# Compression
+	encode zstd gzip
+
+	# Security headers
+	header {
+		# HSTS
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+		# Prevent clickjacking
+		X-Frame-Options "SAMEORIGIN"
+
+		# Prevent MIME type sniffing
+		X-Content-Type-Options "nosniff"
+
+		# XSS Protection (for older browsers)
+		X-XSS-Protection "1; mode=block"
+
+		# Referrer Policy
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# Permissions Policy
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+		# Remove server header
+		-Server
+	}
+
+	# Logging
+	log {
+		output stdout
+		format json
+		level INFO
+	}
+
+	# Static file handling with aggressive caching
+	handle /static/* {
+		# Remove /static prefix and serve from /srv/static
+		uri strip_prefix /static
+		root * /srv/static
+
+		# File server with directory browsing disabled
+		file_server {
+			hide .git .env
+			index index.html
+		}
+
+		# Cache static assets
+		@static {
+			path *.css *.js *.jpg *.jpeg *.png *.gif *.svg *.woff *.woff2 *.ttf *.eot
+		}
+		header @static Cache-Control "public, max-age=31536000, immutable"
+
+		# Don't cache HTML files
+		@html {
+			path *.html
+		}
+		header @html Cache-Control "no-cache, no-store, must-revalidate"
+	}
+
+	# Landing page static files (special handling)
+	handle /landing/* {
+		reverse_proxy app:8000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Health check endpoint (bypass auth)
+	handle /health {
+		reverse_proxy app:8000 {
+			health_uri /health
+			health_interval 30s
+			health_timeout 5s
+		}
+	}
+
+	# API endpoints
+	handle /api/* {
+		reverse_proxy app:8000 {
+			# Load balancing (if scaling)
+			lb_policy round_robin
+
+			# Headers
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+
+			# Timeouts for API calls
+			transport http {
+				read_timeout 30s
+				write_timeout 30s
+				dial_timeout 5s
+			}
+
+			# Circuit breaker
+			fail_duration 10s
+			max_fails 3
+			unhealthy_status 5xx
+			unhealthy_latency 5s
+		}
+
+		# CORS headers for API
+		header {
+			Access-Control-Allow-Origin "{header.Origin}"
+			Access-Control-Allow-Credentials "true"
+			Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+			Access-Control-Allow-Headers "Authorization, Content-Type"
+			Access-Control-Max-Age "3600"
+		}
+	}
+
+	# WebSocket support for real-time features
+	handle /ws/* {
+		reverse_proxy app:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+
+			# WebSocket specific
+			header_up Connection {>Connection}
+			header_up Upgrade {>Upgrade}
+		}
+	}
+
+	# Authentication endpoints (special handling)
+	handle /auth/* {
+		reverse_proxy app:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+
+			# Longer timeout for OAuth flows
+			transport http {
+				read_timeout 60s
+				write_timeout 60s
+			}
+		}
+	}
+
+	# Agent endpoints (Solvia AI)
+	handle /agent/* {
+		reverse_proxy app:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+
+			# Longer timeout for AI processing
+			transport http {
+				read_timeout 120s
+				write_timeout 120s
+			}
+
+			# Larger buffer for AI responses
+			flush_interval -1
+		}
+	}
+
+	# Default handler - proxy everything else to FastAPI
+	handle {
+		reverse_proxy app:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Error handling
+	handle_errors {
+		@404 {
+			expression {http.error.status_code} == 404
+		}
+		respond @404 "Page not found" 404
+
+		@5xx {
+			expression {http.error.status_code} >= 500
+		}
+		respond @5xx "Internal server error. Please try again later." 500
+	}
+}
+
+# Redirect www to non-www (production)
+www.{$DOMAIN:localhost} {
+	redir https://{$DOMAIN:localhost}{uri} permanent
+}
+
+# Health check endpoint for monitoring
+:8080 {
+	respond /health "OK" 200
+	respond /metrics 200 {
+		body "# Metrics endpoint for Prometheus"
+	}
+}

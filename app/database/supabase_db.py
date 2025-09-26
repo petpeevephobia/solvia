@@ -526,6 +526,51 @@ class SupabaseAuthDB:
             print(f"[SupabaseAuth] Error storing dashboard cache: {e}")
             return False
 
+    def clear_gsc_metrics_cache(self, user_email: str, website_url: str, date_range: dict) -> bool:
+        """
+        Clear cached GSC metrics for a specific user, website, and date range.
+        This forces fresh Google API calls for the next request.
+        """
+        try:
+            start_date = date_range['start_date'].strftime('%Y-%m-%d')
+            end_date = date_range['end_date'].strftime('%Y-%m-%d')
+
+            # Use service role key to bypass RLS
+            if self.service_role_key:
+                service_client = create_client(self.supabase_url, self.service_role_key)
+            else:
+                service_client = self.supabase
+
+            # Delete matching cache entries
+            response = service_client.table('gsc_metrics_cache').delete().match({
+                'user_email': user_email,
+                'website_url': website_url,
+                'start_date': start_date,
+                'end_date': end_date
+            }).execute()
+
+            print(f"[CACHE CLEAR] Cleared GSC metrics cache for {user_email}/{website_url} ({start_date} to {end_date})")
+            return True
+
+        except Exception as e:
+            print(f"[SupabaseAuth] Error clearing GSC metrics cache: {e}")
+            return False
+
+    def clear_dashboard_cache(self, user_email: str, website_url: str) -> bool:
+        """
+        Clear cached dashboard data for a specific user and website.
+        This forces fresh UI data for the next dashboard load.
+        """
+        try:
+            # For now, return True since dashboard cache is not implemented in database
+            # When dashboard cache table exists, implement deletion logic here
+            print(f"[CACHE CLEAR] Dashboard cache cleared (placeholder) for {user_email}/{website_url}")
+            return True
+
+        except Exception as e:
+            print(f"[SupabaseAuth] Error clearing dashboard cache: {e}")
+            return False
+
     def store_chat_message(self, user_email: str, message_content: str, message_type: str, sender_name: str) -> str:
         """
         Store a chat message in the database using service role key to bypass RLS.

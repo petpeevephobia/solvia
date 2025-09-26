@@ -1,0 +1,128 @@
+# Solvia Production Caddyfile
+# Automatic HTTPS with Let's Encrypt
+
+# Redirect www to non-www
+www.solvia.app {
+    redir https://solvia.app{uri} permanent
+}
+
+# Main domain configuration
+solvia.app {
+    # Enable compression
+    encode zstd gzip
+
+    # Security headers
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Prevent MIME type sniffing
+        X-Content-Type-Options "nosniff"
+        # Clickjacking protection
+        X-Frame-Options "DENY"
+        # XSS Protection
+        X-XSS-Protection "1; mode=block"
+        # Referrer Policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://gzvtlxyfgfqkvoldmvtf.supabase.co wss://gzvtlxyfgfqkvoldmvtf.supabase.co"
+        # Permissions Policy
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    }
+
+    # Static files with aggressive caching
+    handle /static/* {
+        root * /srv
+        file_server {
+            precompressed zstd br gzip
+        }
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    # Landing page static files
+    handle /landing/* {
+        root * /srv/static
+        file_server
+        header Cache-Control "public, max-age=3600"
+    }
+
+    # Favicon
+    handle /favicon.ico {
+        root * /srv/static
+        file_server
+        header Cache-Control "public, max-age=604800"
+    }
+
+    # Health check endpoint (no logging to reduce noise)
+    handle /health {
+        reverse_proxy app:8000
+        header Cache-Control "no-cache, no-store, must-revalidate"
+    }
+
+    # API endpoints
+    handle /api/* {
+        reverse_proxy app:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+
+            # Circuit breaker
+            lb_policy round_robin
+            lb_try_duration 30s
+            lb_try_interval 5s
+
+            # Health check
+            health_uri /health
+            health_interval 30s
+            health_timeout 5s
+            health_status 200
+        }
+    }
+
+    # WebSocket support for real-time features
+    handle /ws/* {
+        reverse_proxy app:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up Connection {http.request.header.Connection}
+            header_up Upgrade {http.request.header.Upgrade}
+        }
+    }
+
+    # Main application
+    handle {
+        reverse_proxy app:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+
+            # Timeouts for long-running requests
+            transport http {
+                read_timeout 30s
+                write_timeout 30s
+                dial_timeout 10s
+            }
+        }
+    }
+
+    # Logging configuration
+    log {
+        output stdout
+        format json
+        level INFO
+    }
+
+}
+
+# Metrics endpoint (internal only)
+:9090 {
+    metrics /metrics
+    basicauth /metrics {
+        metrics $2a$14$Zkx19kUSVlvlz3NSZcRlN.cL2CvbR.VDj.1uLSg2XF3qsM3bDDzDm
+    }
+}
+
+# Admin panel (if needed)
+# admin.solvia.app {
+#     reverse_proxy app:8000
+#     basicauth {
+#         admin $2a$14$Zkx19kUSVlvlz3NSZcRlN.cL2CvbR.VDj.1uLSg2XF3qsM3bDDzDm
+#     }
+# }

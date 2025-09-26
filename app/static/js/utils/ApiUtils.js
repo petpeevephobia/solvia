@@ -1525,16 +1525,27 @@ export class AuthUtils {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ website_url: selectedWebsite })
+                body: JSON.stringify({ property_url: selectedWebsite })
             });
 
             if (response.ok) {
-                alert('Website selection saved successfully!');
-                // Clear cached data
+                console.log('✅ Property switched successfully, resetting state...');
+
+                // ULTRATHINK: Complete state reset for property switch
+                // Clear all cached data and local storage
                 localStorage.removeItem('cachedMetrics');
                 localStorage.removeItem('cachedIssues');
-                // Navigate to dashboard
-                window.solviaRouter.navigateTo('dashboard');
+                localStorage.removeItem('chatHistory');
+                localStorage.removeItem('lastAuditTime');
+                localStorage.removeItem('dashboardData');
+
+                // Show success message
+                alert('Website selection saved successfully! Refreshing dashboard...');
+
+                // Force reload to ensure complete state reset
+                // This ensures all data is fetched fresh for the new property
+                window.location.href = '/dashboard';
+                window.location.reload();
             } else {
                 alert('Failed to save website selection');
             }
