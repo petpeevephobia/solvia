@@ -235,11 +235,77 @@ async def trigger_audit(
                 detail="No website selected. Please select a website first."
             )
         
+        # PERMANENT FIX: Clear all caches when audit is triggered
+        # This ensures fresh Google API data for every audit
+        print(f"[AUDIT CACHE CLEAR] 🧹 Clearing all caches for fresh data...")
+
+        # 1. Clear GSC credentials cache to force fresh token validation
+        try:
+            google_oauth.clear_credentials_cache(current_user)
+            print(f"[AUDIT CACHE CLEAR] ✅ Cleared GSC credentials cache for {current_user}")
+        except Exception as cache_error:
+            print(f"[AUDIT CACHE CLEAR] ⚠️ Warning: Could not clear credentials cache: {cache_error}")
+
+        # 2. Clear GSC metrics cache to force fresh API calls
+        try:
+            # Clear cached GSC metrics for all date ranges for this user/website
+            date_ranges_to_clear = [7, 14, 28, 30, 90]  # Common date ranges
+            for days in date_ranges_to_clear:
+                end_date_temp = datetime.now().date()
+                start_date_temp = end_date_temp - timedelta(days=days)
+                date_range_temp = {
+                    'start_date': start_date_temp,
+                    'end_date': end_date_temp,
+                    'days': days
+                }
+                db.clear_gsc_metrics_cache(current_user, website_url, date_range_temp)
+            print(f"[AUDIT CACHE CLEAR] ✅ Cleared GSC metrics cache for {website_url}")
+        except Exception as metrics_cache_error:
+            print(f"[AUDIT CACHE CLEAR] ⚠️ Warning: Could not clear metrics cache: {metrics_cache_error}")
+
+        # 3. Clear dashboard cache to force fresh UI data
+        try:
+            db.clear_dashboard_cache(current_user, website_url)
+            print(f"[AUDIT CACHE CLEAR] ✅ Cleared dashboard cache for {website_url}")
+        except Exception as dashboard_cache_error:
+            print(f"[AUDIT CACHE CLEAR] ⚠️ Warning: Could not clear dashboard cache: {dashboard_cache_error}")
+
+        print(f"[AUDIT CACHE CLEAR] 🎯 All caches cleared - audit will use fresh Google API data")
+
         # Calculate date range
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=request.date_range_days)
-        
-        # Fetch GSC metrics
+
+        # ULTRATHINK AUTOMATIC RE-AUTHENTICATION: Ensure credentials are valid before fetching
+        print(f"[AUDIT REFRESH] 🔍 Verifying GSC credentials before audit...")
+        from app.auth.utils import verify_gsc_credentials
+
+        has_valid_credentials = verify_gsc_credentials(current_user)
+        if not has_valid_credentials:
+            print(f"[AUDIT REFRESH] 🔄 GSC credentials invalid, attempting automatic refresh for audit...")
+
+            # Try automatic refresh (verify_gsc_credentials contains the refresh logic)
+            try:
+                import time
+                time.sleep(1)  # Brief pause
+
+                refresh_success = verify_gsc_credentials(current_user)
+                if refresh_success:
+                    print(f"[AUDIT REFRESH] 🎉 ✅ Automatic token refresh SUCCESSFUL for audit!")
+                else:
+                    print(f"[AUDIT REFRESH] 💥 ❌ Automatic token refresh FAILED for audit")
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Google Search Console credentials expired and automatic refresh failed. Please re-authenticate with Google."
+                    )
+            except Exception as refresh_error:
+                print(f"[AUDIT REFRESH] 💥 ❌ Exception during automatic refresh for audit: {refresh_error}")
+                raise HTTPException(
+                    status_code=401,
+                    detail="Google Search Console credentials expired and automatic refresh failed. Please re-authenticate with Google."
+                )
+
+        # Fetch GSC metrics (now guaranteed to be fresh from Google API)
         raw_metrics = await gsc_fetcher.fetch_metrics(
             current_user,
             website_url,
@@ -783,49 +849,161 @@ async def get_current_issues(
     current_user: str = Depends(get_current_user)
 ):
     """
-    Get current top issues - OPTIMIZED VERSION.
-    First checks for cached audit data, only fetches fresh GSC data if no recent audit exists.
+    Get current top issues - FIXED VERSION.
+    Prioritizes real Google data for consistency with dashboard metrics.
+    Falls back to cached audit data only when Google data is unavailable.
     """
     try:
         # Get user's website
         website_url = db.get_user_website(current_user)
         print(f"[CURRENT-ISSUES] User: {current_user}, Website: {website_url}")
-        
-        # OPTIMIZATION: Check for recent stored audit FIRST (fast)
+
+        # PRIORITY 0: Check for fresh audit data first (< 1 hour old) - prioritize recent audit results
         db_instance = SupabaseAuthDB()
         latest_audit = db_instance.get_latest_audit(current_user, website_url) if website_url else None
-        
-        # If we have a recent audit (less than 24 hours old), use it immediately
+
         if latest_audit and latest_audit.get('created_at'):
-            # Handle timezone-aware datetime properly
             from datetime import timezone
             created_at_str = latest_audit['created_at']
             if isinstance(created_at_str, str):
-                # Parse the datetime string properly
                 if 'T' in created_at_str:
-                    # ISO format with or without timezone
                     if '+' in created_at_str or 'Z' in created_at_str:
                         created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
                     else:
-                        # Assume UTC if no timezone info
                         created_at = datetime.fromisoformat(created_at_str).replace(tzinfo=timezone.utc)
                 else:
-                    # Fallback for other formats
                     created_at = datetime.fromisoformat(created_at_str).replace(tzinfo=timezone.utc)
             else:
                 created_at = created_at_str
-                
-            # Compare with UTC now
+
             now_utc = datetime.now(timezone.utc)
             audit_age_hours = (now_utc - created_at).total_seconds() / 3600
-            
-            # Use stored audit if less than 24 hours old
-            if audit_age_hours < 24 and latest_audit.get('audit_data'):
-                print(f"[CURRENT-ISSUES] Using recent stored audit ({audit_age_hours:.1f} hours old)")
-                
-                # Use stored audit data (FAST PATH)
+
+            # If audit is less than 1 hour old, prioritize it over real-time GSC data
+            if audit_age_hours < 1 and latest_audit.get('audit_data'):
+                print(f"[CURRENT-ISSUES] 🎯 PRIORITIZING fresh audit data ({audit_age_hours:.1f}h old) over GSC data")
                 audit_data = latest_audit['audit_data']
-                
+
+                if 'audit_data' in audit_data and isinstance(audit_data['audit_data'], str):
+                    try:
+                        import json
+                        nested_data = json.loads(audit_data['audit_data'])
+                        issues = nested_data.get('issues', []) or nested_data.get('top_issues', [])
+                    except:
+                        issues = audit_data.get('issues', []) or audit_data.get('top_issues', [])
+                else:
+                    issues = audit_data.get('issues', []) or audit_data.get('top_issues', [])
+
+                # Format issues for display
+                formatted_issues = []
+                for issue in issues[:5]:
+                    formatted_issues.append({
+                        'title': issue.get('title', 'SEO Issue'),
+                        'description': issue.get('description', 'Issue detected in audit'),
+                        'severity': issue.get('severity', 'medium'),
+                        'impact': issue.get('impact', 'This may affect your SEO performance'),
+                        'recommendation': issue.get('recommendation', 'Review and address this issue'),
+                        'icon': _get_issue_icon(issue.get('category', 'general'))
+                    })
+
+                return {
+                    "has_issues": len(formatted_issues) > 0,
+                    "issues": formatted_issues,
+                    "last_audit": created_at_str,
+                    "seo_score": audit_data.get('seo_score', 0),
+                    "source": "fresh-audit-data",
+                    "cache_age_hours": audit_age_hours
+                }
+
+        # PRIORITY 1: Try to get real-time Google data for consistency with dashboard metrics
+        if website_url:
+            print(f"[CURRENT-ISSUES] Fetching real Google data for consistency...")
+            try:
+                from app.auth.google_oauth import GSCDataFetcher
+                from app.agent.rag_analyzer import rag_analyzer
+
+                # Check GSC credentials first
+                from app.auth.utils import verify_gsc_credentials
+                has_valid_gsc_credentials = verify_gsc_credentials(current_user)
+
+                if has_valid_gsc_credentials:
+                    gsc_fetcher = GSCDataFetcher(google_oauth, db)
+                    metrics = await gsc_fetcher.fetch_metrics(current_user, website_url, days=30)
+
+                    if metrics and metrics.get('summary'):
+                        # Transform metrics for analysis - using REAL GOOGLE DATA
+                        audit_data = {
+                            'seo_score': google_oauth._calculate_seo_score(
+                                metrics['summary'].get('total_clicks', 0),
+                                metrics['summary'].get('total_impressions', 0),
+                                metrics['summary'].get('avg_ctr', 0),
+                                metrics['summary'].get('avg_position', 0)
+                            ),
+                            'organic_traffic': metrics['summary'].get('total_clicks', 0),
+                            'impressions': metrics['summary'].get('total_impressions', 0),
+                            'ctr': metrics['summary'].get('avg_ctr', 0) * 100,
+                            'avg_position': metrics['summary'].get('avg_position', 0),
+                            'clicks_change': metrics['summary'].get('clicks_change', 0),
+                            'impressions_change': metrics['summary'].get('impressions_change', 0),
+                            'position_change': metrics['summary'].get('position_change', 0)
+                        }
+
+                        print(f"[CURRENT-ISSUES] ✅ Using REAL Google data - SEO Score: {audit_data['seo_score']}")
+
+                        # Analyze with RAG for real-time issues
+                        rag_issues = await rag_analyzer.analyze_audit_data(audit_data, website_url)
+
+                        # Format for display
+                        issues = []
+                        for issue in rag_issues[:5]:  # Top 5 issues
+                            issues.append({
+                                'title': issue.title,
+                                'description': issue.description,
+                                'severity': issue.severity,
+                                'impact': issue.impact,
+                                'recommendation': issue.recommendation,
+                                'icon': _get_issue_icon(issue.category)
+                            })
+
+                        return {
+                            "has_issues": len(issues) > 0,
+                            "issues": issues,
+                            "last_audit": datetime.now().isoformat(),
+                            "seo_score": audit_data.get('seo_score', 0),
+                            "source": "real-google-data",
+                            "cache_age_hours": 0
+                        }
+                else:
+                    print(f"[CURRENT-ISSUES] GSC credentials invalid, falling back to cached data")
+            except Exception as e:
+                print(f"[CURRENT-ISSUES] Real-time Google data failed: {e}, falling back to cached data")
+
+        # PRIORITY 2: Fall back to older cached audit data if Google data unavailable
+        # Reuse the latest_audit already fetched in PRIORITY 0 to avoid duplicate queries
+        if latest_audit and latest_audit.get('created_at') and latest_audit.get('audit_data'):
+            from datetime import timezone
+            created_at_str = latest_audit['created_at']
+            if isinstance(created_at_str, str):
+                if 'T' in created_at_str:
+                    if '+' in created_at_str or 'Z' in created_at_str:
+                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    else:
+                        created_at = datetime.fromisoformat(created_at_str).replace(tzinfo=timezone.utc)
+                else:
+                    created_at = datetime.fromisoformat(created_at_str).replace(tzinfo=timezone.utc)
+            else:
+                created_at = created_at_str
+
+            now_utc = datetime.now(timezone.utc)
+            audit_age_hours = (now_utc - created_at).total_seconds() / 3600
+
+            # Use stored audit if 1+ hours old but less than 24 hours old (not handled by PRIORITY 0)
+            if 1 <= audit_age_hours < 24:
+                print(f"[CURRENT-ISSUES] Using cached audit as fallback ({audit_age_hours:.1f} hours old)")
+
+                # Use stored audit data (FALLBACK PATH)
+                audit_data = latest_audit['audit_data']
+
                 # Parse nested data if needed
                 if 'audit_data' in audit_data and isinstance(audit_data['audit_data'], str):
                     try:
@@ -836,7 +1014,7 @@ async def get_current_issues(
                         issues = audit_data.get('issues', []) or audit_data.get('top_issues', [])
                 else:
                     issues = audit_data.get('issues', []) or audit_data.get('top_issues', [])
-                
+
                 # Format issues for display
                 formatted_issues = []
                 for issue in issues[:5]:  # Top 5 issues
@@ -849,17 +1027,17 @@ async def get_current_issues(
                             'recommendation': issue.get('recommendation', ''),
                             'icon': _get_issue_icon(issue.get('category', 'other'))
                         })
-                
+
                 return {
                     "has_issues": len(formatted_issues) > 0,
                     "issues": formatted_issues,
                     "last_audit": latest_audit.get('created_at', datetime.now().isoformat()),
                     "seo_score": audit_data.get('seo_score', 0),
-                    "source": "stored-audit-fast",
+                    "source": "stored-audit-fallback",
                     "cache_age_hours": audit_age_hours
                 }
-        
-        # Only fetch fresh data if no recent audit exists (SLOW PATH - rarely used)
+
+        # PRIORITY 3: Legacy fallback for older systems
         if website_url:
             print(f"[CURRENT-ISSUES] No recent audit found, fetching fresh data (slow)")
             try:

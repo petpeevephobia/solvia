@@ -862,7 +862,7 @@ export class AuditService {
                 }
 
                 // Update step statuses correctly - mark completed steps as completed, current as processing, rest as pending
-                const allStepStatuses = overlay.querySelectorAll('[data-step]');
+                const allStepStatuses = overlay.querySelectorAll('.step-status');
                 const currentStepIndex = steps.findIndex(step => step.id === stepId);
 
                 allStepStatuses.forEach((stepElement, index) => {
@@ -1005,13 +1005,17 @@ export class AuditService {
                 const auditStatus = data.status || 'unknown';
                 const auditId = data.id || data.audit_id;
 
+                console.log('🔍 [DEBUG AUDIT STATUS] Received audit status:', auditStatus);
+                console.log('🔍 [DEBUG AUDIT STATUS] Full response data:', data);
+
                 // The trigger-audit endpoint runs synchronously and returns 'completed'
                 // when the audit is done. No need to poll in that case.
                 if (auditStatus === 'completed' || auditStatus === 'success') {
+                    console.log('✅ [DEBUG AUDIT STATUS] Audit completion condition met, executing callback...');
                     // Mark all steps as completed when audit finishes
                     const overlay = document.getElementById('auditProgressOverlay');
                     if (overlay) {
-                        const allStepStatuses = overlay.querySelectorAll('[data-step]');
+                        const allStepStatuses = overlay.querySelectorAll('.step-status');
                         allStepStatuses.forEach(stepElement => {
                             stepElement.textContent = 'COMPLETED';
                             stepElement.className = 'step-status completed';
@@ -1028,12 +1032,32 @@ export class AuditService {
 
                         // Refresh dashboard after 2 seconds with targeted updates
                         setTimeout(async () => {
+                            console.log('🔍 [DEBUG AUDIT CALLBACK] Dashboard refresh callback triggered');
+                            console.log('🔍 [DEBUG AUDIT CALLBACK] window.solviaRouter exists:', !!window.solviaRouter);
+                            console.log('🔍 [DEBUG AUDIT CALLBACK] Current location hash:', window.location.hash);
+
                             if (window.solviaRouter) {
                                 console.log('🔄 Refreshing dashboard after audit completion...');
-                                // Refresh both metrics and issues to ensure consistency
-                                await window.solviaRouter.loadDashboardMetrics();
-                                await window.solviaRouter.loadCurrentIssues();
-                                console.log('✅ Dashboard refresh complete - both metrics and issues updated');
+                                try {
+                                    // Refresh both metrics, issues, and chat to ensure consistency
+                                    console.log('🔄 [AUDIT CALLBACK] Loading dashboard metrics...');
+                                    await window.solviaRouter.loadDashboardMetrics();
+                                    console.log('✅ [AUDIT CALLBACK] Dashboard metrics loaded successfully');
+
+                                    console.log('🔄 [AUDIT CALLBACK] Loading current issues...');
+                                    await window.solviaRouter.loadCurrentIssues();
+                                    console.log('✅ [AUDIT CALLBACK] Current issues loaded successfully');
+
+                                    console.log('🔄 [AUDIT CALLBACK] Loading chat history...');
+                                    await window.solviaRouter.loadChatHistory();
+                                    console.log('✅ [AUDIT CALLBACK] Chat history loaded successfully');
+
+                                    console.log('✅ Dashboard refresh complete - metrics, issues, and chat updated');
+                                } catch (error) {
+                                    console.error('❌ [AUDIT CALLBACK ERROR] Dashboard refresh failed:', error);
+                                }
+                            } else {
+                                console.warn('⚠️ [AUDIT CALLBACK WARNING] solviaRouter not available for dashboard refresh');
                             }
                         }, 2000);
                     }, 1000);
@@ -1075,7 +1099,7 @@ export class AuditService {
                                     // Mark all steps as completed when audit finishes
                                     const overlay = document.getElementById('auditProgressOverlay');
                                     if (overlay) {
-                                        const allStepStatuses = overlay.querySelectorAll('[data-step]');
+                                        const allStepStatuses = overlay.querySelectorAll('.step-status');
                                         allStepStatuses.forEach(stepElement => {
                                             stepElement.textContent = 'COMPLETED';
                                             stepElement.className = 'step-status completed';
@@ -1127,7 +1151,7 @@ export class AuditService {
                     // Mark all steps as completed for unknown status
                     const overlay = document.getElementById('auditProgressOverlay');
                     if (overlay) {
-                        const allStepStatuses = overlay.querySelectorAll('[data-step]');
+                        const allStepStatuses = overlay.querySelectorAll('.step-status');
                         allStepStatuses.forEach(stepElement => {
                             stepElement.textContent = 'COMPLETED';
                             stepElement.className = 'step-status completed';
