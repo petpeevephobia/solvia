@@ -1,0 +1,80 @@
+name: Deploy Solvia Dashboard
+
+on:
+  push:
+    branches: [main, 5-solvia-agent]
+  workflow_dispatch:
+
+env:
+  SERVER_HOST: 72.60.195.244
+  SERVER_USER: root
+  DEPLOY_DIR: /opt/solvia
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to Server
+      run: |
+        # Create deployment package
+        tar czf deploy.tar.gz \
+          --exclude=venv \
+          --exclude=__pycache__ \
+          --exclude=.git \
+          --exclude=reports \
+          --exclude=logs \
+          --exclude='*.pyc' \
+          --exclude=.env \
+          app core migrations scripts \
+          *.py *.sh *.txt *.sql *.md \
+          Dockerfile docker-compose*.yml Caddyfile* nginx-landing.conf Makefile
+
+        # Upload to server
+        scp deploy.tar.gz ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_DIR }}/
+
+        # Extract and restart services
+        ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+          cd /opt/solvia
+          tar xzf deploy.tar.gz
+          rm deploy.tar.gz
+
+          # Rebuild and restart containers
+          docker-compose down
+          docker-compose build --no-cache
+          docker-compose up -d
+
+          # Verify deployment
+          sleep 10
+          docker-compose ps
+          docker logs solvia-app --tail 10
+        ENDSSH
+
+    - name: Health Check
+      run: |
+        sleep 15
+        response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.SERVER_HOST }}/health || echo "000")
+        if [ "$response" = "200" ] || [ "$response" = "308" ]; then
+          echo "✅ Deployment successful! Health check passed."
+        else
+          echo "❌ Health check failed with response: $response"
+          exit 1
+        fi
+
+    - name: Notify Success
+      if: success()
+      run: echo "🚀 Solvia Dashboard deployed successfully!"
+
+    - name: Notify Failure
+      if: failure()
+      run: echo "❌ Deployment failed. Check logs for details."
