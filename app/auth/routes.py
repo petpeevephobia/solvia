@@ -1463,6 +1463,14 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
                 if cached_metrics:
                     print(f"[GSC METRICS] ✅ Using cached metrics - GSC credentials expired")
                     print(f"[GSC METRICS] Cached data: {cached_metrics}")
+
+                    # Get SEO score from latest audit instead of cached GSC score
+                    latest_audit = db.get_latest_audit(current_user, user_website)
+                    audit_seo_score = latest_audit.get('seo_score', 25) if latest_audit else 25
+
+                    # Override cached SEO score with latest audit score
+                    cached_metrics['seo_score'] = audit_seo_score
+
                     # Return cached data with indicator that credentials need refresh
                     return {
                         "success": True,
@@ -1534,13 +1542,12 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
             if enhanced_metrics and enhanced_metrics.get('summary'):
                 # Transform the enhanced metrics for frontend compatibility
                 summary = enhanced_metrics['summary']
+                # Get SEO score from latest audit instead of GSC-only calculation
+                latest_audit = db.get_latest_audit(current_user, user_website)
+                audit_seo_score = latest_audit.get('seo_score', 25) if latest_audit else 25
+
                 metrics = {
-                    'seo_score': google_oauth._calculate_seo_score(
-                        summary.get('total_clicks', 0),
-                        summary.get('total_impressions', 0), 
-                        summary.get('avg_ctr', 0),
-                        summary.get('avg_position', 0)
-                    ),
+                    'seo_score': audit_seo_score,
                     'organic_traffic': summary.get('total_clicks', 0),
                     'clicks': summary.get('total_clicks', 0),
                     'impressions': summary.get('total_impressions', 0),
@@ -1569,7 +1576,7 @@ async def get_gsc_metrics(current_user: str = Depends(get_current_user)):
                         'impressions': summary.get('total_impressions', 0),
                         'ctr': summary.get('avg_ctr', 0),
                         'avg_position': summary.get('avg_position', 0),
-                        'seo_score': metrics['seo_score'],
+                        'seo_score': audit_seo_score,
                         'clicks_change': summary.get('clicks_change', 0),
                         'impressions_change': summary.get('impressions_change', 0),
                         'position_change': summary.get('position_change', 0),

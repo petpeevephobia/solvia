@@ -1,0 +1,108 @@
+# Multi-Service Caddyfile for Solvia (Landing + Dashboard)
+# Landing page is served from solvia-site repo
+# Dashboard/Admin is served from main solvia repo
+
+{
+    # Global options
+    admin off
+    persist_config off
+    auto_https on
+    email admin@solvia.sg
+}
+
+# Main domain configuration
+solvia.sg {
+    # Landing page routes (from solvia-site service)
+    handle / {
+        reverse_proxy solvia-landing:80 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Product page and other landing content
+    handle /product* {
+        reverse_proxy solvia-landing:80
+    }
+
+    handle /assets/* {
+        reverse_proxy solvia-landing:80
+    }
+
+    handle /css/* {
+        reverse_proxy solvia-landing:80
+    }
+
+    handle /js/* {
+        reverse_proxy solvia-landing:80
+    }
+
+    # Dashboard/Admin routes (from main solvia service)
+    handle /spa* {
+        reverse_proxy solvia-dashboard:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle /api/* {
+        reverse_proxy solvia-dashboard:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle /auth/* {
+        reverse_proxy solvia-dashboard:8000
+    }
+
+    handle /agent/* {
+        reverse_proxy solvia-dashboard:8000
+    }
+
+    handle /static/* {
+        reverse_proxy solvia-dashboard:8000
+    }
+
+    handle /docs {
+        reverse_proxy solvia-dashboard:8000
+    }
+
+    handle /redoc {
+        reverse_proxy solvia-dashboard:8000
+    }
+
+    handle /health {
+        reverse_proxy solvia-dashboard:8000
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    }
+
+    # Enable compression
+    encode gzip zstd
+
+    # Logging
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+}
+
+# www redirect
+www.solvia.sg {
+    redir https://solvia.sg{uri} permanent
+}

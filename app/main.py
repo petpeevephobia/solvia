@@ -76,38 +76,8 @@ app.include_router(agent_router, tags=["Solvia Agent"])
 
 @app.get("/")
 async def root():
-    """Root endpoint - Serve the Solvia Landing Page directly."""
-    landing_file = os.path.join(static_dir, "landing", "index.html")
-    if os.path.exists(landing_file):
-        return FileResponse(
-            landing_file,
-            headers={
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
-    # Fallback to RedirectResponse if file doesn't exist
-    return RedirectResponse(url="/landing", status_code=302)
-
-@app.get("/landing")
-async def serve_landing():
-    """Serve the Solvia Landing Page."""
-    landing_file = os.path.join(static_dir, "landing", "index.html")
-    if os.path.exists(landing_file):
-        return FileResponse(
-            landing_file,
-            headers={
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
-    else:
-        return {
-            "error": "Landing page not found",
-            "message": "Please ensure the landing page files are in the static/landing directory"
-        }
+    """Root endpoint - Redirect to SPA dashboard."""
+    return RedirectResponse(url="/spa", status_code=302)
 
 @app.get("/health")
 async def health_check():
