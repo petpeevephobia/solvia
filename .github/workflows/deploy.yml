@@ -36,7 +36,7 @@ jobs:
           --exclude=logs \
           --exclude='*.pyc' \
           --exclude=.env \
-          app core migrations scripts \
+          app core migrations \
           *.py *.sh *.txt *.sql *.md \
           Dockerfile docker-compose*.yml Caddyfile* nginx-landing.conf Makefile
 
