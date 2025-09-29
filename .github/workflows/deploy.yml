@@ -21,12 +21,34 @@ jobs:
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+
+        # Write SSH key with proper formatting
+        cat > ~/.ssh/id_rsa << 'EOF'
+        ${{ secrets.SERVER_SSH_KEY }}
+        EOF
+
+        # Fix any potential formatting issues
+        sed -i 's/^ *//' ~/.ssh/id_rsa
+
+        # Set proper permissions
         chmod 600 ~/.ssh/id_rsa
+
+        # Add host to known hosts
         ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
 
+        # Debug: Check key format (first line only, no sensitive data)
+        echo "Key format check:"
+        head -n 1 ~/.ssh/id_rsa
+
         # Test SSH connection
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo 'SSH connection successful'"
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo 'SSH connection successful'" || {
+          echo "SSH connection failed. Please verify the SERVER_SSH_KEY secret is properly set."
+          echo "Make sure to copy the ENTIRE content of id_rsa_solvia including:"
+          echo "- -----BEGIN OPENSSH PRIVATE KEY-----"
+          echo "- All the key content"
+          echo "- -----END OPENSSH PRIVATE KEY-----"
+          exit 1
+        }
 
     - name: Deploy to Server
       run: |
