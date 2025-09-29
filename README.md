@@ -1,5 +1,7 @@
 # Solvia SEO Audit Tool
 
+[![Deploy Status](https://github.com/petpeevephobia/solvia/actions/workflows/deploy.yml/badge.svg)](https://github.com/petpeevephobia/solvia/actions)
+
 SEO on AI Autopilot - Google Search Console Integration with Supabase
 
 ## 🚀 Overview
