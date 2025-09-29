@@ -13,9 +13,9 @@ NC='\033[0m' # No Color
 
 # Configuration
 SERVER_USER="root"
-SERVER_HOST="solvia.sg"
+SERVER_HOST="72.60.195.244"
 BASE_DIR="/root/solvia"
-DASHBOARD_REPO="git@github.com:petpeevephobia/solvia.git"
+DASHBOARD_REPO="https://github.com/petpeevephobia/solvia.git"
 LANDING_REPO="https://github.com/solviasg/solvia-site.git"
 
 echo -e "${GREEN}🚀 Solvia Multi-Repo Deployment${NC}"
@@ -45,9 +45,9 @@ cd /root/solvia
 echo "🔄 Updating dashboard repository..."
 if [ -d "solvia-dashboard" ]; then
     cd solvia-dashboard
-    git pull origin main
+    git pull origin 5-solvia-agent
 else
-    git clone git@github.com:petpeevephobia/solvia.git solvia-dashboard
+    git clone -b 5-solvia-agent https://github.com/petpeevephobia/solvia.git solvia-dashboard
     cd solvia-dashboard
 fi
 
