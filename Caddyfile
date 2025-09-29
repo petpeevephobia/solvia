@@ -184,6 +184,16 @@
 		}
 	}
 
+	# Root landing page (exact match)
+	handle / {
+		reverse_proxy solvia-landing:80
+	}
+
+	# SPA Dashboard
+	handle /spa* {
+		reverse_proxy app:8000
+	}
+
 	# Default handler - proxy everything else to FastAPI
 	handle {
 		reverse_proxy app:8000 {
