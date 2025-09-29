@@ -1,0 +1,45 @@
+🔴 URGENT: GitHub Actions SSH Key Fix Required
+
+Hi Nadra,
+
+The CI/CD is failing due to SSH key format issue. Please update the SERVER_SSH_KEY secret:
+
+OPTION 1: Update Existing Secret (Recommended)
+===============================================
+
+1. Open the file: id_rsa_solvia
+2. Select ALL content (Cmd+A) and copy (Cmd+C)
+3. Go to: https://github.com/petpeevephobia/solvia/settings/secrets/actions
+4. Click on SERVER_SSH_KEY → Update secret
+5. DELETE everything in the value field
+6. Paste the ENTIRE key content
+7. Click "Update secret"
+
+⚠️ CRITICAL: The key must include:
+- First line: -----BEGIN OPENSSH PRIVATE KEY-----
+- All the encoded text (multiple lines)
+- Last line: -----END OPENSSH PRIVATE KEY-----
+
+OPTION 2: Use Base64 Encoded Version (If Option 1 fails)
+==========================================================
+
+1. Create new secret: SERVER_SSH_KEY_BASE64
+2. Copy content from: id_rsa_solvia.b64 (single line)
+3. Paste into secret value
+4. Let me know so I can update the workflow
+
+Quick Test
+==========
+
+After updating, the GitHub Actions should show:
+- "SSH connection successful" ✅
+
+Current error:
+- "Load key: error in libcrypto" ❌
+
+Files Available:
+- id_rsa_solvia (private key)
+- id_rsa_solvia.b64 (base64 encoded)
+- SSH_KEY_INSTRUCTIONS.md (detailed guide)
+
+Please update the secret and the CI/CD will work immediately!
