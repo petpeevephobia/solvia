@@ -2,7 +2,7 @@ name: Deploy Solvia Dashboard
 
 on:
   push:
-    branches: [main, 5-solvia-agent]
+    branches: [main]
   workflow_dispatch:
 
 env:
