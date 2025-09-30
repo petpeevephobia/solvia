@@ -184,23 +184,26 @@
 		}
 	}
 
-	# Root landing page (exact match)
-	handle / {
-		reverse_proxy solvia-landing:80
-	}
-
 	# SPA Dashboard
 	handle /spa* {
-		reverse_proxy app:8000
-	}
-
-	# Default handler - proxy everything else to FastAPI
-	handle {
 		reverse_proxy app:8000 {
 			header_up Host {host}
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
+
+			# Timeouts for long-running requests
+			transport http {
+				read_timeout 30s
+				write_timeout 30s
+				dial_timeout 10s
+			}
+		}
+	}
+
+	# Landing Page (root and all static assets) - served by nginx container
+	handle {
+		reverse_proxy solvia-landing:80 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
 		}
 	}
 
