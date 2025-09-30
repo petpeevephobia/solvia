@@ -34,37 +34,36 @@ jobs:
 
     - name: Deploy to Server
       run: |
-        # Create deployment package
-        tar czf deploy.tar.gz \
-          --exclude=venv \
-          --exclude=__pycache__ \
-          --exclude=.git \
-          --exclude=reports \
-          --exclude=logs \
-          --exclude='*.pyc' \
-          --exclude=.env \
-          app core migrations \
-          *.py *.sh *.txt *.sql *.md \
-          Dockerfile docker-compose*.yml Caddyfile* nginx-landing.conf Makefile
-
-        # Upload to server
-        scp -o StrictHostKeyChecking=no deploy.tar.gz ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_DIR }}/
-
-        # Extract and restart services
         ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
-          cd /opt/solvia
-          tar xzf deploy.tar.gz
-          rm deploy.tar.gz
+          set -e  # Exit on any error
+
+          echo "🔄 Starting deployment..."
+          cd ${{ env.DEPLOY_DIR }}
+
+          # Git pull latest changes
+          echo "📥 Pulling latest code from GitHub..."
+          git fetch origin
+          git reset --hard origin/main
+          git pull origin main
+
+          echo "✅ Code updated successfully"
 
           # Rebuild and restart containers
+          echo "🔧 Rebuilding Docker containers..."
           docker-compose down
           docker-compose build --no-cache
           docker-compose up -d
 
-          # Verify deployment
+          # Wait for services to start
+          echo "⏳ Waiting for services to start..."
           sleep 10
+
+          # Verify deployment
+          echo "🔍 Verifying deployment..."
           docker-compose ps
           docker logs solvia-app --tail 10
+
+          echo "✅ Deployment completed successfully!"
         ENDSSH
 
     - name: Health Check

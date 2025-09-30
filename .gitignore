@@ -187,3 +187,6 @@ yarn.lock
 reports/
 *.md.html
 output/
+# Private SSH keys - DO NOT COMMIT
+github_actions_*
+NEW_SSH_KEY_*
