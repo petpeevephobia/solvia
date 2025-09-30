@@ -18,19 +18,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Setup SSH
+    - name: Setup SSH with official action
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+    - name: Add server to known hosts
       run: |
         mkdir -p ~/.ssh
-
-        # Decode base64 SSH key from secret
-        echo "${{ secrets.SERVER_SSH_KEY }}" | base64 -d > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-
-        # Add host to known hosts
         ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-        # Test SSH connection
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo '✅ SSH connection successful'"
+    - name: Test SSH connection
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo '✅ SSH connection successful'"
 
     - name: Deploy to Server
       run: |
@@ -48,10 +48,10 @@ jobs:
           Dockerfile docker-compose*.yml Caddyfile* nginx-landing.conf Makefile
 
         # Upload to server
-        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa deploy.tar.gz ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_DIR }}/
+        scp -o StrictHostKeyChecking=no deploy.tar.gz ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_DIR }}/
 
         # Extract and restart services
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+        ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
           cd /opt/solvia
           tar xzf deploy.tar.gz
           rm deploy.tar.gz
