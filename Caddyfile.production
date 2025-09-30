@@ -44,6 +44,49 @@ solvia.app {
         header Cache-Control "no-cache, no-store, must-revalidate"
     }
 
+    # Landing page static files (special handling)
+    handle /landing/* {
+        reverse_proxy app:8000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Authentication endpoints (special handling)
+    handle /auth/* {
+        reverse_proxy app:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+
+            # Longer timeout for OAuth flows
+            transport http {
+                read_timeout 60s
+                write_timeout 60s
+            }
+        }
+    }
+
+    # Agent endpoints (Solvia AI)
+    handle /agent/* {
+        reverse_proxy app:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+
+            # Longer timeout for AI processing
+            transport http {
+                read_timeout 120s
+                write_timeout 120s
+            }
+
+            # Larger buffer for AI responses
+            flush_interval -1
+        }
+    }
+
     # API endpoints
     handle /api/* {
         reverse_proxy app:8000 {
