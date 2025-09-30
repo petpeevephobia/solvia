@@ -199,6 +199,36 @@
 		}
 	}
 
+	# Dashboard authentication pages
+	handle /login* {
+		reverse_proxy app:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	handle /register* {
+		reverse_proxy app:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	handle /logout* {
+		reverse_proxy app:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# Dashboard main pages
+	handle /dashboard* {
+		reverse_proxy app:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
 	# Landing Page (root and all static assets) - served by nginx container
 	handle {
 		reverse_proxy solvia-landing:80 {
