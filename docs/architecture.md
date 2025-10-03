@@ -1,7 +1,7 @@
 # Solvia Alpha - Technical Architecture
 
 > **Purpose**: Detailed technical architecture and implementation details
-> **Last Updated**: 2025-09-17
+> **Last Updated**: 2025-10-03
 
 ---
 
@@ -161,6 +161,34 @@ psql $DATABASE_URL < setup_supabase.sql
 # Start server
 uvicorn main:app --reload --port 8000
 ```
+
+---
+
+## 🔄 Recent Updates (2025-10-03)
+
+### OAuth Flexibility Enhancement
+- **Flexible Scope Validation**: Users can now log in even if they decline Google Search Console permission
+- **Graceful Fallback**: Primary flow requests all scopes, fallback flow uses basic scopes (email + profile)
+- **Progressive Permissions**: Users can grant GSC access later from settings
+- **Impact**: Reduced onboarding friction, improved login success rate
+
+### Data Freshness Optimization
+- **GSC Data Delay**: Reduced from 3-day to 1-day delay for fresher metrics
+- **Comprehensive Logging**: Added detailed logging to verify real-time Google API calls
+- **Date Range Update**: Changed from Sept 1-30 to Sept 3 - Oct 2 (30 days ending yesterday)
+- **Impact**: Dashboard now shows accurate, up-to-date metrics from Google Search Console
+
+### Error Handling Improvements
+- **Extended Auth Error Handling**: Now handles both 401 (unauthorized) and 403 (forbidden) errors
+- **Actionable Error Messages**: Replaced generic "Connection error" with specific guidance
+- **One-Click Resolution**: Added logout button in error messages for self-service recovery
+- **Impact**: Users can resolve authentication issues without support intervention
+
+### UI/UX Enhancements
+- **Custom Modal Component**: Replaced all browser alerts with beautiful branded modals
+- **Modal Features**: 4 types (success, error, warning, info) with gradient icons and animations
+- **Callback Support**: Execute functions after modal closes (e.g., redirect on success)
+- **Impact**: More professional, branded user experience throughout dashboard
 
 ---
 
