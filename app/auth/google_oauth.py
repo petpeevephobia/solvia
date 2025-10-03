@@ -781,10 +781,15 @@ class GSCDataFetcher:
             today = datetime.utcnow().date()
             current_end_date = today - timedelta(days=1)  # GSC data available within 1-2 days
             current_start_date = current_end_date - timedelta(days=days - 1)  # 30 days total
-            
+
+            print(f"[GSC FETCHER] 📅 CURRENT PERIOD: {current_start_date} to {current_end_date} ({days} days)")
+            print(f"[GSC FETCHER] 🗓️  Today's date: {today}")
+
             # For comparison, get the previous 30 days
             comparison_end_date = current_start_date - timedelta(days=1)
             comparison_start_date = comparison_end_date - timedelta(days=days - 1)
+
+            print(f"[GSC FETCHER] 📅 COMPARISON PERIOD: {comparison_start_date} to {comparison_end_date} ({days} days)")
             
             # Fetch data for current 30 days
             current_metrics = await self.get_gsc_data(
@@ -814,7 +819,15 @@ class GSCDataFetcher:
             current_seo_score = self._calculate_simplified_seo_score(current_summary)
             previous_seo_score = self._calculate_simplified_seo_score(comparison_summary)
             current_summary['seo_score_change'] = current_seo_score - previous_seo_score
-            
+
+            print(f"[GSC FETCHER] 📊 FINAL SUMMARY:")
+            print(f"[GSC FETCHER]    Total Clicks: {current_summary.get('total_clicks', 0)}")
+            print(f"[GSC FETCHER]    Total Impressions: {current_summary.get('total_impressions', 0)}")
+            print(f"[GSC FETCHER]    Avg CTR: {current_summary.get('avg_ctr', 0) * 100:.2f}%")
+            print(f"[GSC FETCHER]    Avg Position: {current_summary.get('avg_position', 0):.1f}")
+            print(f"[GSC FETCHER]    Clicks Change: {current_summary.get('clicks_change', 0):+.0f}")
+            print(f"[GSC FETCHER]    Impressions Change: {current_summary.get('impressions_change', 0):+.0f}")
+
             # Return the processed metrics with comparison data
             return {
                 "summary": current_summary,
@@ -926,6 +939,10 @@ class GSCDataFetcher:
     async def get_gsc_data(self, credentials: Credentials, property_url: str, start_date: str, end_date: str) -> Dict:
         """Fetch GSC analytics data for a given date range."""
         try:
+            print(f"[GSC API] 🌐 Calling REAL Google Search Console API")
+            print(f"[GSC API] 📅 Date range: {start_date} to {end_date}")
+            print(f"[GSC API] 🔗 Property: {property_url}")
+
             service = build('webmasters', 'v3', credentials=credentials)
             
             # Time series data (for charts)
@@ -946,7 +963,18 @@ class GSCDataFetcher:
             summary_response = service.searchanalytics().query(
                 siteUrl=property_url, body=summary_request
             ).execute()
-            
+
+            # Log the actual data received from Google
+            if summary_response and 'rows' in summary_response and len(summary_response['rows']) > 0:
+                summary_row = summary_response['rows'][0]
+                print(f"[GSC API] ✅ RECEIVED FROM GOOGLE:")
+                print(f"[GSC API]    Clicks: {summary_row.get('clicks', 0)}")
+                print(f"[GSC API]    Impressions: {summary_row.get('impressions', 0)}")
+                print(f"[GSC API]    CTR: {summary_row.get('ctr', 0) * 100:.2f}%")
+                print(f"[GSC API]    Avg Position: {summary_row.get('position', 0):.1f}")
+            else:
+                print(f"[GSC API] ⚠️ No data returned from Google for this date range")
+
             return self._process_analytics_data(time_series_response, summary_response, start_date, end_date)
             
         except HttpError as e:
