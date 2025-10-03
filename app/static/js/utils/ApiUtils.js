@@ -1383,7 +1383,7 @@ export class DownloadUtils {
             // Validate audit ID format
             if (!auditId || auditId === 'undefined' || auditId === 'null') {
                 console.error('Invalid audit ID:', auditId);
-                alert('Invalid audit ID. Please run a new audit.');
+                ModalUtils.error('Invalid audit ID. Please run a new audit.');
                 return;
             }
 
@@ -1398,7 +1398,7 @@ export class DownloadUtils {
                 const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
                 if (response.status === 404) {
                     console.error('Audit not found');
-                    alert('This audit report is no longer available. Please run a new audit.');
+                    ModalUtils.error('This audit report is no longer available. Please run a new audit.');
                     return;
                 }
                 throw new Error(`HTTP error! status: ${response.status} - ${errorData.detail || errorData.message}`);
@@ -1417,7 +1417,7 @@ export class DownloadUtils {
             console.log('✅ SPA: PDF downloaded successfully');
         } catch (error) {
             console.error('Failed to download PDF:', error);
-            alert('Failed to download PDF report. Please try again.');
+            ModalUtils.error('Failed to download PDF report. Please try again.');
         }
     }
 
@@ -1428,7 +1428,7 @@ export class DownloadUtils {
             // Validate audit ID format
             if (!auditId || auditId === 'undefined' || auditId === 'null') {
                 console.error('Invalid audit ID:', auditId);
-                alert('Invalid audit ID. Please run a new audit.');
+                ModalUtils.error('Invalid audit ID. Please run a new audit.');
                 return;
             }
 
@@ -1443,7 +1443,7 @@ export class DownloadUtils {
                 const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
                 if (response.status === 404) {
                     console.error('Audit not found');
-                    alert('This audit data is no longer available. Please run a new audit.');
+                    ModalUtils.error('This audit data is no longer available. Please run a new audit.');
                     return;
                 }
                 throw new Error(`HTTP error! status: ${response.status} - ${errorData.detail || errorData.message}`);
@@ -1464,7 +1464,7 @@ export class DownloadUtils {
             console.log('✅ SPA: JSON downloaded successfully');
         } catch (error) {
             console.error('Failed to download JSON:', error);
-            alert(`Failed to download JSON: ${error.message}`);
+            ModalUtils.error(`Failed to download JSON: ${error.message}`);
         }
     }
 
@@ -1514,7 +1514,7 @@ export class AuthUtils {
         try {
             const selectedWebsite = window.selectedWebsite;
             if (!selectedWebsite) {
-                alert('Please select a website');
+                ModalUtils.warning('Please select a website');
                 return;
             }
 
@@ -1539,19 +1539,21 @@ export class AuthUtils {
                 localStorage.removeItem('lastAuditTime');
                 localStorage.removeItem('dashboardData');
 
-                // Show success message
-                alert('Website selection saved successfully! Refreshing dashboard...');
-
-                // Force reload to ensure complete state reset
-                // This ensures all data is fetched fresh for the new property
-                window.location.href = '/dashboard';
-                window.location.reload();
+                // Show success message with beautiful modal
+                ModalUtils.success('Website selection saved successfully! Refreshing dashboard...', {
+                    onClose: () => {
+                        // Force reload to ensure complete state reset
+                        // This ensures all data is fetched fresh for the new property
+                        window.location.href = '/dashboard';
+                        window.location.reload();
+                    }
+                });
             } else {
-                alert('Failed to save website selection');
+                ModalUtils.error('Failed to save website selection');
             }
         } catch (error) {
             console.error('Error saving website selection:', error);
-            alert('Error saving website selection');
+            ModalUtils.error('Error saving website selection');
         }
     }
 }

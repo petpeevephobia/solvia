@@ -27,6 +27,27 @@
     </style>
 </head>
 <body>
+    <!-- Global Modal Component -->
+    <div id="globalModal" class="global-modal">
+        <div class="global-modal-overlay" onclick="closeGlobalModal()"></div>
+        <div class="global-modal-content">
+            <div class="global-modal-header">
+                <div class="global-modal-icon" id="globalModalIcon">
+                    <!-- Icon will be dynamically set -->
+                </div>
+                <h3 class="global-modal-title" id="globalModalTitle">Success</h3>
+            </div>
+            <div class="global-modal-body">
+                <p id="globalModalMessage">Message goes here</p>
+            </div>
+            <div class="global-modal-footer">
+                <button class="global-modal-btn global-modal-btn-primary" id="globalModalBtn" onclick="closeGlobalModal()">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Shared Sidebar -->
     <div class="sidebar" id="sidebar">
         <!-- Sidebar Toggle -->
@@ -263,6 +284,7 @@
     </div>
 
     <!-- Include Utility Modules (Clean Code Architecture) -->
+    <script src="/static/js/utils/ModalUtils.js"></script>
     <script type="module" src="/static/js/utils/ApiUtils.js"></script>
 
     <!-- Include Main SPA Router (Legacy - being gradually refactored) -->
