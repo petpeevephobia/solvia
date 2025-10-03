@@ -187,9 +187,44 @@ class GoogleOAuthHandler:
             scopes=self.scopes
         )
         flow.redirect_uri = self.redirect_uri
-        # Exchange code for tokens
-        flow.fetch_token(code=code)
-        credentials = flow.credentials
+
+        # Exchange code for tokens with flexible scope validation
+        try:
+            flow.fetch_token(code=code)
+            credentials = flow.credentials
+            print(f"[OAUTH] ✅ Token fetched successfully with all scopes: {credentials.scopes}")
+        except Exception as scope_error:
+            # Handle scope validation errors gracefully
+            if "Scope has changed" in str(scope_error) or "scope" in str(scope_error).lower():
+                print(f"[OAUTH] ⚠️ Scope mismatch detected: {scope_error}")
+                print(f"[OAUTH] 🔄 Retrying with basic scopes (email, profile only)")
+
+                # Retry with minimal scopes (just email and profile)
+                basic_scopes = [
+                    "https://www.googleapis.com/auth/userinfo.email",
+                    "https://www.googleapis.com/auth/userinfo.profile",
+                    "openid"
+                ]
+                flow_basic = Flow.from_client_config(
+                    {
+                        "web": {
+                            "client_id": self.client_id,
+                            "client_secret": self.client_secret,
+                            "auth_uri": "https://accounts.google.com/o/oauth2/v2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token",
+                            "redirect_uris": [self.redirect_uri]
+                        }
+                    },
+                    scopes=basic_scopes
+                )
+                flow_basic.redirect_uri = self.redirect_uri
+                flow_basic.fetch_token(code=code)
+                credentials = flow_basic.credentials
+                print(f"[OAUTH] ✅ Token fetched with basic scopes: {credentials.scopes}")
+                print(f"[OAUTH] ℹ️ User can grant GSC access later from settings")
+            else:
+                # Re-raise if it's a different error
+                raise scope_error
         
         # Get the actual user email from Google OAuth response
         actual_user_email = await self._get_user_email_from_credentials(credentials)
