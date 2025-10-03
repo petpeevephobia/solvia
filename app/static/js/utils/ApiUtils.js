@@ -578,8 +578,8 @@ export class ChatService {
                     const errorData = await response.json();
                     console.error('Error details:', errorData);
 
-                    // Handle GSC credentials expired (401 error)
-                    if (response.status === 401 || (errorData && errorData.error && errorData.error.includes('credentials expired'))) {
+                    // Handle authentication errors (401 or 403)
+                    if (response.status === 401 || response.status === 403 || (errorData && (errorData.error === 'Not authenticated' || errorData.error.includes('credentials expired')))) {
                         const errorMessageHtml = `
                             <div class="chat-message ai error">
                                 <div class="message-avatar ai">
@@ -589,14 +589,14 @@ export class ChatService {
                                 </div>
                                 <div class="message-content ai">
                                     <div class="message-text">
-                                        🔐 <strong>Google Search Console credentials expired.</strong><br><br>
-                                        I need fresh access to provide intelligent SEO insights. Please:
+                                        🔐 <strong>Session expired or authentication required.</strong><br><br>
+                                        Please log out and log back in to refresh your session:
                                         <br><br>
-                                        <button onclick="reauthorizeGoogle()" style="background: #EC6019; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin: 8px 0;">
-                                            ⚡ Refresh Credentials
+                                        <button onclick="window.location.href='/logout'" style="background: #EC6019; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin: 8px 0;">
+                                            🔄 Log Out & Refresh
                                         </button>
                                         <br><br>
-                                        Your chat history and settings will be preserved.
+                                        Your data will be preserved after logging back in.
                                     </div>
                                 </div>
                             </div>
