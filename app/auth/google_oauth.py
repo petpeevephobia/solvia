@@ -779,7 +779,7 @@ class GSCDataFetcher:
 
             # Calculate 30-day date ranges
             today = datetime.utcnow().date()
-            current_end_date = today - timedelta(days=3)  # Data is usually delayed by 3-4 days
+            current_end_date = today - timedelta(days=1)  # GSC data available within 1-2 days
             current_start_date = current_end_date - timedelta(days=days - 1)  # 30 days total
             
             # For comparison, get the previous 30 days
@@ -835,7 +835,7 @@ class GSCDataFetcher:
 
             # Calculate 30-day date range
             today = datetime.utcnow().date()
-            end_date = today - timedelta(days=3)  # Data is usually delayed by 3-4 days
+            end_date = today - timedelta(days=1)  # GSC data available within 1-2 days
             start_date = end_date - timedelta(days=days - 1)  # 30 days total
             
             # Build the Search Console API service

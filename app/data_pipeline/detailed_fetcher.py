@@ -393,7 +393,7 @@ class DetailedGSCDataFetcher:
                                   force_full_refresh: bool) -> Tuple[date, date]:
         """Determine optimal date range for fetching"""
         
-        end_date = datetime.now().date() - timedelta(days=3)  # GSC has 3-day delay
+        end_date = datetime.now().date() - timedelta(days=1)  # GSC data available within 1-2 days
         
         if force_full_refresh:
             # Full refresh: get last 16 months (GSC limit)
