@@ -1235,7 +1235,6 @@ class GSCDataFetcher:
                 # Calculate comparison totals
                 comp_clicks = 0
                 comp_impressions = 0
-                comp_ctr_sum = 0
                 comp_position_sum = 0  # For weighted position: sum(position * impressions)
                 comp_row_count = 0
 
@@ -1243,12 +1242,12 @@ class GSCDataFetcher:
                     for row in comparison_response['rows']:
                         comp_clicks += row.get('clicks', 0)
                         comp_impressions += row.get('impressions', 0)
-                        comp_ctr_sum += row.get('ctr', 0)
                         # CRITICAL FIX: Weight position by impressions (like GSC does)
                         comp_position_sum += row.get('position', 0) * row.get('impressions', 0)
                         comp_row_count += 1
 
-                comp_avg_ctr = comp_ctr_sum / comp_row_count if comp_row_count > 0 else 0
+                # CRITICAL FIX: Calculate CTR as total clicks / total impressions (like GSC does)
+                comp_avg_ctr = comp_clicks / comp_impressions if comp_impressions > 0 else 0
                 # CRITICAL FIX: Calculate weighted average position
                 comp_avg_position = comp_position_sum / comp_impressions if comp_impressions > 0 else 0
 
