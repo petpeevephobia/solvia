@@ -530,9 +530,18 @@ class DetailedGSCDataFetcher:
                 # Calculate totals
                 total_clicks = sum(row['total_clicks'] for row in response.data)
                 total_impressions = sum(row['total_impressions'] for row in response.data)
-                avg_ctr = sum(row['avg_ctr'] for row in response.data) / len(response.data)
-                avg_position = sum(row['avg_position'] for row in response.data) / len(response.data)
-                
+
+                # CRITICAL FIX: Calculate weighted averages (like GSC does)
+                # CTR = total clicks / total impressions (not average of daily CTRs)
+                avg_ctr = total_clicks / total_impressions if total_impressions > 0 else 0
+
+                # Position = weighted average by impressions (not simple average of daily positions)
+                weighted_position_sum = sum(
+                    row['avg_position'] * row['total_impressions']
+                    for row in response.data
+                )
+                avg_position = weighted_position_sum / total_impressions if total_impressions > 0 else 0
+
                 # Calculate SEO score
                 seo_score = self._calculate_seo_score(
                     total_clicks, total_impressions, avg_ctr, avg_position
@@ -559,38 +568,22 @@ class DetailedGSCDataFetcher:
         except Exception as e:
             print(f"[LEGACY] Failed to update legacy cache: {e}")
     
-    def _calculate_seo_score(self, clicks: int, impressions: int, 
+    def _calculate_seo_score(self, clicks: int, impressions: int,
                            ctr: float, position: float) -> int:
-        """Calculate SEO score using enhanced algorithm"""
-        
-        try:
-            if impressions == 0:
-                return 0
-            
-            # Enhanced scoring with multiple factors
-            metrics = [
-                # CTR score (0-30 points)
-                {'value': ctr, 'weight': 30, 'norm': lambda v: min(v / 0.10, 1)},
-                # Position score (0-30 points)  
-                {'value': position, 'weight': 30, 'norm': lambda v: max((10 - v) / 10, 0) if v > 0 else 0},
-                # Impressions score (0-20 points)
-                {'value': impressions, 'weight': 20, 'norm': lambda v: min(math.log10(v + 1) / 6, 1)},
-                # Clicks score (0-20 points)
-                {'value': clicks, 'weight': 20, 'norm': lambda v: min(math.log10(v + 1) / 5, 1)},
-            ]
-            
-            score = 0
-            total_weight = sum(m['weight'] for m in metrics)
-            
-            for metric in metrics:
-                if metric['value'] is not None and not math.isnan(metric['value']):
-                    normalized_value = max(0, min(metric['norm'](metric['value']), 1))
-                    score += normalized_value * metric['weight']
-            
-            return round(score * 100 / total_weight)
-            
-        except Exception:
-            return 0
+        """Calculate SEO score using unified scoring engine"""
+        # Import here to avoid circular dependency
+        from app.core.seo_scoring import SEOScoringEngine
+
+        # Use unified scoring engine for consistency
+        score = SEOScoringEngine.calculate_score(
+            clicks=clicks,
+            impressions=impressions,
+            ctr=ctr,
+            position=position,
+            historical_data=None  # No historical data for simple metrics
+        )
+
+        return score
     
     # Public methods for external access
     

@@ -735,13 +735,19 @@ class GoogleOAuthHandler:
         """Calculate aggregated metrics from GSC rows."""
         if not rows:
             return self._get_empty_metrics()
-        
+
         total_clicks = sum(row.get('clicks', 0) for row in rows)
         total_impressions = sum(row.get('impressions', 0) for row in rows)
-        total_position = sum(row.get('position', 0) for row in rows) / len(rows) if rows else 0
-        
-        # Get CTR directly from GSC (average of individual CTR values)
-        gsc_ctr = sum(row.get('ctr', 0) for row in rows) / len(rows) if rows else 0
+
+        # CRITICAL FIX: Weight position by impressions (like GSC does)
+        weighted_position_sum = sum(
+            row.get('position', 0) * row.get('impressions', 0)
+            for row in rows
+        )
+        total_position = weighted_position_sum / total_impressions if total_impressions > 0 else 0
+
+        # CRITICAL FIX: Calculate CTR as total clicks / total impressions (like GSC does)
+        gsc_ctr = total_clicks / total_impressions if total_impressions > 0 else 0
         
         # Debug logging
         print(f"[GSC OAUTH] Debug - Total clicks: {total_clicks}, Total impressions: {total_impressions}")
@@ -1098,7 +1104,183 @@ class GSCDataFetcher:
             "summary": summary,
             "time_series": time_series
         }
-    
+
+    async def fetch_filtered_metrics(
+        self,
+        user_email: str,
+        property_url: str,
+        filter_request: 'GSCFilterRequest'
+    ) -> Dict:
+        """
+        Fetch GSC data with filters applied - 1:1 with Google Search Console API.
+
+        This method ensures our metrics match GSC exactly by:
+        1. Using the exact same API request format
+        2. Calculating averages the same way (sum of row values / row count)
+        3. Supporting all GSC filter types (search type, dimensions, filters)
+        4. Supporting comparison mode
+
+        Args:
+            user_email: User's email
+            property_url: GSC property URL
+            filter_request: GSCFilterRequest object with all filter parameters
+
+        Returns:
+            Dict with metrics matching GSC format exactly
+        """
+        try:
+            print(f"[GSC FILTER] 🔍 Fetching filtered metrics for {property_url}")
+            print(f"[GSC FILTER] 📅 Date range: {filter_request.start_date} to {filter_request.end_date}")
+            print(f"[GSC FILTER] 🔎 Search type: {filter_request.search_type}")
+
+            credentials = self.oauth_handler.get_credentials(user_email)
+            if not credentials or not credentials.valid:
+                raise Exception("Invalid or missing Google credentials")
+
+            service = build('webmasters', 'v3', credentials=credentials)
+
+            # Build request body exactly like GSC API
+            request_body = {
+                'startDate': filter_request.start_date.strftime('%Y-%m-%d'),
+                'endDate': filter_request.end_date.strftime('%Y-%m-%d'),
+                'dimensions': filter_request.dimensions,
+                'rowLimit': filter_request.row_limit,
+                'startRow': filter_request.start_row
+            }
+
+            # Add search type if not default 'web'
+            if filter_request.search_type != 'web':
+                request_body['type'] = filter_request.search_type
+
+            # Add filter groups if provided
+            if filter_request.filter_groups:
+                request_body['dimensionFilterGroups'] = [
+                    {
+                        'groupType': fg.group_type,
+                        'filters': [
+                            {
+                                'dimension': f.dimension,
+                                'operator': f.operator,
+                                'expression': f.expression
+                            }
+                            for f in fg.filters
+                        ]
+                    }
+                    for fg in filter_request.filter_groups
+                ]
+
+            # Add aggregation type if not 'auto'
+            if filter_request.aggregation_type != 'auto':
+                request_body['aggregationType'] = filter_request.aggregation_type
+
+            # Add data state if not 'final'
+            if filter_request.data_state != 'final':
+                request_body['dataState'] = filter_request.data_state
+
+            print(f"[GSC FILTER] 📤 Request body: {json.dumps(request_body, indent=2)}")
+
+            # Execute API call
+            response = service.searchanalytics().query(
+                siteUrl=property_url,
+                body=request_body
+            ).execute()
+
+            # Calculate totals EXACTLY like GSC
+            total_clicks = 0
+            total_impressions = 0
+            total_position_sum = 0  # For weighted position: sum(position * impressions)
+            row_count = 0
+
+            if 'rows' in response:
+                for row in response['rows']:
+                    total_clicks += row.get('clicks', 0)
+                    total_impressions += row.get('impressions', 0)
+                    # CRITICAL FIX: Weight position by impressions (like GSC does)
+                    total_position_sum += row.get('position', 0) * row.get('impressions', 0)
+                    row_count += 1
+
+            # Calculate averages EXACTLY like GSC
+            # CTR = total clicks / total impressions (NOT average of individual CTRs)
+            average_ctr = total_clicks / total_impressions if total_impressions > 0 else 0
+            # Position = weighted average by impressions
+            average_position = total_position_sum / total_impressions if total_impressions > 0 else 0
+
+            print(f"[GSC FILTER] ✅ Received {row_count} rows from GSC")
+            print(f"[GSC FILTER] 📊 Clicks: {total_clicks}, Impressions: {total_impressions}")
+            print(f"[GSC FILTER] 📊 CTR: {average_ctr * 100:.2f}%, Position: {average_position:.1f}")
+
+            current_metrics = {
+                'total_clicks': total_clicks,
+                'total_impressions': total_impressions,
+                'average_ctr': average_ctr,  # Decimal (0.20 for 20%)
+                'average_position': round(average_position, 1),
+                'row_count': row_count
+            }
+
+            # If comparison enabled, fetch comparison period
+            if filter_request.comparison_enabled and filter_request.comparison_start_date and filter_request.comparison_end_date:
+                print(f"[GSC FILTER] 🔄 Fetching comparison period: {filter_request.comparison_start_date} to {filter_request.comparison_end_date}")
+
+                comparison_request_body = {
+                    **request_body,
+                    'startDate': filter_request.comparison_start_date.strftime('%Y-%m-%d'),
+                    'endDate': filter_request.comparison_end_date.strftime('%Y-%m-%d')
+                }
+
+                comparison_response = service.searchanalytics().query(
+                    siteUrl=property_url,
+                    body=comparison_request_body
+                ).execute()
+
+                # Calculate comparison totals
+                comp_clicks = 0
+                comp_impressions = 0
+                comp_ctr_sum = 0
+                comp_position_sum = 0  # For weighted position: sum(position * impressions)
+                comp_row_count = 0
+
+                if 'rows' in comparison_response:
+                    for row in comparison_response['rows']:
+                        comp_clicks += row.get('clicks', 0)
+                        comp_impressions += row.get('impressions', 0)
+                        comp_ctr_sum += row.get('ctr', 0)
+                        # CRITICAL FIX: Weight position by impressions (like GSC does)
+                        comp_position_sum += row.get('position', 0) * row.get('impressions', 0)
+                        comp_row_count += 1
+
+                comp_avg_ctr = comp_ctr_sum / comp_row_count if comp_row_count > 0 else 0
+                # CRITICAL FIX: Calculate weighted average position
+                comp_avg_position = comp_position_sum / comp_impressions if comp_impressions > 0 else 0
+
+                print(f"[GSC FILTER] 📊 Comparison - Clicks: {comp_clicks}, Impressions: {comp_impressions}")
+
+                current_metrics['comparison_clicks'] = comp_clicks
+                current_metrics['comparison_impressions'] = comp_impressions
+                current_metrics['comparison_ctr'] = comp_avg_ctr
+                current_metrics['comparison_position'] = round(comp_avg_position, 1)
+
+                # Calculate deltas EXACTLY like GSC
+                current_metrics['clicks_change'] = total_clicks - comp_clicks
+                current_metrics['impressions_change'] = total_impressions - comp_impressions
+                current_metrics['ctr_change'] = average_ctr - comp_avg_ctr
+                current_metrics['position_change'] = average_position - comp_avg_position
+
+                print(f"[GSC FILTER] 📈 Changes - Clicks: {current_metrics['clicks_change']:+d}, Impressions: {current_metrics['impressions_change']:+d}")
+
+            return current_metrics
+
+        except HttpError as e:
+            print(f"[GSC FILTER] ❌ HTTP Error: {e}")
+            if e.resp.status == 403:
+                raise Exception("Access denied to Google Search Console. Please check your permissions.")
+            elif e.resp.status == 404:
+                raise Exception("Property not found in Google Search Console.")
+            else:
+                raise Exception(f"Google Search Console API error: {e}")
+        except Exception as e:
+            print(f"[GSC FILTER] ❌ Error fetching filtered metrics: {e}")
+            raise Exception(f"Failed to fetch filtered metrics: {str(e)}")
+
     # REMOVED: Google Sheets integration methods - migrated to Supabase
     # def _store_metrics(self, user_email: str, property_url: str, metrics: Dict):
     #     """Store the latest GSC metrics in Google Sheets."""

@@ -8,8 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Header, 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import RedirectResponse
 from app.auth.models import (
-    UserCreate, UserLogin, UserResponse, TokenResponse, 
-    PasswordReset, PasswordResetConfirm, EmailVerification
+    UserCreate, UserLogin, UserResponse, TokenResponse,
+    PasswordReset, PasswordResetConfirm, EmailVerification,
+    GSCFilterRequest, DimensionFilter, FilterGroup
 )
 from app.auth.utils import (
     get_password_hash, verify_password, create_access_token,
@@ -1839,7 +1840,7 @@ async def clear_gsc_credentials(current_user: str = Depends(get_current_user)):
     try:
         # Clear credentials
         google_oauth._clear_credentials(current_user)
-        
+
         return {
             "success": True,
             "message": "GSC credentials cleared successfully. Please re-authenticate with Google Search Console."
@@ -1852,6 +1853,162 @@ async def clear_gsc_credentials(current_user: str = Depends(get_current_user)):
         )
 
 
+# GSC Filter Endpoints - 1:1 Parity with Google Search Console
+
+@router.post("/gsc/filter")
+async def apply_gsc_filter(
+    filter_request: 'GSCFilterRequest',
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Apply filters to GSC data - returns metrics 1:1 with Google Search Console.
+
+    This endpoint supports:
+    - Date range filtering (24h, 7d, 28d, 3mo, custom)
+    - Search type filtering (web, image, video, discover, news)
+    - Dimension filtering (device, country, page, query)
+    - Comparison mode (current vs previous period)
+
+    All metrics calculations match GSC exactly.
+    """
+    try:
+        print(f"[GSC FILTER API] 🔍 Applying filter for user: {current_user}")
+
+        # Get user's selected website
+        user_website = db.get_user_website(current_user)
+        if not user_website:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No website selected. Please select a domain first."
+            )
+
+        print(f"[GSC FILTER API] 📊 Website: {user_website}")
+        print(f"[GSC FILTER API] 📅 Date range: {filter_request.start_date} to {filter_request.end_date}")
+        print(f"[GSC FILTER API] 🔎 Search type: {filter_request.search_type}")
+
+        # Fetch filtered metrics
+        metrics = await gsc_fetcher.fetch_filtered_metrics(
+            current_user,
+            user_website,
+            filter_request
+        )
+
+        # Calculate SEO score
+        from app.core.seo_scoring import SEOScoringEngine
+        seo_score = SEOScoringEngine.calculate_score(
+            clicks=metrics.get('total_clicks', 0),
+            impressions=metrics.get('total_impressions', 0),
+            ctr=metrics.get('average_ctr', 0),
+            position=metrics.get('average_position', 0)
+        )
+        metrics['seo_score'] = seo_score
+
+        # Format date range description
+        date_range_desc = f"{filter_request.start_date.strftime('%b %d')} - {filter_request.end_date.strftime('%b %d, %Y')}"
+
+        # Build filters applied description
+        filters_applied = []
+        if filter_request.search_type != 'web':
+            filters_applied.append(f"Search type: {filter_request.search_type}")
+        if filter_request.filter_groups:
+            for fg in filter_request.filter_groups:
+                for f in fg.filters:
+                    filters_applied.append(f"{f.dimension}: {f.expression}")
+
+        print(f"[GSC FILTER API] ✅ Successfully fetched metrics")
+
+        return {
+            "success": True,
+            "metrics": {
+                **metrics,
+                "date_range": date_range_desc,
+                "search_type": filter_request.search_type,
+                "filters_applied": filters_applied
+            },
+            "website": user_website
+        }
+
+    except Exception as e:
+        print(f"[GSC FILTER API] ❌ Error applying filter: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/gsc/filter/preset/{preset_name}")
+async def get_filter_preset(
+    preset_name: str,
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Get predefined filter configurations (24h, 7d, 28d, 3mo).
+
+    Available presets:
+    - 24h: Last 24 hours
+    - 7d: Last 7 days
+    - 28d: Last 28 days
+    - 3mo: Last 3 months (90 days)
+
+    Returns start_date and end_date ready to use in filter requests.
+    """
+    try:
+        from datetime import datetime, timedelta
+
+        today = datetime.now().date()
+        end_date = today - timedelta(days=1)  # GSC data available until yesterday
+
+        presets = {
+            "24h": {
+                "start_date": end_date,
+                "end_date": end_date,
+                "days": 1,
+                "name": "Last 24 hours"
+            },
+            "7d": {
+                "start_date": end_date - timedelta(days=6),
+                "end_date": end_date,
+                "days": 7,
+                "name": "Last 7 days"
+            },
+            "28d": {
+                "start_date": end_date - timedelta(days=27),
+                "end_date": end_date,
+                "days": 28,
+                "name": "Last 28 days"
+            },
+            "3mo": {
+                "start_date": end_date - timedelta(days=89),
+                "end_date": end_date,
+                "days": 90,
+                "name": "Last 3 months"
+            }
+        }
+
+        if preset_name not in presets:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid preset name. Available: {', '.join(presets.keys())}"
+            )
+
+        preset = presets[preset_name]
+        print(f"[GSC PRESET] 📅 Preset '{preset_name}' requested: {preset['start_date']} to {preset['end_date']}")
+
+        return {
+            "success": True,
+            "preset": {
+                **preset,
+                "start_date": preset["start_date"].isoformat(),
+                "end_date": preset["end_date"].isoformat()
+            }
+        }
+
+    except Exception as e:
+        print(f"[GSC PRESET] ❌ Error getting preset: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 
 

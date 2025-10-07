@@ -213,12 +213,21 @@ async def get_query_trends(
         
         # Calculate trend analysis
         data_points = response.data
-        
-        # Calculate averages
-        avg_clicks = sum(d['clicks'] for d in data_points) / len(data_points)
-        avg_impressions = sum(d['impressions'] for d in data_points) / len(data_points)
-        avg_position = sum(d['position'] for d in data_points) / len(data_points)
-        avg_ctr = sum(d['ctr'] for d in data_points) / len(data_points)
+
+        # Calculate totals and weighted averages
+        total_clicks = sum(d['clicks'] for d in data_points)
+        total_impressions = sum(d['impressions'] for d in data_points)
+
+        # Simple daily averages for display
+        avg_clicks = total_clicks / len(data_points)
+        avg_impressions = total_impressions / len(data_points)
+
+        # CRITICAL FIX: Weight position and CTR by impressions (like GSC does)
+        weighted_position_sum = sum(d['position'] * d['impressions'] for d in data_points)
+        avg_position = weighted_position_sum / total_impressions if total_impressions > 0 else 0
+
+        # CTR = total clicks / total impressions (not average of daily CTRs)
+        avg_ctr = total_clicks / total_impressions if total_impressions > 0 else 0
         
         # Calculate trends (compare first week vs last week)
         if len(data_points) >= 14:
@@ -352,9 +361,18 @@ async def get_daily_summary(
         data_points = response.data
         total_clicks = sum(d['total_clicks'] for d in data_points)
         total_impressions = sum(d['total_impressions'] for d in data_points)
-        avg_ctr = sum(d['avg_ctr'] for d in data_points) / len(data_points)
-        avg_position = sum(d['avg_position'] for d in data_points) / len(data_points)
-        
+
+        # CRITICAL FIX: Calculate weighted averages (like GSC does)
+        # CTR = total clicks / total impressions (not average of daily CTRs)
+        avg_ctr = total_clicks / total_impressions if total_impressions > 0 else 0
+
+        # Position = weighted average by impressions (not simple average of daily positions)
+        weighted_position_sum = sum(
+            d['avg_position'] * d['total_impressions']
+            for d in data_points
+        )
+        avg_position = weighted_position_sum / total_impressions if total_impressions > 0 else 0
+
         return {
             "date_range": f"{start_date} to {end_date}",
             "daily_data": data_points,

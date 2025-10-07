@@ -258,8 +258,17 @@ class AuditEngine:
                 # Calculate aggregates from daily summaries
                 total_clicks = sum(day['total_clicks'] for day in summary_data.data)
                 total_impressions = sum(day['total_impressions'] for day in summary_data.data)
-                avg_ctr = sum(day['average_ctr'] for day in summary_data.data) / len(summary_data.data) if summary_data.data else 0
-                avg_position = sum(day['average_position'] for day in summary_data.data) / len(summary_data.data) if summary_data.data else 0
+
+                # CRITICAL FIX: Calculate weighted averages (like GSC does)
+                # CTR = total clicks / total impressions (not average of daily CTRs)
+                avg_ctr = total_clicks / total_impressions if total_impressions > 0 else 0
+
+                # Position = weighted average by impressions (not simple average of daily positions)
+                weighted_position_sum = sum(
+                    day['average_position'] * day['total_impressions']
+                    for day in summary_data.data
+                )
+                avg_position = weighted_position_sum / total_impressions if total_impressions > 0 else 0
 
                 return {
                     'total_clicks': total_clicks,

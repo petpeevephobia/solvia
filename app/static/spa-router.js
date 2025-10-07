@@ -207,7 +207,13 @@ class SolviaRouter {
                             <div class="skeleton-text" style="height: 32px; width: 200px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px;"></div>
                         </div>
                         <!-- Real header - hidden initially -->
-                        <h1 id="realHeader" style="font-size: 24px; display: none;">Hey, <span id="userName"></span>! We're tracking <span id="websiteUrl" style="color: #EC6019;"></span></h1>
+                        <div id="realHeader" style="display: none; justify-content: space-between; align-items: center;">
+                            <h1 style="font-size: 24px; margin: 0;">Hey, <span id="userName"></span>! We're tracking <span id="websiteUrl" style="color: #EC6019;"></span></h1>
+                            <div id="lastUpdateInfo" style="font-size: 14px; color: #6B7280; white-space: nowrap;">
+                                <span style="color: #9CA3AF;">Last Update:</span>
+                                <span id="lastUpdateDate" style="color: #1F2937; font-weight: 500;">Loading...</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -217,8 +223,11 @@ class SolviaRouter {
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <div>
                             <h2 style="margin: 0;">Overview</h2>
-                            <p style="margin: 5px 0 0 0; font-size: 13px; color: #6B7280;">All data displayed are from the past 30 days</p>
+                            <p id="overviewSubtitle" style="margin: 5px 0 0 0; font-size: 13px; color: #6B7280;">All data displayed are from the past 28 days</p>
                         </div>
+
+                        <!-- GSC Filter Bar (Inline) -->
+                        <div id="filterBarContainer"></div>
                         <div id="inline-audit-info" style="display: none; font-size: 14px; color: #6B7280;">
                             <span style="margin-right: 20px;">Latest Audit: <span id="audit-time" style="color: #1F2937; font-weight: 600;"></span></span>
                             <div style="position: relative; display: inline-block;">
@@ -517,6 +526,9 @@ class SolviaRouter {
         `;
 
         this.showContent(dashboardHtml);
+
+        // Initialize GSC Filter Bar
+        this.initializeFilterBar();
 
         // Load all dashboard data components
         try {
@@ -1508,6 +1520,81 @@ class SolviaRouter {
         }
     }
 
+    // Initialize GSC Filter Bar component
+    initializeFilterBar() {
+        console.log('🔧 Initializing GSC Filter Bar...');
+
+        try {
+            // Create filter bar instance with callback
+            this.filterBar = new FilterBar('filterBarContainer', (data) => {
+                console.log('📊 Filter changed, reloading dashboard with filtered data:', data);
+
+                // Update dashboard metrics with filtered data and date range
+                this.updateDashboardMetrics(data.metrics, data.dateRange);
+            });
+
+            // Render the filter bar
+            this.filterBar.render();
+
+            console.log('✅ GSC Filter Bar initialized');
+        } catch (error) {
+            console.error('❌ Error initializing filter bar:', error);
+        }
+    }
+
+    // Update dashboard metrics with filtered data
+    updateDashboardMetrics(metrics, dateRange) {
+        try {
+            // Update SEO Score (with /100 format and prevent override)
+            const seoScore = Math.round(metrics.seo_score || 0);
+            const seoScoreEl = document.getElementById('seoScore');
+            if (seoScoreEl) {
+                seoScoreEl.textContent = `${seoScore}/100`;
+                // Mark that we've set the score from filters (prevent audit override)
+                seoScoreEl.dataset.filterScore = 'true';
+            }
+
+            // Update Organic Traffic (impressions)
+            const impressions = metrics.total_impressions || 0;
+            document.getElementById('organicTraffic').textContent = impressions.toLocaleString();
+
+            // Update Average Position
+            const avgPosition = metrics.average_position || 0;
+            document.getElementById('avgPosition').textContent = avgPosition.toFixed(1);
+
+            // Update Clicks
+            const clicks = metrics.total_clicks || 0;
+            document.getElementById('backlinks').textContent = clicks.toLocaleString();
+
+            // Update Last Update info in header (from real GSC data)
+            if (dateRange && dateRange.end_date) {
+                const lastUpdateEl = document.getElementById('lastUpdateDate');
+                if (lastUpdateEl) {
+                    // Format end_date as readable format (e.g., "Oct 3, 2024")
+                    const endDate = new Date(dateRange.end_date);
+                    const formattedDate = endDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+                    lastUpdateEl.textContent = formattedDate;
+                    console.log(`✅ Last Update set to: ${formattedDate} (from GSC end_date: ${dateRange.end_date})`);
+                }
+            }
+
+            // Show real metrics, hide skeleton
+            document.getElementById('metricsSkeleton')?.classList.add('hidden');
+            document.getElementById('realMetrics')?.classList.remove('hidden');
+
+            // Reload Current Issues with new filter data (but preserve SEO score)
+            this.loadCurrentIssues();
+
+            console.log(`✅ Dashboard metrics updated with filtered data (SEO Score: ${seoScore})`);
+        } catch (error) {
+            console.error('❌ Error updating dashboard metrics:', error);
+        }
+    }
+
     // Load dashboard data using existing dashboard_new.js functionality
     async loadDashboardData() {
         console.log('📊 Loading dashboard data...');
@@ -1516,8 +1603,8 @@ class SolviaRouter {
             // Load user website info
             await this.loadUserWebsite();
 
-            // Load dashboard metrics
-            await this.loadDashboardMetrics();
+            // FilterBar will load metrics on init (don't duplicate load)
+            // await this.loadDashboardMetrics();
 
             // Load current issues
             await this.loadCurrentIssues();
@@ -1578,7 +1665,7 @@ class SolviaRouter {
                     const headerSkeleton = document.getElementById('headerSkeleton');
                     const realHeader = document.getElementById('realHeader');
                     if (headerSkeleton) headerSkeleton.style.display = 'none';
-                    if (realHeader) realHeader.style.display = 'block';
+                    if (realHeader) realHeader.style.display = 'flex';
                 }
             } else {
                 console.log('❌ SPA: Failed to load website data, status:', response.status);
@@ -1593,7 +1680,7 @@ class SolviaRouter {
                 const headerSkeleton = document.getElementById('headerSkeleton');
                 const realHeader = document.getElementById('realHeader');
                 if (headerSkeleton) headerSkeleton.style.display = 'none';
-                if (realHeader) realHeader.style.display = 'block';
+                if (realHeader) realHeader.style.display = 'flex';
             }
         } catch (error) {
             console.error('Error loading user website:', error);
@@ -1608,7 +1695,7 @@ class SolviaRouter {
             const headerSkeleton = document.getElementById('headerSkeleton');
             const realHeader = document.getElementById('realHeader');
             if (headerSkeleton) headerSkeleton.style.display = 'none';
-            if (realHeader) realHeader.style.display = 'block';
+            if (realHeader) realHeader.style.display = 'flex';
         }
     }
 
@@ -1871,12 +1958,15 @@ class SolviaRouter {
                     console.log('✅ SPA: Issues loaded and displayed');
 
                 // Update SEO score with authoritative score from audit/issues API
+                // BUT only if not already set by filter (to prevent flickering)
                 if (data.seo_score !== undefined) {
                     const seoScoreEl = document.getElementById('seoScore');
-                    if (seoScoreEl) {
+                    if (seoScoreEl && !seoScoreEl.dataset.filterScore) {
                         const authoritativeScore = Math.round(data.seo_score);
                         seoScoreEl.textContent = `${authoritativeScore}/100`;
                         console.log(`🎯 SPA: Updated SEO score to authoritative audit score: ${authoritativeScore}`);
+                    } else if (seoScoreEl && seoScoreEl.dataset.filterScore) {
+                        console.log(`🎯 SPA: Skipping SEO score update - already set by filter`);
                     }
                 }
                 } else {
