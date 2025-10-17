@@ -62,49 +62,115 @@ class SEOScoringEngine:
     ) -> float:
         """
         Calculate SEO score using unified algorithm.
-        
+
         Args:
             clicks: Total clicks in period
             impressions: Total impressions in period
             ctr: Click-through rate (0-1)
             position: Average position (1-100+)
             historical_data: Previous period data for trend analysis
-            
+
         Returns:
             SEO score between 0-100
         """
-        
+
         # Handle completely empty data case
         if impressions == 0 and clicks == 0 and position == 0:
             return 25.0  # Base score for no data
-        
+
         score_components = {}
-        
+
         # 1. Traffic Score (30%)
         score_components['traffic'] = cls._calculate_traffic_score(clicks)
-        
+
         # 2. Position Score (25%)
         score_components['position'] = cls._calculate_position_score(position)
-        
+
         # 3. CTR Score (25%)
         score_components['ctr'] = cls._calculate_ctr_score(ctr, position)
-        
+
         # 4. Trend Score (20%)
         score_components['trends'] = cls._calculate_trend_score(
             clicks, position, ctr, historical_data
         )
-        
+
         # Calculate weighted final score
         final_score = sum(
             score * cls.WEIGHTS[component]
             for component, score in score_components.items()
         )
-        
+
         # Apply penalties for critical issues
         final_score = cls._apply_penalties(final_score, clicks, impressions, ctr)
-        
+
         # Ensure score is within valid range
         return round(max(0, min(100, final_score)), 2)
+
+    @classmethod
+    def calculate_score_with_breakdown(
+        cls,
+        clicks: int = 0,
+        impressions: int = 0,
+        ctr: float = 0,
+        position: float = 0,
+        historical_data: Optional[Dict] = None
+    ) -> Dict:
+        """
+        Calculate SEO score with component breakdown for detailed reporting.
+
+        Args:
+            clicks: Total clicks in period
+            impressions: Total impressions in period
+            ctr: Click-through rate (0-1)
+            position: Average position (1-100+)
+            historical_data: Previous period data for trend analysis
+
+        Returns:
+            Dict containing:
+                - seo_score: Final SEO score (0-100)
+                - traffic_score: Traffic component score (0-100)
+                - position_score: Position component score (0-100)
+                - ctr_score: CTR component score (0-100)
+                - trend_score: Trend component score (0-100)
+        """
+
+        # Handle completely empty data case
+        if impressions == 0 and clicks == 0 and position == 0:
+            return {
+                'seo_score': 25.0,
+                'traffic_score': 0.0,
+                'position_score': 0.0,
+                'ctr_score': 0.0,
+                'trend_score': 0.0
+            }
+
+        # Calculate component scores
+        traffic_score = cls._calculate_traffic_score(clicks)
+        position_score = cls._calculate_position_score(position)
+        ctr_score = cls._calculate_ctr_score(ctr, position)
+        trend_score = cls._calculate_trend_score(clicks, position, ctr, historical_data)
+
+        # Calculate weighted final score
+        final_score = (
+            traffic_score * cls.WEIGHTS['traffic'] +
+            position_score * cls.WEIGHTS['position'] +
+            ctr_score * cls.WEIGHTS['ctr'] +
+            trend_score * cls.WEIGHTS['trends']
+        )
+
+        # Apply penalties for critical issues
+        final_score = cls._apply_penalties(final_score, clicks, impressions, ctr)
+
+        # Ensure score is within valid range
+        final_score = round(max(0, min(100, final_score)), 2)
+
+        return {
+            'seo_score': final_score,
+            'traffic_score': round(traffic_score, 1),
+            'position_score': round(position_score, 1),
+            'ctr_score': round(ctr_score, 1),
+            'trend_score': round(trend_score, 1)
+        }
     
     @classmethod
     def _calculate_traffic_score(cls, clicks: int) -> float:

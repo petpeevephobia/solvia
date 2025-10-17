@@ -335,15 +335,22 @@ async def trigger_audit(
             print(f"[AUDIT DATA]    CTR: {raw_metrics.get('average_ctr', 0) * 100:.2f}%")
             print(f"[AUDIT DATA]    Position: {raw_metrics.get('average_position', 0):.1f}")
 
-            # Calculate SEO score using unified scoring engine (same as dashboard)
-            seo_score = SEOScoringEngine.calculate_score(
+            # Calculate SEO score WITH component breakdown using unified scoring engine
+            score_breakdown = SEOScoringEngine.calculate_score_with_breakdown(
                 clicks=raw_metrics.get('total_clicks', 0),
                 impressions=raw_metrics.get('total_impressions', 0),
                 ctr=raw_metrics.get('average_ctr', 0),
                 position=raw_metrics.get('average_position', 0)
             )
 
+            seo_score = score_breakdown['seo_score']
+
             print(f"[AUDIT DATA] ✅ Calculated SEO Score: {seo_score}/100 (using unified engine)")
+            print(f"[AUDIT DATA] 📊 Component Breakdown:")
+            print(f"[AUDIT DATA]    Traffic: {score_breakdown['traffic_score']}/100 (30%)")
+            print(f"[AUDIT DATA]    Position: {score_breakdown['position_score']}/100 (25%)")
+            print(f"[AUDIT DATA]    CTR: {score_breakdown['ctr_score']}/100 (25%)")
+            print(f"[AUDIT DATA]    Trends: {score_breakdown['trend_score']}/100 (20%)")
 
             # Transform to expected format for audit engine
             metrics = {
@@ -354,7 +361,9 @@ async def trigger_audit(
                 'avg_position': raw_metrics.get('average_position', 0),
                 'clicks_change': raw_metrics.get('clicks_change', 0),
                 'impressions_change': raw_metrics.get('impressions_change', 0),
-                'position_change': raw_metrics.get('position_change', 0)
+                'position_change': raw_metrics.get('position_change', 0),
+                # Add component scores for PDF generation
+                'scores': score_breakdown
             }
 
             print(f"[AUDIT DATA] 🎯 Using REAL GSC data for audit (not defaults)")
@@ -363,14 +372,16 @@ async def trigger_audit(
             print(f"[AUDIT DATA] ❌ Error fetching filtered metrics: {fetch_error}")
             print(f"[AUDIT DATA] 🔄 Falling back to unified scoring with zero data...")
 
-            # Fallback: Use unified scoring engine with zero data (returns 25.0 base score)
+            # Fallback: Use unified scoring engine with zero data (returns 25.0 base score WITH breakdown)
             from app.core.seo_scoring import SEOScoringEngine
-            base_score = SEOScoringEngine.calculate_score(
+            score_breakdown = SEOScoringEngine.calculate_score_with_breakdown(
                 clicks=0,
                 impressions=0,
                 ctr=0,
                 position=0
             )
+
+            base_score = score_breakdown['seo_score']
 
             metrics = {
                 'seo_score': base_score,  # Unified base score (25.0) from scoring engine
@@ -380,7 +391,9 @@ async def trigger_audit(
                 'avg_position': 0,
                 'clicks_change': 0,
                 'impressions_change': 0,
-                'position_change': 0
+                'position_change': 0,
+                # Add component scores even for fallback
+                'scores': score_breakdown
             }
 
             print(f"[AUDIT DATA] ⚠️ Using fallback base score: {base_score}/100")
@@ -491,10 +504,19 @@ async def trigger_audit(
         
         # Merge enhanced RAG insights with audit results
         audit_result = merge_rag_insights(audit_result, enhanced_issues)
-        
+
+        # ULTRATHINK FIX: Add component scores breakdown to audit result for PDF generation
+        if 'scores' in metrics:
+            audit_result['scores'] = metrics['scores']
+            print(f"[AUDIT DATA] 📊 Added component scores to audit result for PDF:")
+            print(f"[AUDIT DATA]    Traffic: {metrics['scores']['traffic_score']}")
+            print(f"[AUDIT DATA]    Position: {metrics['scores']['position_score']}")
+            print(f"[AUDIT DATA]    CTR: {metrics['scores']['ctr_score']}")
+            print(f"[AUDIT DATA]    Trends: {metrics['scores']['trend_score']}")
+
         await progress_tracker.update_progress(
             audit_id,
-            "generating_recommendations", 
+            "generating_recommendations",
             80,
             "Merging AI insights with technical audit results..."
         )
