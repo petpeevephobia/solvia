@@ -48,11 +48,27 @@ jobs:
 
           echo "✅ Code updated successfully"
 
-          # Rebuild and restart containers
-          echo "🔧 Rebuilding Docker containers..."
-          docker-compose down
-          docker-compose build --no-cache
-          docker-compose up -d
+          # ULTRATHINK FIX: Force cleanup of existing containers
+          echo "🧹 Cleaning up existing containers..."
+
+          # Stop containers if running (ignore errors if not running)
+          docker stop solvia-app solvia-redis solvia-caddy 2>/dev/null || true
+
+          # Remove containers (ignore errors if not exist)
+          docker rm -f solvia-app solvia-redis solvia-caddy 2>/dev/null || true
+
+          # Clean up any orphaned containers with production config
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
+
+          # Prune stopped containers
+          docker container prune -f
+
+          echo "✅ Cleanup completed"
+
+          # Rebuild and restart containers WITH PRODUCTION CONFIG
+          echo "🔧 Rebuilding Docker containers (production mode)..."
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
           # Wait for services to start
           echo "⏳ Waiting for services to start..."
@@ -60,7 +76,7 @@ jobs:
 
           # Verify deployment
           echo "🔍 Verifying deployment..."
-          docker-compose ps
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
           docker logs solvia-app --tail 10
 
           echo "✅ Deployment completed successfully!"
