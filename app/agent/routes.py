@@ -305,35 +305,75 @@ async def trigger_audit(
                     detail="Google Search Console credentials expired and automatic refresh failed. Please re-authenticate with Google."
                 )
 
-        # Fetch GSC metrics (now guaranteed to be fresh from Google API)
-        raw_metrics = await gsc_fetcher.fetch_metrics(
-            current_user,
-            website_url,
-            request.date_range_days
+        # ULTRATHINK FIX: Use fetch_filtered_metrics() for consistency with dashboard
+        # This ensures 1:1 metrics parity and uses unified SEO scoring
+        print(f"[AUDIT DATA] 🚀 Fetching GSC metrics using filtered API for consistency...")
+
+        from app.auth.models import GSCFilterRequest
+        from app.core.seo_scoring import SEOScoringEngine
+
+        # Create filter request matching date range
+        filter_request = GSCFilterRequest(
+            start_date=start_date,
+            end_date=end_date,
+            search_type='web',
+            dimensions=[],  # Summary data only (no breakdowns)
+            aggregation_type='auto'
         )
-        
-        # Transform metrics to expected format
-        if raw_metrics and raw_metrics.get('summary'):
-            summary = raw_metrics['summary']
+
+        try:
+            # Fetch metrics using the same reliable method as dashboard
+            raw_metrics = await gsc_fetcher.fetch_filtered_metrics(
+                current_user,
+                website_url,
+                filter_request
+            )
+
+            print(f"[AUDIT DATA] 📊 Received filtered metrics:")
+            print(f"[AUDIT DATA]    Clicks: {raw_metrics.get('total_clicks', 0)}")
+            print(f"[AUDIT DATA]    Impressions: {raw_metrics.get('total_impressions', 0)}")
+            print(f"[AUDIT DATA]    CTR: {raw_metrics.get('average_ctr', 0) * 100:.2f}%")
+            print(f"[AUDIT DATA]    Position: {raw_metrics.get('average_position', 0):.1f}")
+
+            # Calculate SEO score using unified scoring engine (same as dashboard)
+            seo_score = SEOScoringEngine.calculate_score(
+                clicks=raw_metrics.get('total_clicks', 0),
+                impressions=raw_metrics.get('total_impressions', 0),
+                ctr=raw_metrics.get('average_ctr', 0),
+                position=raw_metrics.get('average_position', 0)
+            )
+
+            print(f"[AUDIT DATA] ✅ Calculated SEO Score: {seo_score}/100 (using unified engine)")
+
+            # Transform to expected format for audit engine
             metrics = {
-                'seo_score': google_oauth._calculate_seo_score(
-                    summary.get('total_clicks', 0),
-                    summary.get('total_impressions', 0),
-                    summary.get('avg_ctr', 0),
-                    summary.get('avg_position', 0)
-                ),
-                'organic_traffic': summary.get('total_clicks', 0),
-                'impressions': summary.get('total_impressions', 0),
-                'ctr': summary.get('avg_ctr', 0) * 100,
-                'avg_position': summary.get('avg_position', 0),
-                'clicks_change': summary.get('clicks_change', 0),
-                'impressions_change': summary.get('impressions_change', 0),
-                'position_change': summary.get('position_change', 0)
+                'seo_score': seo_score,
+                'organic_traffic': raw_metrics.get('total_clicks', 0),
+                'impressions': raw_metrics.get('total_impressions', 0),
+                'ctr': raw_metrics.get('average_ctr', 0) * 100,  # Convert to percentage
+                'avg_position': raw_metrics.get('average_position', 0),
+                'clicks_change': raw_metrics.get('clicks_change', 0),
+                'impressions_change': raw_metrics.get('impressions_change', 0),
+                'position_change': raw_metrics.get('position_change', 0)
             }
-        else:
-            # Fallback empty metrics
+
+            print(f"[AUDIT DATA] 🎯 Using REAL GSC data for audit (not defaults)")
+
+        except Exception as fetch_error:
+            print(f"[AUDIT DATA] ❌ Error fetching filtered metrics: {fetch_error}")
+            print(f"[AUDIT DATA] 🔄 Falling back to unified scoring with zero data...")
+
+            # Fallback: Use unified scoring engine with zero data (returns 25.0 base score)
+            from app.core.seo_scoring import SEOScoringEngine
+            base_score = SEOScoringEngine.calculate_score(
+                clicks=0,
+                impressions=0,
+                ctr=0,
+                position=0
+            )
+
             metrics = {
-                'seo_score': 25.0,
+                'seo_score': base_score,  # Unified base score (25.0) from scoring engine
                 'organic_traffic': 0,
                 'impressions': 0,
                 'ctr': 0,
@@ -342,6 +382,8 @@ async def trigger_audit(
                 'impressions_change': 0,
                 'position_change': 0
             }
+
+            print(f"[AUDIT DATA] ⚠️ Using fallback base score: {base_score}/100")
         
         # Start progress tracking
         progress_tracker.start_audit(audit_id, current_user, website_url)
