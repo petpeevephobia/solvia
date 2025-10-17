@@ -57,42 +57,78 @@ class AuditEngine:
         user_email: str,
         website_url: str,
         date_range_days: int = 30,
-        force_refresh: bool = False
+        force_refresh: bool = False,
+        precalculated_metrics: Optional[Dict] = None,
+        precalculated_seo_score: Optional[float] = None
     ) -> AuditResult:
         """
         Run complete SEO audit for a website
-        
+
         Args:
             user_email: User's email for data access
             website_url: Website to audit
             date_range_days: Days of data to analyze
             force_refresh: Force fresh data fetch
-            
+            precalculated_metrics: Pre-calculated metrics from fetch_filtered_metrics (optional)
+            precalculated_seo_score: Pre-calculated SEO score from unified engine (optional)
+
         Returns:
             Complete audit result with issues and recommendations
         """
         start_time = time.time()
-        
+
         # Initialize audit result
         audit_result = AuditResult(
             user_email=user_email,
             website_url=website_url,
             metrics=SEOMetrics()
         )
-        
+
         try:
-            # Step 1: Fetch current and historical data
-            current_data, historical_data = await self._fetch_audit_data(
-                user_email, website_url, date_range_days, force_refresh
-            )
-            
-            # Step 2: Calculate current metrics
-            audit_result.metrics = self._calculate_metrics(current_data)
-            
-            # Step 3: Calculate SEO score
-            audit_result.seo_score = self._calculate_enhanced_seo_score(
-                audit_result.metrics, historical_data
-            )
+            # ULTRATHINK FIX: Use pre-calculated data if provided (from fetch_filtered_metrics)
+            if precalculated_metrics and precalculated_seo_score is not None:
+                print(f"[AUDIT ENGINE] 🎯 Using pre-calculated metrics and score from fetch_filtered_metrics()")
+                print(f"[AUDIT ENGINE] Pre-calculated SEO Score: {precalculated_seo_score}/100")
+
+                # Use pre-calculated metrics directly (from fetch_filtered_metrics)
+                current_data = precalculated_metrics
+
+                # Step 2: Calculate current metrics from pre-calculated data
+                audit_result.metrics = self._calculate_metrics(current_data)
+
+                # Step 3: Use pre-calculated SEO score (already calculated with unified engine)
+                audit_result.seo_score = precalculated_seo_score
+                print(f"[AUDIT ENGINE] ✅ Using pre-calculated score: {audit_result.seo_score}/100")
+
+                # Fetch historical data for comparison only
+                end_date = datetime.now().date()
+                start_date = end_date - timedelta(days=date_range_days)
+                prev_end_date = start_date - timedelta(days=1)
+                prev_start_date = prev_end_date - timedelta(days=date_range_days)
+
+                historical_data = await self._fetch_period_data(
+                    user_email, website_url, prev_start_date, prev_end_date, False
+                )
+                baseline_data = await self._fetch_baseline_statistics(
+                    user_email, website_url, date_range_days * 3
+                )
+                historical_data.update(baseline_data)
+            else:
+                # Original flow: Fetch and calculate everything
+                print(f"[AUDIT ENGINE] 📊 No pre-calculated data, fetching from database...")
+
+                # Step 1: Fetch current and historical data
+                current_data, historical_data = await self._fetch_audit_data(
+                    user_email, website_url, date_range_days, force_refresh
+                )
+
+                # Step 2: Calculate current metrics
+                audit_result.metrics = self._calculate_metrics(current_data)
+
+                # Step 3: Calculate SEO score
+                audit_result.seo_score = self._calculate_enhanced_seo_score(
+                    audit_result.metrics, historical_data
+                )
             
             # Step 4: Get previous audit for comparison
             previous_audit = await self._get_previous_audit(user_email, website_url)

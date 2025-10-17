@@ -458,14 +458,35 @@ async def trigger_audit(
             "Running comprehensive audit engine..."
         )
         
-        # Initialize audit engine 
+        # Initialize audit engine
         audit_engine = AuditEngine(db)
-        
-        # Run comprehensive audit
+
+        # ULTRATHINK FIX: Prepare pre-calculated metrics for AuditEngine
+        # Pass the correctly calculated data from fetch_filtered_metrics() to avoid AuditEngine overwriting it
+        precalculated_metrics = {
+            'total_clicks': raw_metrics.get('total_clicks', 0) if 'raw_metrics' in locals() else 0,
+            'total_impressions': raw_metrics.get('total_impressions', 0) if 'raw_metrics' in locals() else 0,
+            'average_ctr': raw_metrics.get('average_ctr', 0) if 'raw_metrics' in locals() else 0,
+            'average_position': raw_metrics.get('average_position', 0) if 'raw_metrics' in locals() else 0,
+            'total_queries': 0,  # Will be filled by AuditEngine from detailed data
+            'total_pages': 0     # Will be filled by AuditEngine from detailed data
+        }
+
+        # Use the seo_score we calculated earlier from unified scoring engine
+        precalculated_seo_score = metrics.get('seo_score', 25.0)
+
+        print(f"[AUDIT ROUTES] 🎯 Passing pre-calculated data to AuditEngine:")
+        print(f"[AUDIT ROUTES]    SEO Score: {precalculated_seo_score}/100")
+        print(f"[AUDIT ROUTES]    Clicks: {precalculated_metrics['total_clicks']}")
+        print(f"[AUDIT ROUTES]    Impressions: {precalculated_metrics['total_impressions']}")
+
+        # Run comprehensive audit WITH pre-calculated metrics and score
         audit_result = await audit_engine.run_audit(
             user_email=current_user,
             website_url=website_url,
-            date_range_days=request.date_range_days
+            date_range_days=request.date_range_days,
+            precalculated_metrics=precalculated_metrics,
+            precalculated_seo_score=precalculated_seo_score
         )
         
         # Merge enhanced RAG insights with audit results
