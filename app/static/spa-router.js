@@ -555,8 +555,12 @@ class SolviaRouter {
             sortBy: 'created_at',
             sortOrder: 'desc',
             filter: 'all',
-            loading: false
+            loading: false,
+            trackedWebsiteUrl: null
         };
+
+        // Fetch tracked website URL first
+        await this.fetchTrackedWebsite();
 
         // Show skeleton first
         const skeletonHtml = `
@@ -587,6 +591,29 @@ class SolviaRouter {
 
         // Load actual audit history data
         await this.loadAuditHistoryData();
+    }
+
+    async fetchTrackedWebsite() {
+        try {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const response = await fetch('/auth/gsc/selected-website', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                // Store the full website URL (with protocol) for accurate filtering
+                const websiteUrl = data.selected_website || data.website_url || null;
+                this.auditHistoryState.trackedWebsiteUrl = websiteUrl;
+                console.log('🌐 SPA: Tracked website URL:', websiteUrl);
+            } else {
+                console.log('⚠️ SPA: Could not fetch tracked website, showing all audits');
+                this.auditHistoryState.trackedWebsiteUrl = null;
+            }
+        } catch (error) {
+            console.error('❌ Error fetching tracked website:', error);
+            this.auditHistoryState.trackedWebsiteUrl = null;
+        }
     }
 
     async loadAuditHistoryData(page = 1, limit = 10, sortBy = 'created_at', sortOrder = 'desc', filter = 'all') {
@@ -644,10 +671,35 @@ class SolviaRouter {
     }
 
     filterAudits(audits, filter) {
-        if (filter === 'all') return audits;
+        // First, filter by tracked website URL (always apply)
+        let filtered = audits;
+        if (this.auditHistoryState.trackedWebsiteUrl) {
+            const trackedUrl = this.auditHistoryState.trackedWebsiteUrl;
+            filtered = audits.filter(audit => {
+                if (!audit.website_url) return false;
+
+                // Normalize URLs for comparison (remove protocol and trailing slashes)
+                const normalizeUrl = (url) => {
+                    return url.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
+                };
+
+                const auditUrl = normalizeUrl(audit.website_url);
+                const tracked = normalizeUrl(trackedUrl);
+
+                const matches = auditUrl === tracked;
+                if (!matches) {
+                    console.log(`🔍 Filtered out: ${audit.website_url} (tracked: ${trackedUrl})`);
+                }
+                return matches;
+            });
+            console.log(`🌐 Filtered ${audits.length} audits → ${filtered.length} for tracked website: ${trackedUrl}`);
+        }
+
+        // Then apply additional filter if not 'all'
+        if (filter === 'all') return filtered;
 
         const now = new Date();
-        return audits.filter(audit => {
+        return filtered.filter(audit => {
             const auditDate = new Date(audit.created_at);
             const daysDiff = (now - auditDate) / (1000 * 60 * 60 * 24);
 
@@ -728,8 +780,11 @@ class SolviaRouter {
 
                 <!-- Right side: Actions -->
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button onclick="router.refreshAuditHistory()" style="padding: 8px 16px; background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 16px;">🔄</span> Refresh
+                    <button onclick="router.refreshAuditHistory()" style="padding: 0; background: transparent; border: none; cursor: pointer; display: flex; align-items: center;" title="Refresh audit history">
+                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="28" height="28" rx="6" fill="#EC6019"/>
+                            <path d="M8.05944 13.1406C8.47507 10.2344 10.9063 8 13.8906 8C16.4375 8 18.5781 9.68125 19.3125 12.0031M19.9406 14.8594C19.525 17.7656 17.0938 20 14.1094 20C11.5625 20 9.42194 18.3187 8.6875 15.9969M19.5 11.5V12C19.5 12.2761 19.2761 12.5 19 12.5H18.5M8.5 15.5V15C8.5 14.7239 8.72386 14.5 9 14.5H9.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -795,50 +850,49 @@ class SolviaRouter {
                         ${audit.website_url || 'Website'}
                     </td>
 
-                    <!-- SEO Score with Donut Chart -->
+                    <!-- SEO Score (Simplified) -->
                     <td style="padding: 16px 12px; text-align: center;">
-                        <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
-                            <div style="position: relative; width: 40px; height: 40px;">
-                                <svg width="40" height="40" viewBox="0 0 40 40" style="transform: rotate(-90deg);">
-                                    <!-- Background circle -->
-                                    <circle cx="20" cy="20" r="15" fill="none" stroke="#E5E7EB" stroke-width="3"></circle>
-                                    <!-- Progress circle -->
-                                    <circle cx="20" cy="20" r="15" fill="none" stroke="${scoreColor}" stroke-width="3"
-                                            stroke-dasharray="${(Math.round(audit.seo_score || 0) / 100) * 94.2} 94.2"
-                                            stroke-linecap="round"></circle>
-                                </svg>
-                                <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 10px; font-weight: 600; color: ${scoreColor};">
-                                    ${Math.round(audit.seo_score || 0)}
-                                </span>
-                            </div>
-                            <span style="font-size: 14px; font-weight: 600; color: ${scoreColor};">
-                                ${Math.round(audit.seo_score || 0)}/100
-                            </span>
-                        </div>
+                        <span style="font-size: 14px; font-weight: 600; color: #1F2937;">
+                            ${Math.round(audit.seo_score || 0)}/100
+                        </span>
                     </td>
 
-                    <!-- Issues -->
+                    <!-- Issues (Simplified) -->
                     <td style="padding: 16px 12px; text-align: center;">
-                        ${totalIssues > 0 ? `
-                        <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
-                            ${audit.critical_issues > 0 ? `<span style="padding: 2px 6px; background: #FEE2E2; color: #DC2626; border-radius: 12px; font-size: 10px; font-weight: 500;">${audit.critical_issues} C</span>` : ''}
-                            ${audit.high_issues > 0 ? `<span style="padding: 2px 6px; background: #FEF3C7; color: #D97706; border-radius: 12px; font-size: 10px; font-weight: 500;">${audit.high_issues} H</span>` : ''}
-                            ${audit.medium_issues > 0 ? `<span style="padding: 2px 6px; background: #E0E7FF; color: #3730A3; border-radius: 12px; font-size: 10px; font-weight: 500;">${audit.medium_issues} M</span>` : ''}
-                        </div>
-                        ` : '<span style="font-size: 12px; color: #10B981;">✅ None</span>'}
+                        <span style="font-size: 14px; font-weight: 600; color: #1F2937;">
+                            ${totalIssues}
+                        </span>
                     </td>
 
                     <!-- Actions -->
                     <td style="padding: 16px 12px; text-align: center;">
-                        <div style="display: flex; align-items: center; gap: 6px; justify-content: center;">
+                        <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <!-- View button with SVG icon -->
+                            <button onclick="window.solviaRouter.viewAuditDetails('${audit.audit_id}')" style="padding: 6px 8px; background: transparent; border: 1px solid #D1D5DB; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="View audit details">
+                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clip-path="url(#clip0_457_1871_${audit.audit_id})">
+                                        <path d="M13.2299 6.2463C13.3957 6.54297 13.4786 6.69297 13.4786 7.00297C13.4786 7.31297 13.3957 7.46297 13.2299 7.75964C12.4149 9.24964 9.77658 12.8746 7.00325 12.8746C4.22658 12.8746 1.59158 9.24964 0.776582 7.75964C0.610749 7.46297 0.527832 7.31297 0.527832 7.00297C0.527832 6.69297 0.610749 6.54297 0.776582 6.2463C1.59158 4.7563 4.22658 1.13464 7.00325 1.13464C9.77658 1.13464 12.4149 4.7563 13.2299 6.2463Z" stroke="#1F2937" stroke-width="1.16667" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M7 9C8.10457 9 9 8.10457 9 7C9 5.89543 8.10457 5 7 5C5.89543 5 5 5.89543 5 7C5 8.10457 5.89543 9 7 9Z" stroke="#1F2937" stroke-width="1.16667" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_457_1871_${audit.audit_id}">
+                                            <rect width="14" height="14" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </button>
+
+                            <!-- Download button with SVG icon -->
                             ${audit.pdf_url ? `
-                            <button onclick="window.solviaRouter.downloadAuditPDF('${audit.audit_id}')" style="padding: 4px 8px; background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 11px; cursor: pointer;" title="Download PDF">
-                                📄
+                            <button onclick="window.solviaRouter.downloadAuditPDF('${audit.audit_id}')" style="padding: 6px 8px; background: transparent; border: 1px solid #D1D5DB; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Download PDF">
+                                <svg width="12" height="14" viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M11.5 12.5C11.5 12.7761 11.2761 13 11 13H1C0.723858 13 0.5 12.7761 0.5 12.5C0.5 12.2239 0.723858 12 1 12H11C11.2761 12 11.5 12.2239 11.5 12.5Z" fill="#1F2937"/>
+                                    <path d="M11.5 12.5C11.5 12.7761 11.2761 13 11 13H1C0.723858 13 0.5 12.7761 0.5 12.5C0.5 12.2239 0.723858 12 1 12H11C11.2761 12 11.5 12.2239 11.5 12.5Z" stroke="#1F2937" stroke-width="0.5" stroke-linecap="round"/>
+                                    <path d="M8 8L6 10L4 8" stroke="#1F2937" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M6 10V4.5C6 2.567 7.567 1 9.5 1V1C9.77614 1 10 1.22386 10 1.5V1.5C10 1.77614 9.77614 2 9.5 2V2C8.11929 2 7 3.11929 7 4.5V10" stroke="#1F2937" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
                             </button>
                             ` : ''}
-                            <button onclick="window.solviaRouter.viewAuditDetails('${audit.audit_id}')" style="padding: 4px 8px; background: #EC6019; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;" title="View Details">
-                                👁️
-                            </button>
                         </div>
                     </td>
                 </tr>
@@ -1001,13 +1055,28 @@ class SolviaRouter {
     async viewAuditDetails(auditId) {
         try {
             const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-            const response = await fetch(`/agent/report/${auditId}/json`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
 
-            if (response.ok) {
-                const auditData = await response.json();
-                this.showAuditDetailsModal(auditData, auditId);
+            // Fetch both JSON data and PDF in parallel
+            const [jsonResponse, pdfResponse] = await Promise.all([
+                fetch(`/agent/report/${auditId}/json`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`/agent/report/${auditId}/pdf`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ]);
+
+            if (jsonResponse.ok) {
+                const auditData = await jsonResponse.json();
+
+                // Create PDF blob URL if PDF is available
+                let pdfUrl = null;
+                if (pdfResponse.ok) {
+                    const pdfBlob = await pdfResponse.blob();
+                    pdfUrl = window.URL.createObjectURL(pdfBlob);
+                }
+
+                this.showAuditDetailsModal(auditData, auditId, pdfUrl);
             } else {
                 console.error('Failed to load audit details');
             }
@@ -1016,7 +1085,7 @@ class SolviaRouter {
         }
     }
 
-    showAuditDetailsModal(auditData, auditId) {
+    showAuditDetailsModal(auditData, auditId, pdfUrl = null) {
         const modal = document.createElement('div');
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -1025,12 +1094,17 @@ class SolviaRouter {
         `;
 
         const modalContent = `
-            <div style="background: white; border-radius: 12px; max-width: 800px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 24px;">
+            <div style="background: white; border-radius: 12px; max-width: 900px; width: 100%; max-height: 85vh; overflow: hidden; padding: 24px; display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #E5E7EB;">
-                    <h2 style="font-size: 24px; font-weight: 600; color: #1F2937;">Audit Details</h2>
-                    <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6B7280;">×</button>
+                    <h2 style="font-size: 24px; font-weight: 600; color: #1F2937;">Audit Report Preview</h2>
+                    <button onclick="this.closest('.modal').remove(); ${pdfUrl ? `URL.revokeObjectURL('${pdfUrl}')` : ''}" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6B7280;">×</button>
                 </div>
 
+                ${pdfUrl ? `
+                <div style="flex: 1; overflow: hidden; margin-bottom: 16px; border-radius: 8px; border: 1px solid #E5E7EB;">
+                    <iframe src="${pdfUrl}" style="width: 100%; height: 500px; border: none; border-radius: 8px;" title="PDF Preview"></iframe>
+                </div>
+                ` : `
                 <div style="space-y: 16px;">
                     <div style="background: #F9FAFB; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
                         <h3 style="font-size: 18px; font-weight: 600; color: #1F2937; margin-bottom: 8px;">SEO Score: ${Math.round(auditData.seo_score || 0)}/100</h3>
@@ -1059,15 +1133,16 @@ class SolviaRouter {
                         </div>
                     </div>
                     ` : '<p style="color: #10B981;">No significant issues found!</p>'}
+                </div>
+                `}
 
-                    <div style="display: flex; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #E5E7EB;">
-                        <button onclick="router.downloadAuditPDF('${auditId}')" style="flex: 1; padding: 12px; background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
-                            📄 Download PDF
-                        </button>
-                        <button onclick="this.closest('.modal').remove()" style="flex: 1; padding: 12px; background: #EC6019; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
-                            Close
-                        </button>
-                    </div>
+                <div style="display: flex; gap: 12px; padding-top: 16px; border-top: 1px solid #E5E7EB;">
+                    <button onclick="router.downloadAuditPDF('${auditId}')" style="flex: 1; padding: 12px; background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
+                        Download PDF
+                    </button>
+                    <button onclick="this.closest('.modal').remove(); ${pdfUrl ? `URL.revokeObjectURL('${pdfUrl}')` : ''}" style="flex: 1; padding: 12px; background: #EC6019; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
+                        Close
+                    </button>
                 </div>
             </div>
         `;
@@ -1418,81 +1493,9 @@ class SolviaRouter {
                 const userEmailDisplayEl = document.getElementById('userEmailDisplay');
 
                 if (userEmailEl) {
-                    // TOOLTIP SOLUTION: Show full username without ellipsis
-                    const emailParts = email.split('@');
-                    const username = emailParts[0];
-
-                    // Always show full username without truncation
-                    const displayText = username;
-
-                    // Set the display text and tooltip data
-                    userEmailEl.textContent = displayText;
-                    userEmailEl.setAttribute('data-full-email', email);
-                    userEmailEl.setAttribute('title', email); // Fallback tooltip
-                    userEmailEl.classList.add('email-tooltip'); // Add tooltip class
-
-                    // Force display properties for tooltip with stronger CSS override
-                    userEmailEl.style.position = 'relative';
-                    userEmailEl.style.cursor = 'pointer';
-                    userEmailEl.style.display = 'block';
-                    userEmailEl.style.minHeight = '20px';
-                    userEmailEl.style.overflow = 'visible';
-                    userEmailEl.style.zIndex = '1';
-
-                    // Force parent containers to allow overflow
-                    const navItemText = userEmailEl.closest('.nav-item-text');
-                    if (navItemText) {
-                        navItemText.style.overflow = 'visible';
-                        navItemText.style.position = 'relative';
-                    }
-
-                    const navItem = userEmailEl.closest('.nav-item');
-                    if (navItem) {
-                        navItem.style.overflow = 'visible';
-                        navItem.style.position = 'relative';
-                    }
-
-                    // Enhanced click and hover listeners for debugging
-                    userEmailEl.addEventListener('click', function() {
-                        console.log('📧 Email clicked! Classes:', this.className);
-                        console.log('📧 Email clicked! Data:', this.getAttribute('data-full-email'));
-                        console.log('📧 Computed CSS position:', window.getComputedStyle(this).position);
-                        console.log('📧 Computed CSS overflow:', window.getComputedStyle(this).overflow);
-                        console.log('📧 Computed CSS z-index:', window.getComputedStyle(this).zIndex);
-                        alert('Tooltip test - Data: ' + this.getAttribute('data-full-email') + '\nClick again and try hovering!');
-                    });
-
-                    userEmailEl.addEventListener('mouseenter', function() {
-                        console.log('🐭 Mouse ENTERED userEmail element');
-                        console.log('🐭 Element has data-full-email:', this.getAttribute('data-full-email'));
-                        console.log('🐭 Element has class email-tooltip:', this.classList.contains('email-tooltip'));
-                    });
-
-                    userEmailEl.addEventListener('mouseleave', function() {
-                        console.log('🐭 Mouse LEFT userEmail element');
-                    });
-
-                    console.log('📧 SPA: Email tooltip set:', email, '→ Display:', displayText);
-                    console.log('📧 SPA: Tooltip classes:', userEmailEl.className);
-                    console.log('📧 SPA: Tooltip data-full-email:', userEmailEl.getAttribute('data-full-email'));
-                    console.log('📧 SPA: Element final styles - position:', userEmailEl.style.position, 'overflow:', userEmailEl.style.overflow);
-
-                    // Final validation
-                    setTimeout(() => {
-                        const hasTooltipClass = userEmailEl.classList.contains('email-tooltip');
-                        const hasDataAttribute = userEmailEl.getAttribute('data-full-email') === email;
-                        const hasCorrectPosition = window.getComputedStyle(userEmailEl).position === 'relative';
-
-                        console.log('✅ VALIDATION - Has tooltip class:', hasTooltipClass);
-                        console.log('✅ VALIDATION - Has data attribute:', hasDataAttribute);
-                        console.log('✅ VALIDATION - Has relative position:', hasCorrectPosition);
-
-                        if (hasTooltipClass && hasDataAttribute && hasCorrectPosition) {
-                            console.log('🎉 TOOLTIP SETUP COMPLETE - Ready for hover test!');
-                        } else {
-                            console.log('❌ TOOLTIP SETUP INCOMPLETE - Check CSS and data attributes');
-                        }
-                    }, 100);
+                    // Show full email address (e.g., "solviapteltd@gmail.com")
+                    userEmailEl.textContent = email;
+                    console.log('📧 SPA: Email display set to full address:', email);
                 }
                 if (userEmailDisplayEl) userEmailDisplayEl.textContent = email;
 
