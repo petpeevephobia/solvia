@@ -153,12 +153,15 @@
         flex-direction: column;
         gap: 16px;
         margin-bottom: 32px;
+        align-items: flex-start !important;
     }
 
     .overview > div:first-child {
         display: flex !important;
         flex-direction: column !important;
         gap: 4px !important;
+        align-items: flex-start !important;
+        width: 100%;
     }
 
     .overview h2 {
@@ -213,15 +216,26 @@
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         width: 100%;
-        gap: 8px;
+        gap: 6px;
         justify-content: space-between;
     }
 
     .filter-date-btn {
         flex: 1;
         min-width: 0;
-        padding: 8px 12px;
-        font-size: 11px;
+        padding: 6px 8px !important;
+        font-size: 10px !important;
+        white-space: nowrap;
+    }
+
+    /* Custom dropdown button on mobile */
+    .filter-controls > div:last-child {
+        width: 100%;
+    }
+
+    .filter-controls > div:last-child button {
+        padding: 6px 8px !important;
+        font-size: 10px !important;
     }
 
     /* Metrics Grid Mobile */
