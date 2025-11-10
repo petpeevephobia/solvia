@@ -274,8 +274,8 @@
     }
 
     /* Audit History Mobile */
-    .audit-history-container {
-        padding: 24px 16px 120px;
+    #auditHistoryContainer {
+        padding: 16px 12px !important;
     }
 
     /* Audit Controls - Filter, Sort, Refresh ALL IN ONE ROW */
@@ -331,53 +331,69 @@
     }
 
     /* Hide Website and Issues columns on mobile (show only Date, SEO Score, Actions) */
-    .audit-history-container table th:nth-child(2),
-    .audit-history-container table td:nth-child(2),
-    .audit-history-container table th:nth-child(4),
-    .audit-history-container table td:nth-child(4) {
+    #auditHistoryContainer table th:nth-child(2),
+    #auditHistoryContainer table td:nth-child(2),
+    #auditHistoryContainer table th:nth-child(4),
+    #auditHistoryContainer table td:nth-child(4) {
         display: none !important;
     }
 
     /* Make table content smaller and fit without scroll */
-    .audit-history-container table {
+    #auditHistoryContainer table {
         font-size: 11px !important;
     }
 
-    .audit-history-container table th {
-        padding: 8px 6px !important;
-        font-size: 9px !important;
+    #auditHistoryContainer table th {
+        padding: 8px 4px !important;
+        font-size: 8px !important;
     }
 
-    .audit-history-container table td {
-        padding: 10px 6px !important;
-        font-size: 10px !important;
+    #auditHistoryContainer table td {
+        padding: 10px 4px !important;
+        font-size: 9px !important;
         white-space: normal !important;
     }
 
     /* Smaller action buttons */
-    .audit-history-container table td button {
-        padding: 6px !important;
-        min-width: 32px !important;
+    #auditHistoryContainer table td button {
+        padding: 4px !important;
+        min-width: 28px !important;
     }
 
-    .audit-history-container table td button img {
+    #auditHistoryContainer table td button img {
         width: 14px !important;
         height: 14px !important;
     }
 
+    /* Score badge smaller */
+    #auditHistoryContainer table td > div {
+        padding: 3px 6px !important;
+        font-size: 9px !important;
+    }
+
     /* Ensure pagination is visible and styled for mobile */
-    .pagination {
+    #auditPagination {
+        display: block !important;
+        margin-top: 20px !important;
+        padding: 0 !important;
+    }
+
+    #auditPagination > div {
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
         gap: 8px !important;
-        margin-top: 20px !important;
-        padding: 0 16px !important;
+        padding: 12px 16px !important;
     }
 
-    .pagination button {
-        padding: 6px 12px !important;
-        font-size: 11px !important;
+    #auditPagination button {
+        padding: 6px 10px !important;
+        font-size: 10px !important;
+    }
+
+    #auditPagination span {
+        font-size: 10px !important;
+        padding: 6px 10px !important;
     }
 
     /* Settings Mobile */
