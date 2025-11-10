@@ -202,11 +202,13 @@
     }
 
     .filter-controls {
-        flex-direction: column;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
         width: 100%;
-        align-items: flex-start !important;
+        align-items: center !important;
         padding: 0 !important;
         margin: 0 !important;
+        gap: 4px;
     }
 
     /* Date range meta text - align left */
@@ -223,14 +225,13 @@
         margin: 0 !important;
     }
 
-    /* Filter buttons - keep in one row - ULTRA SMALL */
+    /* Filter buttons - ALL IN ONE ROW - ULTRA SMALL */
     .filter-date-buttons {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        width: 100%;
         gap: 4px;
-        justify-content: flex-start !important;
+        flex: 1;
         padding: 0 !important;
         margin: 0 !important;
     }
@@ -238,24 +239,26 @@
     .filter-date-btn {
         flex: 1;
         min-width: 0;
-        padding: 5px 6px !important;
-        font-size: 9px !important;
+        padding: 4px 5px !important;
+        font-size: 8.5px !important;
         white-space: nowrap;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.03em;
     }
 
-    /* Custom dropdown button on mobile - ULTRA SMALL */
+    /* Custom dropdown - SAME ROW AS OTHER BUTTONS */
     .filter-controls > div:last-child {
-        width: 100%;
+        flex: 1;
         margin: 0 !important;
         padding: 0 !important;
+        min-width: 0;
     }
 
     .filter-controls > div:last-child button {
-        padding: 5px 6px !important;
-        font-size: 9px !important;
-        width: 100%;
-        letter-spacing: -0.02em;
+        padding: 4px 5px !important;
+        font-size: 8.5px !important;
+        width: 100% !important;
+        letter-spacing: -0.03em;
+        white-space: nowrap;
     }
 
     /* Metrics Grid Mobile */
