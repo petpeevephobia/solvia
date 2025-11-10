@@ -1,0 +1,241 @@
+/* Mobile Bottom Dock Navigation */
+
+/* Mobile Dock - Hidden by default, shown on mobile */
+.mobile-dock {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #FFFFFF;
+    border-top: 1px solid #F5F2F0;
+    padding: 8px 16px 12px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    z-index: 1000;
+    /* Safe area padding for notched devices */
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.mobile-dock-container {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 8px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.mobile-dock-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 8px 12px;
+    border-radius: 27px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #1F2937;
+    text-decoration: none;
+    flex: 1;
+    min-width: 0;
+}
+
+.mobile-dock-item:hover {
+    background: #F9FAFB;
+}
+
+.mobile-dock-item.active {
+    background: rgba(236, 96, 25, 0.1);
+    color: #EC6019;
+}
+
+.mobile-dock-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-dock-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+    stroke: currentColor;
+}
+
+.mobile-dock-label {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 500;
+    font-size: 11px;
+    line-height: 1.636;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* Mobile Layout Adjustments */
+@media (max-width: 768px) {
+    /* Show mobile dock, hide desktop sidebar */
+    .mobile-dock {
+        display: block;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    /* Adjust main content for bottom dock */
+    .main-content {
+        padding-bottom: 80px; /* Space for mobile dock */
+    }
+
+    /* App Layout */
+    .app-layout {
+        flex-direction: column;
+    }
+
+    /* Dashboard Mobile Layout */
+    .dashboard-container {
+        padding: 24px 16px 120px;
+    }
+
+    .dashboard-heading {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 24px;
+    }
+
+    .dashboard-title {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 24px;
+        line-height: 1.5;
+        color: #1F2937;
+    }
+
+    .dashboard-subtitle {
+        font-family: 'Nunito', sans-serif;
+        font-weight: 500;
+        font-size: 11px;
+        line-height: 1.818;
+        color: #6B7280;
+    }
+
+    /* Filter Bar Mobile */
+    .filter-bar {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .filter-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .filter-date-buttons {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .filter-date-btn {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* Metrics Grid Mobile */
+    .metrics-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    /* Audit History Mobile */
+    .audit-history-container {
+        padding: 24px 16px 120px;
+    }
+
+    /* Hide Website and Issues columns on mobile (show only Date, SEO Score, Actions) */
+    .audit-history-container table th:nth-child(2),
+    .audit-history-container table td:nth-child(2),
+    .audit-history-container table th:nth-child(4),
+    .audit-history-container table td:nth-child(4) {
+        display: none !important;
+    }
+
+    /* Settings Mobile */
+    .settings-container {
+        padding: 24px 16px 120px;
+    }
+
+    /* Full width website configuration items */
+    #websiteCards {
+        grid-template-columns: 1fr !important;
+        gap: 16px;
+    }
+
+    .website-card {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Adjust card padding on mobile */
+    .card {
+        padding: 17px;
+    }
+
+    /* Issues Section Mobile */
+    .issues-container {
+        gap: 24px;
+    }
+
+    .issue-card {
+        padding: 16px;
+    }
+
+    /* Chat Section Mobile */
+    .chat-container {
+        margin-bottom: 24px;
+    }
+
+    .chat-messages {
+        max-height: 400px;
+    }
+}
+
+/* Tablet adjustments (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .sidebar {
+        width: 80px;
+    }
+
+    .sidebar.expanded,
+    .sidebar:hover {
+        width: 200px;
+    }
+
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Small mobile devices (max 390px) */
+@media (max-width: 390px) {
+    .mobile-dock-label {
+        font-size: 10px;
+    }
+
+    .mobile-dock-item {
+        padding: 6px 8px;
+    }
+
+    .mobile-dock-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .mobile-dock-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+}

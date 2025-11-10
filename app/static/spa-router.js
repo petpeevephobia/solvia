@@ -36,6 +36,9 @@ class SolviaRouter {
         // Initialize logo state
         this.initializeLogo();
 
+        // Setup hover-based logo switching
+        this.setupLogoHoverSwitch();
+
         // Handle browser back/forward
         window.addEventListener('popstate', this.handlePopState.bind(this));
 
@@ -72,6 +75,31 @@ class SolviaRouter {
             console.log('🔄 Setting logo to orange-svg-emblem-40px.svg (collapsed)');
             logoImg.src = '/static/orange-svg-emblem-40px.svg?' + Date.now();
         }
+    }
+
+    // Setup logo switching on hover (since we removed the toggle button)
+    setupLogoHoverSwitch() {
+        const sidebar = document.getElementById('sidebar');
+        const logoImg = document.getElementById('logo-img');
+
+        if (!sidebar || !logoImg) {
+            console.error('❌ Missing elements for hover logo switch - sidebar:', !!sidebar, 'logoImg:', !!logoImg);
+            return;
+        }
+
+        // Switch to full logo on hover
+        sidebar.addEventListener('mouseenter', () => {
+            console.log('🖱️ Sidebar hover - switching to logo_v2.png');
+            logoImg.src = '/static/logo_v2.png?' + Date.now();
+        });
+
+        // Switch back to emblem on hover out
+        sidebar.addEventListener('mouseleave', () => {
+            console.log('🖱️ Sidebar unhover - switching to emblem');
+            logoImg.src = '/static/orange-svg-emblem-40px.svg?' + Date.now();
+        });
+
+        console.log('✅ Logo hover switch setup complete');
     }
 
     loadInitialRoute() {
@@ -116,16 +144,16 @@ class SolviaRouter {
     updateActiveNav(route) {
         console.log(`📍 SPA: Updating active nav for route: ${route}`);
 
-        // Remove active class from all nav items
-        document.querySelectorAll('.nav-item, .sidebar-footer-item').forEach(item => {
+        // Remove active class from all nav items (desktop sidebar + mobile dock)
+        document.querySelectorAll('.nav-item, .sidebar-footer-item, .mobile-dock-item').forEach(item => {
             item.classList.remove('active');
         });
 
-        // Add active class to current route
-        const activeItem = document.querySelector(`[data-route="${route}"]`);
-        if (activeItem) {
-            activeItem.classList.add('active');
-            console.log(`✅ SPA: Added active class to ${route}`);
+        // Add active class to current route (works for both desktop and mobile)
+        const activeItems = document.querySelectorAll(`[data-route="${route}"]`);
+        if (activeItems.length > 0) {
+            activeItems.forEach(item => item.classList.add('active'));
+            console.log(`✅ SPA: Added active class to ${route} (${activeItems.length} items)`);
         } else {
             console.warn(`⚠️ SPA: Could not find nav item for route ${route}`);
         }
