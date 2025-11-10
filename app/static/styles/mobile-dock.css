@@ -396,24 +396,37 @@
         padding: 6px 10px !important;
     }
 
-    /* Settings Mobile - ULTRA bottom padding to prevent bottom nav overlay */
+    /* Settings Mobile - EMERGENCY ULTRA bottom padding */
     .settings-container {
-        padding: 24px 16px 180px !important;
+        padding-bottom: 200px !important;
     }
 
-    /* Settings page container - ensure enough bottom space */
-    #content > div[style*="padding: 32px"] {
-        padding: 24px 16px 180px 16px !important;
+    /* Settings page ALL containers - FORCE massive bottom space */
+    #content {
+        padding-bottom: 200px !important;
     }
 
-    /* Target ALL cards on Settings page */
-    #content > div > div[style*="background: white"] {
+    #content > div {
+        padding-bottom: 200px !important;
+    }
+
+    /* Target with attribute selector - Settings page outer wrapper */
+    #content > div[style] {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+        padding-bottom: 200px !important;
+    }
+
+    /* All white background cards - extra spacing */
+    #content div[style*="background: white"],
+    #content div[style*="background:white"] {
         margin-bottom: 24px !important;
     }
 
-    /* Last card on Settings (Account Information) - extra margin */
-    #content > div > div[style*="background: white"]:last-child {
-        margin-bottom: 100px !important;
+    /* Last element in Settings - MEGA bottom margin */
+    #content > div > div:last-child {
+        margin-bottom: 150px !important;
+        padding-bottom: 50px !important;
     }
 
     /* Full width website configuration items */
