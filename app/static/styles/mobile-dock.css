@@ -396,9 +396,14 @@
         padding: 6px 10px !important;
     }
 
-    /* Settings Mobile */
+    /* Settings Mobile - Extra bottom padding to prevent bottom nav overlay */
     .settings-container {
-        padding: 24px 16px 120px;
+        padding: 24px 16px 140px !important;
+    }
+
+    /* Settings page container - ensure enough bottom space */
+    #content > div[style*="padding: 32px"] {
+        padding: 24px 16px 140px 16px !important;
     }
 
     /* Full width website configuration items */
