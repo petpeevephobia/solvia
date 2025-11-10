@@ -201,14 +201,21 @@
         margin: 0 !important;
     }
 
-    .filter-controls {
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
+    /* CORRECT: Filter content container */
+    .filter-content {
+        flex-direction: column !important;
         width: 100%;
-        align-items: center !important;
+        align-items: flex-start !important;
         padding: 0 !important;
         margin: 0 !important;
-        gap: 4px;
+        gap: 12px;
+    }
+
+    /* CORRECT: Filter controls left */
+    .filter-controls-left {
+        width: 100%;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
     /* Date range meta text - align left */
@@ -225,40 +232,33 @@
         margin: 0 !important;
     }
 
-    /* Filter buttons - ALL IN ONE ROW - ULTRA SMALL */
-    .filter-date-buttons {
+    /* CORRECT: ALL 5 buttons in ONE ROW - ULTRA SMALL */
+    .date-quick-buttons {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 4px;
-        flex: 1;
+        gap: 3px !important;
+        width: 100%;
         padding: 0 !important;
         margin: 0 !important;
     }
 
-    .filter-date-btn {
-        flex: 1;
-        min-width: 0;
-        padding: 4px 5px !important;
-        font-size: 8.5px !important;
-        white-space: nowrap;
-        letter-spacing: -0.03em;
+    .date-quick-buttons .filter-btn {
+        flex: 1 !important;
+        min-width: 0 !important;
+        padding: 4px 3px !important;
+        font-size: 8px !important;
+        white-space: nowrap !important;
+        letter-spacing: -0.04em !important;
     }
 
-    /* Custom dropdown - SAME ROW AS OTHER BUTTONS */
-    .filter-controls > div:last-child {
-        flex: 1;
-        margin: 0 !important;
-        padding: 0 !important;
-        min-width: 0;
+    .filter-btn-custom {
+        flex: 1 !important;
+        min-width: 0 !important;
     }
 
-    .filter-controls > div:last-child button {
-        padding: 4px 5px !important;
-        font-size: 8.5px !important;
-        width: 100% !important;
-        letter-spacing: -0.03em;
-        white-space: nowrap;
+    .filter-btn-custom svg {
+        display: none !important;
     }
 
     /* Metrics Grid Mobile */
