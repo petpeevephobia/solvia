@@ -193,11 +193,14 @@
     .filter-bar {
         flex-direction: column;
         gap: 12px;
+        align-items: flex-start !important;
+        width: 100%;
     }
 
     .filter-controls {
         flex-direction: column;
         width: 100%;
+        align-items: flex-start !important;
     }
 
     /* Date range meta text - align left */
@@ -217,7 +220,7 @@
         flex-wrap: nowrap !important;
         width: 100%;
         gap: 6px;
-        justify-content: space-between;
+        justify-content: flex-start !important;
     }
 
     .filter-date-btn {
@@ -240,8 +243,14 @@
 
     /* Metrics Grid Mobile */
     .metrics-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
         gap: 8px;
+        width: 100%;
+    }
+
+    .metric-card {
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     /* Audit History Mobile */
