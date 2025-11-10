@@ -278,12 +278,106 @@
         padding: 24px 16px 120px;
     }
 
+    /* Audit Controls - Filter, Sort, Refresh ALL IN ONE ROW */
+    #auditControls > div {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 4px !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+    }
+
+    #auditControls > div > div:first-child {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 4px !important;
+        flex: 1;
+        min-width: 0;
+        flex-wrap: nowrap !important;
+    }
+
+    #auditControls > div > div:first-child > div {
+        display: flex !important;
+        align-items: center !important;
+        gap: 3px !important;
+        flex: 1;
+        min-width: 0;
+    }
+
+    #auditControls label {
+        display: none !important;
+    }
+
+    #auditControls select {
+        padding: 4px 6px !important;
+        font-size: 8.5px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        letter-spacing: -0.02em;
+    }
+
+    #auditControls > div > div:last-child {
+        flex-shrink: 0 !important;
+    }
+
+    #refreshAuditBtn {
+        padding: 4px !important;
+    }
+
+    #refreshAuditBtn img {
+        width: 18px !important;
+        height: 18px !important;
+    }
+
     /* Hide Website and Issues columns on mobile (show only Date, SEO Score, Actions) */
     .audit-history-container table th:nth-child(2),
     .audit-history-container table td:nth-child(2),
     .audit-history-container table th:nth-child(4),
     .audit-history-container table td:nth-child(4) {
         display: none !important;
+    }
+
+    /* Make table content smaller and fit without scroll */
+    .audit-history-container table {
+        font-size: 11px !important;
+    }
+
+    .audit-history-container table th {
+        padding: 8px 6px !important;
+        font-size: 9px !important;
+    }
+
+    .audit-history-container table td {
+        padding: 10px 6px !important;
+        font-size: 10px !important;
+        white-space: normal !important;
+    }
+
+    /* Smaller action buttons */
+    .audit-history-container table td button {
+        padding: 6px !important;
+        min-width: 32px !important;
+    }
+
+    .audit-history-container table td button img {
+        width: 14px !important;
+        height: 14px !important;
+    }
+
+    /* Ensure pagination is visible and styled for mobile */
+    .pagination {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 8px !important;
+        margin-top: 20px !important;
+        padding: 0 16px !important;
+    }
+
+    .pagination button {
+        padding: 6px 12px !important;
+        font-size: 11px !important;
     }
 
     /* Settings Mobile */
