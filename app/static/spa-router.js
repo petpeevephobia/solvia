@@ -144,15 +144,21 @@ class SolviaRouter {
     updateActiveNav(route) {
         console.log(`📍 SPA: Updating active nav for route: ${route}`);
 
-        // Remove active class from all nav items (desktop sidebar + mobile dock)
-        document.querySelectorAll('.nav-item, .sidebar-footer-item, .mobile-dock-item').forEach(item => {
+        // ULTRA STRONG: Force remove active class from ALL navigation items
+        const allNavItems = document.querySelectorAll('.nav-item, .sidebar-footer-item, .mobile-dock-item');
+        allNavItems.forEach(item => {
             item.classList.remove('active');
+            // Force remove any inline styles that might be causing issues
+            if (item.style.color) item.style.color = '';
+            if (item.style.background) item.style.background = '';
         });
 
-        // Add active class to current route (works for both desktop and mobile)
+        // Add active class ONLY to current route items
         const activeItems = document.querySelectorAll(`[data-route="${route}"]`);
         if (activeItems.length > 0) {
-            activeItems.forEach(item => item.classList.add('active'));
+            activeItems.forEach(item => {
+                item.classList.add('active');
+            });
             console.log(`✅ SPA: Added active class to ${route} (${activeItems.length} items)`);
         } else {
             console.warn(`⚠️ SPA: Could not find nav item for route ${route}`);
@@ -808,11 +814,8 @@ class SolviaRouter {
 
                 <!-- Right side: Actions -->
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button onclick="router.refreshAuditHistory()" style="padding: 0; background: transparent; border: none; cursor: pointer; display: flex; align-items: center;" title="Refresh audit history">
-                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect width="28" height="28" rx="6" fill="#EC6019"/>
-                            <path d="M8.05944 13.1406C8.47507 10.2344 10.9063 8 13.8906 8C16.4375 8 18.5781 9.68125 19.3125 12.0031M19.9406 14.8594C19.525 17.7656 17.0938 20 14.1094 20C11.5625 20 9.42194 18.3187 8.6875 15.9969M19.5 11.5V12C19.5 12.2761 19.2761 12.5 19 12.5H18.5M8.5 15.5V15C8.5 14.7239 8.72386 14.5 9 14.5H9.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                    <button onclick="router.refreshAuditHistory()" id="refreshAuditBtn" style="padding: 8px; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; border-radius: 6px; transition: background 0.2s;" title="Refresh audit history" onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='transparent'">
+                        <img src="/static/icons/icon_refresh.png?v=2.4" width="25" height="25" alt="Refresh">
                     </button>
                 </div>
             </div>
@@ -895,32 +898,25 @@ class SolviaRouter {
                     <!-- Actions -->
                     <td style="padding: 16px 12px; text-align: center;">
                         <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
-                            <!-- View button with SVG icon -->
-                            <button onclick="window.solviaRouter.viewAuditDetails('${audit.audit_id}')" style="padding: 6px 8px; background: transparent; border: 1px solid #D1D5DB; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="View audit details">
-                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g clip-path="url(#clip0_457_1871_${audit.audit_id})">
-                                        <path d="M13.2299 6.2463C13.3957 6.54297 13.4786 6.69297 13.4786 7.00297C13.4786 7.31297 13.3957 7.46297 13.2299 7.75964C12.4149 9.24964 9.77658 12.8746 7.00325 12.8746C4.22658 12.8746 1.59158 9.24964 0.776582 7.75964C0.610749 7.46297 0.527832 7.31297 0.527832 7.00297C0.527832 6.69297 0.610749 6.54297 0.776582 6.2463C1.59158 4.7563 4.22658 1.13464 7.00325 1.13464C9.77658 1.13464 12.4149 4.7563 13.2299 6.2463Z" stroke="#1F2937" stroke-width="1.16667" stroke-linecap="round" stroke-linejoin="round"/>
-                                        <path d="M7 9C8.10457 9 9 8.10457 9 7C9 5.89543 8.10457 5 7 5C5.89543 5 5 5.89543 5 7C5 8.10457 5.89543 9 7 9Z" stroke="#1F2937" stroke-width="1.16667" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_457_1871_${audit.audit_id}">
-                                            <rect width="14" height="14" fill="white"/>
-                                        </clipPath>
-                                    </defs>
+                            <!-- View button -->
+                            <button onclick="window.solviaRouter.viewAuditDetails('${audit.audit_id}')" id="viewBtn_${audit.audit_id}" style="padding: 8px; background: transparent; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" title="View audit details" onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='transparent'">
+                                <img class="action-icon" src="/static/icons/icon_eye.png?v=2.4" width="18" height="18" alt="View">
+                                <!-- Loading spinner (hidden by default) -->
+                                <svg class="loading-spinner" width="18" height="18" viewBox="0 0 18 18" style="display: none; animation: spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="9" cy="9" r="7" stroke="#E5E7EB" stroke-width="2" fill="none"/>
+                                    <path d="M9 2 A7 7 0 0 1 16 9" stroke="#EC6019" stroke-width="2" fill="none" stroke-linecap="round"/>
                                 </svg>
                             </button>
 
-                            <!-- Download button with SVG icon -->
-                            ${audit.pdf_url ? `
-                            <button onclick="window.solviaRouter.downloadAuditPDF('${audit.audit_id}')" style="padding: 6px 8px; background: transparent; border: 1px solid #D1D5DB; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Download PDF">
-                                <svg width="12" height="14" viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M11.5 12.5C11.5 12.7761 11.2761 13 11 13H1C0.723858 13 0.5 12.7761 0.5 12.5C0.5 12.2239 0.723858 12 1 12H11C11.2761 12 11.5 12.2239 11.5 12.5Z" fill="#1F2937"/>
-                                    <path d="M11.5 12.5C11.5 12.7761 11.2761 13 11 13H1C0.723858 13 0.5 12.7761 0.5 12.5C0.5 12.2239 0.723858 12 1 12H11C11.2761 12 11.5 12.2239 11.5 12.5Z" stroke="#1F2937" stroke-width="0.5" stroke-linecap="round"/>
-                                    <path d="M8 8L6 10L4 8" stroke="#1F2937" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M6 10V4.5C6 2.567 7.567 1 9.5 1V1C9.77614 1 10 1.22386 10 1.5V1.5C10 1.77614 9.77614 2 9.5 2V2C8.11929 2 7 3.11929 7 4.5V10" stroke="#1F2937" stroke-linecap="round" stroke-linejoin="round"/>
+                            <!-- Download PDF button -->
+                            <button onclick="window.solviaRouter.downloadAuditPDF('${audit.audit_id}')" id="downloadBtn_${audit.audit_id}" style="padding: 8px; background: transparent; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" title="Download PDF" onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='transparent'">
+                                <img class="action-icon" src="/static/icons/icon_download.png?v=2.4" width="18" height="18" alt="Download">
+                                <!-- Loading spinner (hidden by default) -->
+                                <svg class="loading-spinner" width="18" height="18" viewBox="0 0 18 18" style="display: none; animation: spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="9" cy="9" r="7" stroke="#E5E7EB" stroke-width="2" fill="none"/>
+                                    <path d="M9 2 A7 7 0 0 1 16 9" stroke="#EC6019" stroke-width="2" fill="none" stroke-linecap="round"/>
                                 </svg>
                             </button>
-                            ` : ''}
                         </div>
                     </td>
                 </tr>
@@ -1056,6 +1052,16 @@ class SolviaRouter {
     }
 
     async downloadAuditPDF(auditId) {
+        // Show loading spinner
+        const downloadBtn = document.getElementById(`downloadBtn_${auditId}`);
+        if (downloadBtn) {
+            const icon = downloadBtn.querySelector('.action-icon');
+            const spinner = downloadBtn.querySelector('.loading-spinner');
+            if (icon) icon.style.display = 'none';
+            if (spinner) spinner.style.display = 'block';
+            downloadBtn.style.pointerEvents = 'none';
+        }
+
         try {
             const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
             const response = await fetch(`/agent/report/${auditId}/pdf`, {
@@ -1077,10 +1083,29 @@ class SolviaRouter {
             }
         } catch (error) {
             console.error('Error downloading PDF:', error);
+        } finally {
+            // Hide loading spinner
+            if (downloadBtn) {
+                const icon = downloadBtn.querySelector('.action-icon');
+                const spinner = downloadBtn.querySelector('.loading-spinner');
+                if (icon) icon.style.display = 'block';
+                if (spinner) spinner.style.display = 'none';
+                downloadBtn.style.pointerEvents = 'auto';
+            }
         }
     }
 
     async viewAuditDetails(auditId) {
+        // Show loading spinner
+        const viewBtn = document.getElementById(`viewBtn_${auditId}`);
+        if (viewBtn) {
+            const icon = viewBtn.querySelector('.action-icon');
+            const spinner = viewBtn.querySelector('.loading-spinner');
+            if (icon) icon.style.display = 'none';
+            if (spinner) spinner.style.display = 'block';
+            viewBtn.style.pointerEvents = 'none';
+        }
+
         try {
             const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
 
@@ -1110,6 +1135,15 @@ class SolviaRouter {
             }
         } catch (error) {
             console.error('Error loading audit details:', error);
+        } finally {
+            // Hide loading spinner
+            if (viewBtn) {
+                const icon = viewBtn.querySelector('.action-icon');
+                const spinner = viewBtn.querySelector('.loading-spinner');
+                if (icon) icon.style.display = 'block';
+                if (spinner) spinner.style.display = 'none';
+                viewBtn.style.pointerEvents = 'auto';
+            }
         }
     }
 
@@ -1164,14 +1198,7 @@ class SolviaRouter {
                 </div>
                 `}
 
-                <div style="display: flex; gap: 12px; padding-top: 16px; border-top: 1px solid #E5E7EB;">
-                    <button onclick="router.downloadAuditPDF('${auditId}')" style="flex: 1; padding: 12px; background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
-                        Download PDF
-                    </button>
-                    <button onclick="this.closest('.modal').remove(); ${pdfUrl ? `URL.revokeObjectURL('${pdfUrl}')` : ''}" style="flex: 1; padding: 12px; background: #EC6019; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
-                        Close
-                    </button>
-                </div>
+                <!-- Download button removed - use action column instead -->
             </div>
         `;
 
@@ -1523,6 +1550,9 @@ class SolviaRouter {
                 if (userEmailEl) {
                     // Show full email address (e.g., "solviapteltd@gmail.com")
                     userEmailEl.textContent = email;
+                    // Remove any title attribute to prevent tooltip
+                    userEmailEl.removeAttribute('title');
+                    userEmailEl.parentElement.removeAttribute('title');
                     console.log('📧 SPA: Email display set to full address:', email);
                 }
                 if (userEmailDisplayEl) userEmailDisplayEl.textContent = email;

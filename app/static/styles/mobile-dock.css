@@ -35,20 +35,27 @@
     border-radius: 27px;
     cursor: pointer;
     transition: all 0.2s ease;
-    color: #1F2937;
+    color: #1F2937 !important;
     text-decoration: none;
     flex: 1;
     min-width: 0;
+    background: transparent !important;
 }
 
 .mobile-dock-item:hover {
-    background: #F9FAFB;
-    color: #EC6019;
+    background: #F9FAFB !important;
+    color: #EC6019 !important;
 }
 
 .mobile-dock-item.active {
-    background: transparent;
-    color: #EC6019;
+    background: transparent !important;
+    color: #EC6019 !important;
+}
+
+/* Force icon color inheritance */
+.mobile-dock-icon svg {
+    color: inherit;
+    stroke: currentColor;
 }
 
 .mobile-dock-icon {
@@ -101,28 +108,80 @@
         padding: 24px 16px 120px;
     }
 
-    /* Mobile Header Styling */
-    .dashboard-header h1 {
+    /* Mobile Header - Vertical Layout */
+    .header {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        margin-bottom: 32px !important;
+    }
+
+    .header-content {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+    }
+
+    #realHeader {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 4px !important;
+    }
+
+    #realHeader h1 {
         font-family: 'Poppins', sans-serif !important;
         font-weight: 700 !important;
         font-size: 24px !important;
         line-height: 1.5 !important;
         color: #1F2937 !important;
-        margin-bottom: 4px !important;
+        margin: 0 !important;
+        width: 100% !important;
     }
 
-    .dashboard-header p {
+    #lastUpdateInfo {
         font-family: 'Nunito', sans-serif !important;
+        font-size: 11px !important;
         font-weight: 500 !important;
+        color: #6B7280 !important;
+        white-space: normal !important;
+    }
+
+    /* Overview Section Mobile */
+    .overview {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .overview > div:first-child {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+    }
+
+    .overview h2 {
+        font-family: 'Poppins', sans-serif !important;
+        font-weight: 600 !important;
+        font-size: 16px !important;
+        line-height: 1.75 !important;
+        color: #1F2937 !important;
+        margin: 0 !important;
+    }
+
+    #overviewSubtitle {
+        font-family: 'Nunito', sans-serif !important;
         font-size: 11px !important;
         line-height: 1.818 !important;
         color: #6B7280 !important;
-        margin-bottom: 0 !important;
+        margin: 0 !important;
     }
 
-    /* Header container spacing */
-    .dashboard-header {
-        margin-bottom: 32px !important;
+    /* Filter Bar Mobile - Full Width */
+    #filterBarContainer {
+        width: 100% !important;
+        order: 3 !important;
     }
 
     /* Filter Bar Mobile */
