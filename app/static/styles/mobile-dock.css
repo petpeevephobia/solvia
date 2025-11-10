@@ -187,6 +187,8 @@
     #filterBarContainer {
         width: 100% !important;
         order: 3 !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
     /* Filter Bar Mobile */
@@ -195,50 +197,65 @@
         gap: 12px;
         align-items: flex-start !important;
         width: 100%;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
     .filter-controls {
         flex-direction: column;
         width: 100%;
         align-items: flex-start !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
     /* Date range meta text - align left */
     .filter-meta {
-        margin-left: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
         justify-content: flex-start !important;
+        width: 100%;
     }
 
     .filter-meta-text {
         text-align: left !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
-    /* Filter buttons - keep in one row */
+    /* Filter buttons - keep in one row - ULTRA SMALL */
     .filter-date-buttons {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         width: 100%;
-        gap: 6px;
+        gap: 4px;
         justify-content: flex-start !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
     .filter-date-btn {
         flex: 1;
         min-width: 0;
-        padding: 6px 8px !important;
-        font-size: 10px !important;
+        padding: 5px 6px !important;
+        font-size: 9px !important;
         white-space: nowrap;
+        letter-spacing: -0.02em;
     }
 
-    /* Custom dropdown button on mobile */
+    /* Custom dropdown button on mobile - ULTRA SMALL */
     .filter-controls > div:last-child {
         width: 100%;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
     .filter-controls > div:last-child button {
-        padding: 6px 8px !important;
-        font-size: 10px !important;
+        padding: 5px 6px !important;
+        font-size: 9px !important;
+        width: 100%;
+        letter-spacing: -0.02em;
     }
 
     /* Metrics Grid Mobile */
