@@ -50,7 +50,7 @@
         .sidebar.expanded .logo-icon,
         .sidebar:hover .logo-icon {
             width: auto;
-            max-width: 180px;
+            max-width: 140px;
         }
 
         .logo-icon img {
@@ -66,8 +66,8 @@
         .sidebar:hover .logo-icon img {
             width: auto;
             height: auto;
-            max-width: 180px;
-            max-height: 50px;
+            max-width: 140px;
+            max-height: 28px;
         }
 
         .logo-text {
@@ -228,9 +228,24 @@
         .sidebar:hover .user-email {
             opacity: 1;
             width: auto;
+            max-width: 150px;
             white-space: nowrap;
-            overflow: visible;
-            text-overflow: clip;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Disable any tooltips on user info */
+        .user-info,
+        .user-info *,
+        .user-email {
+            pointer-events: auto !important;
+        }
+
+        .user-info::before,
+        .user-info::after,
+        .user-email::before,
+        .user-email::after {
+            display: none !important;
         }
 
         /* Main Content */
