@@ -69,7 +69,7 @@
 .mobile-dock-icon svg {
     width: 20px;
     height: 20px;
-    fill: currentColor;
+    fill: none !important;
     stroke: currentColor;
 }
 
