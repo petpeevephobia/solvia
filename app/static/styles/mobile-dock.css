@@ -168,6 +168,7 @@
         line-height: 1.75 !important;
         color: #1F2937 !important;
         margin: 0 !important;
+        text-align: left !important;
     }
 
     #overviewSubtitle {
@@ -176,6 +177,7 @@
         line-height: 1.818 !important;
         color: #6B7280 !important;
         margin: 0 !important;
+        text-align: left !important;
     }
 
     /* Filter Bar Mobile - Full Width */
@@ -195,14 +197,31 @@
         width: 100%;
     }
 
+    /* Date range meta text - align left */
+    .filter-meta {
+        margin-left: 0 !important;
+        justify-content: flex-start !important;
+    }
+
+    .filter-meta-text {
+        text-align: left !important;
+    }
+
+    /* Filter buttons - keep in one row */
     .filter-date-buttons {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
         width: 100%;
+        gap: 8px;
         justify-content: space-between;
     }
 
     .filter-date-btn {
         flex: 1;
         min-width: 0;
+        padding: 8px 12px;
+        font-size: 11px;
     }
 
     /* Metrics Grid Mobile */
