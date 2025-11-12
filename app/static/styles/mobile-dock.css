@@ -246,8 +246,8 @@
     .date-quick-buttons .filter-btn {
         flex: 1 !important;
         min-width: 0 !important;
-        padding: 4px 3px !important;
-        font-size: 8px !important;
+        padding: 8px 10px !important;
+        font-size: 14px !important;
         white-space: nowrap !important;
         letter-spacing: -0.04em !important;
     }

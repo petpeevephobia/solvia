@@ -17,6 +17,53 @@
             font-family: 'Poppins', sans-serif;
         }
 
+        /* Base heading styles */
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1F2937;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1F2937;
+        }
+
+        h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1F2937;
+        }
+
+        h4 {
+            font-size: 9px;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 500;
+            color: #1F2937;
+        }
+
+        /* Paragraph styles */
+        p {
+            font-family: 'Nunito', sans-serif;
+            font-size: 16px;
+            color: #6B7280;
+        }
+
+        /* Paragraph 2 - smaller */
+        p.small, .paragraph-2 {
+            font-size: 11px;
+            font-family: 'Nunito', sans-serif;
+            color: #6B7280;
+        }
+
+        /* Note text */
+        .note, .note-text {
+            font-size: 9px;
+            font-family: 'Nunito', sans-serif;
+            color: #6B7280;
+        }
+
         body {
             display: flex;
             opacity: 0;

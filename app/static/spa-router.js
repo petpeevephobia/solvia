@@ -257,7 +257,7 @@ class SolviaRouter {
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <div>
                             <h2 style="margin: 0;">Overview</h2>
-                            <p id="overviewSubtitle" style="margin: 5px 0 0 0; font-size: 13px; color: #6B7280;">All data displayed are from the past 28 days</p>
+                            <p id="overviewSubtitle" class="paragraph-2" style="margin: 5px 0 0 0; color: #6B7280;">All data displayed are from the past 28 days</p>
                         </div>
 
                         <!-- GSC Filter Bar (Inline) -->
@@ -537,7 +537,7 @@ class SolviaRouter {
                             <textarea
                                 class="chat-input"
                                 id="chatInput"
-                                placeholder="Ask about your SEO performance..."
+                                placeholder="Ask a question ..."
                                 rows="1"
                                 onkeypress="handleChatKeypress(event)"
                             ></textarea>
@@ -601,7 +601,7 @@ class SolviaRouter {
             <div style="padding: 32px; min-height: 600px;">
                 <div style="margin-bottom: 32px;">
                     <h1 style="font-size: 32px; font-weight: 600; color: #1F2937; margin-bottom: 8px;">Audit History</h1>
-                    <p style="font-size: 14px; color: #6B7280;">View and manage all your SEO audit reports with advanced filtering and pagination</p>
+                    <p class="paragraph-2" style="color: #6B7280;">View and manage all your SEO audit reports with advanced filtering and pagination</p>
                 </div>
 
                 <!-- Filter and Controls Section -->
@@ -1189,7 +1189,7 @@ class SolviaRouter {
                                             ${issue.severity || 'medium'}
                                         </span>
                                     </div>
-                                    <p style="font-size: 13px; color: #6B7280;">${issue.description || 'No description available'}</p>
+                                    <p class="paragraph-2" style="color: #6B7280;">${issue.description || 'No description available'}</p>
                                 </div>
                             `).join('')}
                         </div>
@@ -1221,12 +1221,12 @@ class SolviaRouter {
             <div style="padding: 32px;">
                 <div style="margin-bottom: 40px;">
                     <h1 style="font-size: 32px; font-weight: 600; color: #1F2937; margin-bottom: 8px;">Settings</h1>
-                    <p style="font-size: 14px; color: #6B7280;">Manage your Solvia preferences and configuration</p>
+                    <p class="paragraph-2" style="color: #6B7280;">Manage your Solvia preferences and configuration</p>
                 </div>
 
                 <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); margin-bottom: 24px;">
                     <h2 style="font-size: 18px; font-weight: 600; color: #1F2937; margin-bottom: 8px;">Website Configuration</h2>
-                    <p style="font-size: 14px; color: #6B7280; margin-bottom: 24px;">Select the Google Search Console property you want Solvia to analyze</p>
+                    <p class="paragraph-2" style="color: #6B7280; margin-bottom: 24px;">Select the Google Search Console property you want Solvia to analyze</p>
 
                     <!-- Card Selection Grid -->
                     <div id="websiteCards" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
@@ -1464,8 +1464,8 @@ class SolviaRouter {
                                 <path d="M32 22V34" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"/>
                                 <circle cx="32" cy="42" r="1" fill="#9CA3AF"/>
                             </svg>
-                            <p style="color: #6B7280; font-size: 16px; font-weight: 500;">No websites found</p>
-                            <p style="color: #9CA3AF; font-size: 14px; margin-top: 8px;">Please connect your Google Search Console account first</p>
+                            <p style="color: #6B7280; font-weight: 500;">No websites found</p>
+                            <p class="paragraph-2" style="color: #9CA3AF; margin-top: 8px;">Please connect your Google Search Console account first</p>
                         </div>
                     `;
                 }
@@ -1480,8 +1480,8 @@ class SolviaRouter {
                             <circle cx="32" cy="32" r="32" fill="#FEE2E2"/>
                             <path d="M22 22L42 42M42 22L22 42" stroke="#EF4444" stroke-width="2" stroke-linecap="round"/>
                         </svg>
-                        <p style="color: #EF4444; font-size: 16px; font-weight: 500;">Failed to load websites</p>
-                        <p style="color: #9CA3AF; font-size: 14px; margin-top: 8px;">Please try refreshing the page</p>
+                        <p style="color: #EF4444; font-weight: 500;">Failed to load websites</p>
+                        <p class="paragraph-2" style="color: #9CA3AF; margin-top: 8px;">Please try refreshing the page</p>
                     </div>
                 `;
             }
