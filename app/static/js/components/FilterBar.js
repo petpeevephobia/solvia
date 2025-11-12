@@ -294,7 +294,7 @@ class FilterBar {
             console.log('[FilterBar] Filter result:', result);
 
             // Update meta text
-            const dateRangeText = `${this.formatDateReadable(dateRange.start_date)} to ${this.formatDateReadable(dateRange.end_date)}`;
+            const dateRangeText = `${this.formatDateReadable(dateRange.start_date)} - ${this.formatDateReadable(dateRange.end_date)}`;
             this.updateMetaText(dateRangeText, this.currentFilters.searchType);
 
             // Trigger callback with filtered data AND date range
