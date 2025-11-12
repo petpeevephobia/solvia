@@ -12,15 +12,14 @@
         }
 
         .chat-header h2 {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             color: #1F2937;
             margin-bottom: 4px;
         }
 
         .chat-header p {
-            font-size: 11px;
-            font-family: 'Nunito', sans-serif;
+            font-size: 13px;
             color: #6B7280;
         }
 

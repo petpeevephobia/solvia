@@ -434,9 +434,9 @@
 
 .date-range-modal-header h3 {
     margin: 0;
-    font-size: 14px;
+    font-size: 20px;
     font-weight: 600;
-    color: #1F2937;
+    color: #111827;
     font-family: 'Poppins', sans-serif;
 }
 
@@ -771,7 +771,7 @@
     }
 
     .date-range-modal-header h3 {
-        font-size: 14px;
+        font-size: 18px;
     }
 
     .date-range-tabs {

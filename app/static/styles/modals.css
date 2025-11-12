@@ -47,7 +47,7 @@
 
         .modal-header h3 {
             margin: 0;
-            font-size: 14px;
+            font-size: 20px;
             font-weight: 600;
             color: #1F2937;
         }
@@ -146,16 +146,14 @@
 
         .progress-info h4 {
             margin: 0 0 8px 0;
-            font-size: 9px;
-            font-family: 'Nunito', sans-serif;
-            font-weight: 500;
+            font-size: 16px;
+            font-weight: 600;
             color: #1F2937;
         }
 
         .progress-info p {
             margin: 0 0 16px 0;
-            font-size: 16px;
-            font-family: 'Nunito', sans-serif;
+            font-size: 14px;
             color: #6B7280;
             line-height: 1.4;
         }
@@ -356,10 +354,10 @@
 
 .global-modal-body p {
     margin: 0;
-    font-size: 16px;
-    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
     line-height: 1.6;
     color: #6B7280;
+    font-family: 'Inter', sans-serif;
 }
 
 .global-modal-footer {
