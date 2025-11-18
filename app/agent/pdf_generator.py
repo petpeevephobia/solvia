@@ -287,6 +287,16 @@ class PDFReportGenerator:
             audit_id: Unique audit identifier
         """
 
+        # ULTRATHINK FIX: Handle both direct audit_result and database record formats
+        # If audit_data contains an 'audit_data' field (database record), parse it
+        if 'audit_data' in audit_data and isinstance(audit_data['audit_data'], str):
+            import json
+            print(f"[PDF GEN] 🔄 Parsing audit_data from database record (JSON string)")
+            audit_data = json.loads(audit_data['audit_data'])
+        elif 'audit_data' in audit_data and isinstance(audit_data['audit_data'], dict):
+            print(f"[PDF GEN] 🔄 Extracting audit_data from database record (already parsed)")
+            audit_data = audit_data['audit_data']
+
         # Store motivational quote for footer rendering
         gamified_data = audit_data.get('gamified_pdf_data', {})
         self.motivational_quote = gamified_data.get('motivational_quote', '"Every journey begins with a single step."')
