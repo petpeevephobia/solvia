@@ -117,8 +117,11 @@ class ProgressBarFlowable(Flowable):
             canvas.setStrokeColor(border_color)
             canvas.setLineWidth(border_width)
 
-            # Square boxes (no rounded corners)
-            canvas.rect(x, y, self.box_width, self.box_height, stroke=1, fill=1)
+            # ULTRATHINK FIX: Rounded corners on first and last boxes only (4px radius)
+            if i == 0 or i == 3:  # First or last box
+                canvas.roundRect(x, y, self.box_width, self.box_height, 4, stroke=1, fill=1)
+            else:  # Middle boxes stay square
+                canvas.rect(x, y, self.box_width, self.box_height, stroke=1, fill=1)
 
             # Draw stage name (11px Arial Bold)
             canvas.setFillColor(text_color)
@@ -323,7 +326,8 @@ class PDFReportGenerator:
         story.extend(self._create_page1_summary(audit_data))
         story.extend(self._create_page1_progress_bar(audit_data))
         story.extend(self._create_page1_stage_description(audit_data))
-        # Motivational quote moved to footer (handled in page template)
+        # ULTRATHINK FIX: Add motivational quote gray bubble ON page (not just footer as per Figma)
+        story.extend(self._create_page1_motivational_quote(audit_data))
         # Footer removed - now handled in page template
 
         # Page break to Page 2
@@ -333,8 +337,9 @@ class PDFReportGenerator:
         story.extend(self._create_page2_health_score(audit_data))
         story.extend(self._create_page2_metrics_table(audit_data))
         story.extend(self._create_page2_next_steps(audit_data))
-        # Progress bar removed to save space (already on Page 1)
-        # Motivational quote removed to save space (already on Page 1)
+        # ULTRATHINK FIX: Add progress bar and motivational quote to Page 2 as per Figma
+        story.extend(self._create_page1_progress_bar(audit_data))  # Reuse Page 1 progress bar
+        story.extend(self._create_page2_motivational_quote(audit_data))  # Page 2-specific quote
         # Footer removed - now handled in page template
 
         # Build PDF with page numbers
@@ -551,17 +556,9 @@ class PDFReportGenerator:
         # Get stage info
         gamified_data = audit_data.get('gamified_pdf_data', {})
         seo_stage_info = gamified_data.get('seo_stage_info', {})
-
-        stage_name = seo_stage_info.get('name', 'Unknown')
         description = seo_stage_info.get('description', 'No description available.')
 
-        # Add heading
-        elements.append(Paragraph(
-            f"Your Current Stage: {stage_name}",
-            self.styles['SolviaHeading2']
-        ))
-
-        # Add description
+        # ULTRATHINK FIX: Just description paragraph below progress bar (no heading as per Figma)
         elements.append(Paragraph(description, self.styles['SolviaBody']))
 
         elements.append(Spacer(1, 30))
@@ -572,9 +569,9 @@ class PDFReportGenerator:
         """Create Page 1 motivational quote with sun icon and gray bubble"""
         elements = []
 
-        # Get motivational quote
+        # ULTRATHINK FIX: Get Page 1-specific motivational quote
         gamified_data = audit_data.get('gamified_pdf_data', {})
-        quote = gamified_data.get('motivational_quote', '"Every journey begins with a single step."')
+        quote = gamified_data.get('motivational_quote_page1', '"It\'s okay to be early! Every great site starts in the shadows before it shines. This is where your foundation is built."')
 
         # Load sun icon (PNG format for ReportLab compatibility)
         sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
@@ -647,8 +644,8 @@ class PDFReportGenerator:
         """Create Page 2 health score circle (48/100 format)"""
         elements = []
 
-        # Title
-        elements.append(Paragraph("SEO Health Score", self.styles['SolviaHeading1']))
+        # Title - ULTRATHINK FIX: Changed from "SEO Health Score" to "Health Score" as per Figma
+        elements.append(Paragraph("Health Score", self.styles['SolviaHeading1']))
 
         # Create score circle (reduced size to save space)
         score = audit_data.get('seo_score', 0)
@@ -877,12 +874,12 @@ class PDFReportGenerator:
         return elements
 
     def _create_page2_motivational_quote(self, audit_data: Dict[str, Any]):
-        """Create Page 2 motivational quote section"""
+        """Create Page 2 motivational quote section (Page 2-specific quote)"""
         elements = []
 
-        # Get motivational quote (same as Page 1)
+        # ULTRATHINK FIX: Get Page 2-specific motivational quote (different from Page 1)
         gamified_data = audit_data.get('gamified_pdf_data', {})
-        quote = gamified_data.get('motivational_quote', '"Every journey begins with a single step."')
+        quote = gamified_data.get('motivational_quote_page2', '"Your next step is clarity. Make Google\'s job easier by showing it what each page is about. That\'s how visibility starts to grow."')
 
         # Load sun icon (PNG format for ReportLab compatibility)
         sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
