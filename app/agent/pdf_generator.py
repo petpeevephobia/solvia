@@ -121,13 +121,30 @@ class ProgressBarFlowable(Flowable):
             canvas.setStrokeColor(border_color)
             canvas.setLineWidth(border_width)
 
-            # PIXEL-PERFECT: Rounded corners ONLY on first and last boxes (pill shape)
+            # PIXEL-PERFECT FIX: Pill shape - only OUTER corners rounded
+            # Hidden (first): LEFT corners rounded only
+            # Emerging/Discoverable (middle): ALL corners square
+            # Trusted (last): RIGHT corners rounded only
+            radius = 18
+
             if i == 0:
-                # First box: Rounded left corners only (18px radius for pill effect)
-                canvas.roundRect(x, y, self.box_width, self.box_height, 18, stroke=1, fill=1)
+                # First box: Draw roundRect (all corners rounded), then square off RIGHT corners
+                canvas.roundRect(x, y, self.box_width, self.box_height, radius, stroke=1, fill=1)
+                # Overdraw right side with square rectangle to remove right corner rounding
+                canvas.setStrokeColor(fill_color)  # Match fill color for seamless connection
+                canvas.rect(x + self.box_width - radius - 1, y, radius + 1, self.box_height, stroke=0, fill=1)
+                # Restore border color and redraw right edge
+                canvas.setStrokeColor(border_color)
+                canvas.line(x + self.box_width, y, x + self.box_width, y + self.box_height)
             elif i == 3:
-                # Last box: Rounded right corners only (18px radius for pill effect)
-                canvas.roundRect(x, y, self.box_width, self.box_height, 18, stroke=1, fill=1)
+                # Last box: Draw roundRect (all corners rounded), then square off LEFT corners
+                canvas.roundRect(x, y, self.box_width, self.box_height, radius, stroke=1, fill=1)
+                # Overdraw left side with square rectangle to remove left corner rounding
+                canvas.setStrokeColor(fill_color)  # Match fill color for seamless connection
+                canvas.rect(x, y, radius + 1, self.box_height, stroke=0, fill=1)
+                # Restore border color and redraw left edge
+                canvas.setStrokeColor(border_color)
+                canvas.line(x, y, x, y + self.box_height)
             else:
                 # Middle boxes: Square corners (connected)
                 canvas.rect(x, y, self.box_width, self.box_height, stroke=1, fill=1)
@@ -330,7 +347,10 @@ class PDFReportGenerator:
         story.extend(self._create_page2_health_score(audit_data))
         story.extend(self._create_page2_metrics_table(audit_data))
         story.extend(self._create_page2_next_steps(audit_data))
-        # PIXEL-PERFECT FIX: NO progress bar or motivational quote on Page 2 per user feedback
+        # PIXEL-PERFECT FIX: Add SEO stage description, progress bar, and Page 2 motivational quote per user feedback
+        story.extend(self._create_page2_stage_description(audit_data))
+        story.extend(self._create_page2_progress_bar(audit_data))
+        story.extend(self._create_page2_motivational_quote(audit_data))
         # Footer handled in page template
 
         # Build PDF with page numbers
@@ -477,7 +497,8 @@ class PDFReportGenerator:
         ]))
         elements.append(center_table)
 
-        elements.append(Spacer(1, 30))
+        # PIXEL-PERFECT FIX: Reduce gap to minimum (8px) per user feedback
+        elements.append(Spacer(1, 8))
 
         return elements
 
@@ -493,12 +514,13 @@ class PDFReportGenerator:
         # ULTRATHINK FIX: Just description paragraph below progress bar (no heading as per Figma)
         elements.append(Paragraph(description, self.styles['SolviaBody']))
 
-        elements.append(Spacer(1, 30))
+        # PIXEL-PERFECT FIX: Reduce gap to minimum (8px) per user feedback
+        elements.append(Spacer(1, 8))
 
         return elements
 
     def _create_page1_motivational_quote(self, audit_data: Dict[str, Any]):
-        """Create Page 1 motivational quote with sun icon OUTSIDE bubble, gray text (#6B7280), non-italic"""
+        """Create Page 1 motivational quote with sun icon left-aligned, gray text (#6B7280), rounded gray box, full width"""
         elements = []
 
         # PIXEL-PERFECT FIX: Get Page 1-specific motivational quote
@@ -508,13 +530,16 @@ class PDFReportGenerator:
         # Load sun icon (PNG format for ReportLab compatibility)
         sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
 
-        # PIXEL-PERFECT FIX: Sun icon OUTSIDE bubble + gray bubble chat style
+        # PIXEL-PERFECT FIX: Sun icon OUTSIDE bubble + gray bubble chat style + FULL WIDTH
         # Create layout: [Sun Icon (32×32)] [Gray Bubble with Quote]
+        # Total usable width: 7.5 inches (8.5" page - 1" margins)
+        # Sun icon: 32px = ~0.44 inch
+        # Quote width: 7.5 - 0.44 - 0.1 (gap) = ~7.0 inches
         quote_data = []
 
         # Check if sun icon exists
         if os.path.exists(sun_icon_path):
-            # Sun icon 32×32px (OUTSIDE bubble)
+            # Sun icon 32×32px (OUTSIDE bubble, left-aligned)
             sun_icon = Image(sun_icon_path, width=32, height=32)
 
             # Quote bubble (gray background, #6B7280 text, NON-italic)
@@ -533,26 +558,30 @@ class PDFReportGenerator:
             )
             quote_data = [[quote_paragraph]]
 
-        # PIXEL-PERFECT FIX: Create table with sun icon OUTSIDE bubble
-        quote_table = Table(quote_data, colWidths=[0.5*inch, 5.5*inch] if os.path.exists(sun_icon_path) else [6*inch])
+        # PIXEL-PERFECT FIX: Full width table with sun icon OUTSIDE bubble
+        # Column widths: 0.5 inch (sun icon) + 7.0 inches (quote bubble) = 7.5 inches total
+        quote_table = Table(quote_data, colWidths=[0.5*inch, 7.0*inch] if os.path.exists(sun_icon_path) else [7.5*inch])
         quote_table.setStyle(TableStyle([
             # PIXEL-PERFECT: Gray background ONLY on quote column (second column)
             ('BACKGROUND', (1, 0), (1, 0), SOLVIA_LIGHT_GRAY_BG),  # Only second column
             ('BACKGROUND', (0, 0), (0, 0), colors.white),  # First column (sun icon) stays white
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            # Padding only on quote column
+            # PIXEL-PERFECT: Minimum height 32px for sun icon alignment
+            # Padding only on quote column (12px left/right, 8px top/bottom per user spec)
             ('LEFTPADDING', (1, 0), (1, 0), 12),   # Quote column left padding
             ('RIGHTPADDING', (1, 0), (1, 0), 12),  # Quote column right padding
             ('TOPPADDING', (1, 0), (1, 0), 8),     # Quote column top padding
             ('BOTTOMPADDING', (1, 0), (1, 0), 8),  # Quote column bottom padding
-            # No padding on sun icon column
+            # No padding on sun icon column (left-aligned)
             ('LEFTPADDING', (0, 0), (0, 0), 0),
             ('RIGHTPADDING', (0, 0), (0, 0), 8),   # Small gap between icon and bubble
             ('TOPPADDING', (0, 0), (0, 0), 0),
             ('BOTTOMPADDING', (0, 0), (0, 0), 0),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Sun icon left-aligned
+            ('ALIGN', (1, 0), (1, 0), 'LEFT'),  # Quote text left-aligned
             # No borders
             ('BOX', (0, 0), (-1, -1), 0, colors.white),
-            # Rounded corners only on quote bubble (second column)
+            # PIXEL-PERFECT: Rounded corners only on quote bubble (second column, 8px radius)
             ('ROUNDEDCORNERS', (1, 0), (1, 0), 8),
         ]))
 
@@ -815,6 +844,23 @@ class PDFReportGenerator:
 
         return elements
 
+    def _create_page2_stage_description(self, audit_data: Dict[str, Any]):
+        """Create Page 2 SEO stage description paragraph (same as Page 1)"""
+        elements = []
+
+        # Get stage info
+        gamified_data = audit_data.get('gamified_pdf_data', {})
+        seo_stage_info = gamified_data.get('seo_stage_info', {})
+        description = seo_stage_info.get('description', 'No description available.')
+
+        # Same description paragraph as Page 1
+        elements.append(Paragraph(description, self.styles['SolviaBody']))
+
+        # Minimum gap before progress bar
+        elements.append(Spacer(1, 8))
+
+        return elements
+
     def _create_page2_progress_bar(self, audit_data: Dict[str, Any]):
         """Create Page 2 progress bar with threshold labels"""
         elements = []
@@ -847,51 +893,68 @@ class PDFReportGenerator:
         return elements
 
     def _create_page2_motivational_quote(self, audit_data: Dict[str, Any]):
-        """Create Page 2 motivational quote section (Page 2-specific quote)"""
+        """Create Page 2 motivational quote - DIFFERENT from Page 1, full width, sun icon left-aligned, rounded gray box"""
         elements = []
 
-        # ULTRATHINK FIX: Get Page 2-specific motivational quote (different from Page 1)
+        # PIXEL-PERFECT FIX: Get Page 2-specific motivational quote (DIFFERENT from Page 1)
         gamified_data = audit_data.get('gamified_pdf_data', {})
         quote = gamified_data.get('motivational_quote_page2', '"Your next step is clarity. Make Google\'s job easier by showing it what each page is about. That\'s how visibility starts to grow."')
 
         # Load sun icon (PNG format for ReportLab compatibility)
         sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
 
-        # Create gray bubble with quote and sun icon
+        # PIXEL-PERFECT FIX: Same style as Page 1 (sun icon OUTSIDE bubble + full width + rounded gray box)
         quote_data = []
 
         # Check if sun icon exists
         if os.path.exists(sun_icon_path):
-            # Add sun icon (32x32px) and quote text side by side
+            # Sun icon 32×32px (OUTSIDE bubble, left-aligned)
             sun_icon = Image(sun_icon_path, width=32, height=32)
+
+            # Quote bubble (gray background, #6B7280 text, NON-italic)
             quote_paragraph = Paragraph(
-                f'<font color="{get_hex_string(SOLVIA_DARK)}"><i>{quote}</i></font>',
+                f'<font color="#6B7280">{quote}</font>',  # PIXEL-PERFECT: #6B7280, no italic
                 self.styles['SolviaQuote']
             )
+
+            # Layout: Sun icon in first column (no background), quote in second column (with background)
             quote_data = [[sun_icon, quote_paragraph]]
         else:
             # Quote only (no icon)
             quote_paragraph = Paragraph(
-                f'<font color="{get_hex_string(SOLVIA_DARK)}"><i>{quote}</i></font>',
+                f'<font color="#6B7280">{quote}</font>',
                 self.styles['SolviaQuote']
             )
             quote_data = [[quote_paragraph]]
 
-        # Create table for gray bubble effect (PIXEL-PERFECT: 8px top/bottom, 12px left/right per Figma)
-        quote_table = Table(quote_data, colWidths=[0.5*inch, 5.5*inch] if os.path.exists(sun_icon_path) else [6*inch])
+        # PIXEL-PERFECT FIX: Full width table (7.5 inches total) with sun icon OUTSIDE bubble
+        quote_table = Table(quote_data, colWidths=[0.5*inch, 7.0*inch] if os.path.exists(sun_icon_path) else [7.5*inch])
         quote_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), SOLVIA_LIGHT_GRAY_BG),
+            # PIXEL-PERFECT: Gray background ONLY on quote column (second column)
+            ('BACKGROUND', (1, 0), (1, 0), SOLVIA_LIGHT_GRAY_BG),  # Only second column
+            ('BACKGROUND', (0, 0), (0, 0), colors.white),  # First column (sun icon) stays white
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),  # PIXEL-PERFECT: 12px per Figma
-            ('RIGHTPADDING', (0, 0), (-1, -1), 12),  # PIXEL-PERFECT: 12px per Figma
-            ('TOPPADDING', (0, 0), (-1, -1), 8),     # PIXEL-PERFECT: 8px per Figma
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),  # PIXEL-PERFECT: 8px per Figma
-            ('BOX', (0, 0), (-1, -1), 0, SOLVIA_LIGHT_GRAY),  # No border per Figma
-            ('ROUNDEDCORNERS', (0, 0), (-1, -1), 8),  # 8px border radius per Figma
+            # PIXEL-PERFECT: Minimum height 32px for sun icon alignment per user spec
+            # Padding only on quote column (12px left/right, 8px top/bottom)
+            ('LEFTPADDING', (1, 0), (1, 0), 12),   # Quote column left padding
+            ('RIGHTPADDING', (1, 0), (1, 0), 12),  # Quote column right padding
+            ('TOPPADDING', (1, 0), (1, 0), 8),     # Quote column top padding
+            ('BOTTOMPADDING', (1, 0), (1, 0), 8),  # Quote column bottom padding
+            # No padding on sun icon column (left-aligned)
+            ('LEFTPADDING', (0, 0), (0, 0), 0),
+            ('RIGHTPADDING', (0, 0), (0, 0), 8),   # Small gap between icon and bubble
+            ('TOPPADDING', (0, 0), (0, 0), 0),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Sun icon left-aligned
+            ('ALIGN', (1, 0), (1, 0), 'LEFT'),  # Quote text left-aligned
+            # No borders
+            ('BOX', (0, 0), (-1, -1), 0, colors.white),
+            # PIXEL-PERFECT: Rounded corners only on quote bubble (second column, 8px radius)
+            ('ROUNDEDCORNERS', (1, 0), (1, 0), 8),
         ]))
 
         elements.append(quote_table)
-        elements.append(Spacer(1, 5))  # Reduced from 10 to 5 to save space
+        elements.append(Spacer(1, 10))
 
         return elements
 
