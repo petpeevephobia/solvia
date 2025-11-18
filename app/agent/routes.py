@@ -356,9 +356,15 @@ async def trigger_audit(
             metrics = {
                 'seo_score': seo_score,
                 'organic_traffic': raw_metrics.get('total_clicks', 0),
+                # ULTRATHINK FIX: Add all possible key variations for PDF data processor
                 'impressions': raw_metrics.get('total_impressions', 0),
-                'ctr': raw_metrics.get('average_ctr', 0) * 100,  # Convert to percentage
+                'total_impressions': raw_metrics.get('total_impressions', 0),  # For PDF processor
+                'clicks': raw_metrics.get('total_clicks', 0),                  # For PDF processor
+                'total_clicks': raw_metrics.get('total_clicks', 0),            # For PDF processor
+                'ctr': raw_metrics.get('average_ctr', 0) * 100,  # Convert to percentage (for legacy compatibility)
+                'average_ctr': raw_metrics.get('average_ctr', 0),  # Keep as decimal for PDF processor
                 'avg_position': raw_metrics.get('average_position', 0),
+                'average_position': raw_metrics.get('average_position', 0),  # For PDF processor
                 'clicks_change': raw_metrics.get('clicks_change', 0),
                 'impressions_change': raw_metrics.get('impressions_change', 0),
                 'position_change': raw_metrics.get('position_change', 0),
@@ -386,9 +392,15 @@ async def trigger_audit(
             metrics = {
                 'seo_score': base_score,  # Unified base score (25.0) from scoring engine
                 'organic_traffic': 0,
+                # ULTRATHINK FIX: Add all possible key variations for PDF data processor
                 'impressions': 0,
-                'ctr': 0,
+                'total_impressions': 0,  # For PDF processor
+                'clicks': 0,             # For PDF processor
+                'total_clicks': 0,       # For PDF processor
+                'ctr': 0,                # Percentage (for legacy compatibility)
+                'average_ctr': 0,        # Decimal (for PDF processor)
                 'avg_position': 0,
+                'average_position': 0,   # For PDF processor
                 'clicks_change': 0,
                 'impressions_change': 0,
                 'position_change': 0,
@@ -444,8 +456,27 @@ async def trigger_audit(
 
             print(f"[28-DAY CALC] 📊 SEO Stage: {seo_stage_info['name']} ({current_impressions} impressions)")
 
+            # DEBUG: Log metrics before generating summary paragraphs
+            print(f"[SUMMARY DEBUG] 🔍 Metrics before generating summary paragraphs:")
+            print(f"[SUMMARY DEBUG]    Keys: {list(metrics.keys())}")
+            print(f"[SUMMARY DEBUG]    total_impressions: {metrics.get('total_impressions', 'NOT FOUND')}")
+            print(f"[SUMMARY DEBUG]    impressions: {metrics.get('impressions', 'NOT FOUND')}")
+            print(f"[SUMMARY DEBUG]    total_clicks: {metrics.get('total_clicks', 'NOT FOUND')}")
+            print(f"[SUMMARY DEBUG]    clicks: {metrics.get('clicks', 'NOT FOUND')}")
+            print(f"[SUMMARY DEBUG]    average_ctr: {metrics.get('average_ctr', 'NOT FOUND')}")
+            print(f"[SUMMARY DEBUG]    ctr: {metrics.get('ctr', 'NOT FOUND')}")
+            print(f"[SUMMARY DEBUG]    average_position: {metrics.get('average_position', 'NOT FOUND')}")
+            print(f"[SUMMARY DEBUG]    avg_position: {metrics.get('avg_position', 'NOT FOUND')}")
+
             # Generate summary paragraphs using rule-based conditional text
             summary_paragraphs = generate_summary_paragraphs(metrics, changes)
+
+            print(f"[SUMMARY DEBUG] 📝 Generated summary_paragraphs:")
+            print(f"[SUMMARY DEBUG]    Type: {type(summary_paragraphs)}")
+            print(f"[SUMMARY DEBUG]    Keys: {list(summary_paragraphs.keys()) if isinstance(summary_paragraphs, dict) else 'NOT A DICT'}")
+            if isinstance(summary_paragraphs, dict):
+                for key, value in summary_paragraphs.items():
+                    print(f"[SUMMARY DEBUG]    {key}: {value[:80] if value and len(value) > 80 else value}")
 
             # Generate metric notes using rule-based conditional text
             metric_notes = generate_metric_notes_for_pdf(metrics, changes, seo_stage_key)
