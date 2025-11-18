@@ -81,6 +81,10 @@ class RoundedQuoteBox(Flowable):
         content_height = max(self.icon_size, text_height + (self.padding * 2))
         total_width = self.icon_size + self.gap + self.bubble_width
 
+        # CRITICAL FIX: Store height for use in draw() method
+        self.height = content_height
+        self.width = total_width
+
         return (total_width, content_height)
 
     def draw(self):
@@ -157,85 +161,130 @@ class ProgressBarFlowable(Flowable):
         self.box_height = height     # Use provided height
 
     def draw(self):
-        """Draw the progress bar as connected pill shape (NO 'You are here' indicator)"""
+        """Draw the progress bar as connected pill shape (NO gaps between boxes)"""
         canvas = self.canv
 
         # Find current stage index
         current_index = next((i for i, s in enumerate(self.stages) if s['key'] == self.current_stage), 0)
 
-        # Draw each box
+        # CRITICAL FIX: Draw fills first WITHOUT borders to avoid white gaps
+        radius = 18
         for i, stage in enumerate(self.stages):
-            # Calculate x position (NO GAPS - boxes are connected)
             x = i * self.box_width
             y = 0
 
-            # Determine visual state
+            # Determine fill color based on state
             if i == current_index:
-                # Current stage: Solid orange fill, white text
                 fill_color = SOLVIA_ORANGE
-                border_color = SOLVIA_ORANGE
-                text_color = SOLVIA_WHITE
-                border_width = 1
             elif i == current_index + 1:
-                # Next target stage: Orange border, orange text, white fill
                 fill_color = SOLVIA_WHITE
-                border_color = SOLVIA_ORANGE
-                text_color = SOLVIA_ORANGE
-                border_width = 1
             else:
-                # Future stages: Black border, black text, white fill
                 fill_color = SOLVIA_WHITE
-                border_color = SOLVIA_BLACK
-                text_color = SOLVIA_BLACK
-                border_width = 1
 
-            # Draw box with fill
+            # Draw box fill only (no stroke)
             canvas.setFillColor(fill_color)
-            canvas.setStrokeColor(border_color)
-            canvas.setLineWidth(border_width)
-
-            # PIXEL-PERFECT FIX: Pill shape - only OUTER corners rounded
-            # Hidden (first): LEFT corners rounded only
-            # Emerging/Discoverable (middle): ALL corners square
-            # Trusted (last): RIGHT corners rounded only
-            radius = 18
 
             if i == 0:
-                # First box: Draw roundRect (all corners rounded), then square off RIGHT corners
-                canvas.roundRect(x, y, self.box_width, self.box_height, radius, stroke=1, fill=1)
-                # Overdraw right side with square rectangle to remove right corner rounding
-                canvas.setStrokeColor(fill_color)  # Match fill color for seamless connection
-                canvas.rect(x + self.box_width - radius - 1, y, radius + 1, self.box_height, stroke=0, fill=1)
-                # Restore border color and redraw right edge
-                canvas.setStrokeColor(border_color)
-                canvas.line(x + self.box_width, y, x + self.box_width, y + self.box_height)
+                # First box: Left rounded corners
+                canvas.roundRect(x, y, self.box_width, self.box_height, radius, stroke=0, fill=1)
+                # Square off right side
+                canvas.rect(x + self.box_width - radius, y, radius, self.box_height, stroke=0, fill=1)
             elif i == 3:
-                # Last box: Draw roundRect (all corners rounded), then square off LEFT corners
-                canvas.roundRect(x, y, self.box_width, self.box_height, radius, stroke=1, fill=1)
-                # Overdraw left side with square rectangle to remove left corner rounding
-                canvas.setStrokeColor(fill_color)  # Match fill color for seamless connection
-                canvas.rect(x, y, radius + 1, self.box_height, stroke=0, fill=1)
-                # Restore border color and redraw left edge
-                canvas.setStrokeColor(border_color)
-                canvas.line(x, y, x, y + self.box_height)
+                # Last box: Right rounded corners
+                canvas.roundRect(x, y, self.box_width, self.box_height, radius, stroke=0, fill=1)
+                # Square off left side
+                canvas.rect(x, y, radius, self.box_height, stroke=0, fill=1)
             else:
-                # Middle boxes: Square corners (connected)
-                canvas.rect(x, y, self.box_width, self.box_height, stroke=1, fill=1)
+                # Middle boxes: Square corners
+                canvas.rect(x, y, self.box_width, self.box_height, stroke=0, fill=1)
 
-            # PIXEL-PERFECT: Draw stage name (11px Bold) with gap below
+        # CRITICAL FIX: Now draw borders ONLY on outer edges and between different colored boxes
+        for i, stage in enumerate(self.stages):
+            x = i * self.box_width
+            y = 0
+
+            # Determine border color
+            if i == current_index:
+                border_color = SOLVIA_ORANGE
+            elif i == current_index + 1:
+                border_color = SOLVIA_ORANGE
+            else:
+                border_color = SOLVIA_BLACK
+
+            canvas.setStrokeColor(border_color)
+            canvas.setLineWidth(1)
+
+            # Draw top border
+            canvas.line(x, y + self.box_height, x + self.box_width, y + self.box_height)
+            # Draw bottom border
+            canvas.line(x, y, x + self.box_width, y)
+
+            # Draw left border only for first box or when color changes
+            if i == 0:
+                # First box: Draw left curved edge
+                canvas.setLineWidth(1)
+                if i == current_index:
+                    canvas.roundRect(x, y, self.box_width, self.box_height, radius, stroke=1, fill=0)
+                else:
+                    # Draw just the left rounded edge
+                    p = canvas.beginPath()
+                    p.moveTo(x, y + radius)
+                    p.arcTo(x, y, x + radius, y, radius)
+                    p.lineTo(x + radius, y)
+                    canvas.drawPath(p, stroke=1, fill=0)
+                    p = canvas.beginPath()
+                    p.moveTo(x, y + self.box_height - radius)
+                    p.arcTo(x, y + self.box_height, x + radius, y + self.box_height, radius)
+                    p.lineTo(x + radius, y + self.box_height)
+                    canvas.drawPath(p, stroke=1, fill=0)
+                    # Draw left edge
+                    canvas.line(x, y + radius, x, y + self.box_height - radius)
+
+            # Draw right border only for last box or when next box has different color
+            if i == 3:
+                # Last box: Draw right curved edge
+                p = canvas.beginPath()
+                p.moveTo(x + self.box_width, y + radius)
+                p.arcTo(x + self.box_width, y, x + self.box_width - radius, y, radius)
+                canvas.drawPath(p, stroke=1, fill=0)
+                p = canvas.beginPath()
+                p.moveTo(x + self.box_width, y + self.box_height - radius)
+                p.arcTo(x + self.box_width, y + self.box_height, x + self.box_width - radius, y + self.box_height, radius)
+                canvas.drawPath(p, stroke=1, fill=0)
+                # Draw right edge
+                canvas.line(x + self.box_width, y + radius, x + self.box_width, y + self.box_height - radius)
+            elif i < 3:
+                # Check if next box has different state (draw vertical separator)
+                next_state = current_index if i + 1 == current_index else (current_index + 1 if i + 1 == current_index + 1 else -1)
+                current_state = current_index if i == current_index else (current_index + 1 if i == current_index + 1 else -1)
+                if next_state != current_state:
+                    canvas.line(x + self.box_width, y, x + self.box_width, y + self.box_height)
+
+        # Draw text labels
+        for i, stage in enumerate(self.stages):
+            x = i * self.box_width
+            y = 0
+
+            # Determine text color
+            if i == current_index:
+                text_color = SOLVIA_WHITE
+            elif i == current_index + 1:
+                text_color = SOLVIA_ORANGE
+            else:
+                text_color = SOLVIA_BLACK
+
+            # Draw stage name (11px Bold)
             canvas.setFillColor(text_color)
             canvas.setFont("Helvetica-Bold", 11)
             stage_name = stage['name']
             name_width = canvas.stringWidth(stage_name, "Helvetica-Bold", 11)
             canvas.drawString(x + (self.box_width - name_width) / 2, y + 22, stage_name)
 
-            # PIXEL-PERFECT: Draw threshold (9px Italic) with gap above (3px gap)
+            # Draw threshold (9px Italic)
             canvas.setFont("Helvetica-Oblique", 9)
             threshold_text = stage['threshold']
             threshold_width = canvas.stringWidth(threshold_text, "Helvetica-Oblique", 9)
             canvas.drawString(x + (self.box_width - threshold_width) / 2, y + 8, threshold_text)
-
-        # PIXEL-PERFECT FIX: NO "You are here" indicator per user feedback
 
 
 class ScoreCircle(Flowable):
