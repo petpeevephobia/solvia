@@ -203,19 +203,17 @@ class ProgressBarFlowable(Flowable):
         canvas.setLineWidth(1)
         canvas.roundRect(0, 0, total_width, self.box_height, radius, stroke=1, fill=0)
 
-        # Draw vertical separators between boxes with different colors
+        # Draw vertical separators only between current stage and other stages
         for i in range(3):  # Only between boxes, not at edges
             x = (i + 1) * self.box_width
 
-            # Check if adjacent boxes have different states
-            left_state = current_index if i == current_index else (current_index + 1 if i == current_index + 1 else -1)
-            right_state = current_index if i + 1 == current_index else (current_index + 1 if i + 1 == current_index + 1 else -1)
+            # Check if we're at the boundary of the current stage
+            is_left_current = (i == current_index)
+            is_right_current = (i + 1 == current_index)
 
-            if left_state != right_state:
-                # Draw separator line between different colored boxes
-                border_color = SOLVIA_ORANGE if (left_state == current_index or right_state == current_index or
-                                                 left_state == current_index + 1 or right_state == current_index + 1) else SOLVIA_BLACK
-                canvas.setStrokeColor(border_color)
+            if is_left_current or is_right_current:
+                # Draw orange separator only when one side is current stage
+                canvas.setStrokeColor(SOLVIA_ORANGE)
                 canvas.line(x, y, x, y + self.box_height)
 
         # Draw text labels
