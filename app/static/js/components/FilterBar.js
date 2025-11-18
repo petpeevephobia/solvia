@@ -226,6 +226,18 @@ class FilterBar {
     }
 
     /**
+     * Format date from YYYY-MM-DD to "DD MMM YYYY" format
+     */
+    formatDateReadable(dateString) {
+        const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const day = date.getDate();
+        const month = months[date.getMonth()];
+        const year = date.getFullYear();
+        return `${day} ${month} ${year}`;
+    }
+
+    /**
      * Apply current filters and fetch data
      */
     async applyFilters() {
@@ -282,7 +294,7 @@ class FilterBar {
             console.log('[FilterBar] Filter result:', result);
 
             // Update meta text
-            const dateRangeText = `${dateRange.start_date} to ${dateRange.end_date}`;
+            const dateRangeText = `${this.formatDateReadable(dateRange.start_date)} - ${this.formatDateReadable(dateRange.end_date)}`;
             this.updateMetaText(dateRangeText, this.currentFilters.searchType);
 
             // Trigger callback with filtered data AND date range

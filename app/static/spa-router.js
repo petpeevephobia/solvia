@@ -537,7 +537,7 @@ class SolviaRouter {
                             <textarea
                                 class="chat-input"
                                 id="chatInput"
-                                placeholder="Ask about your SEO performance..."
+                                placeholder="Ask a question ..."
                                 rows="1"
                                 onkeypress="handleChatKeypress(event)"
                             ></textarea>
