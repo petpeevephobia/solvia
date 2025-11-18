@@ -480,12 +480,13 @@ class PDFReportGenerator:
         metrics = audit_data.get('metrics', {})
         current_impressions = metrics.get('total_impressions', metrics.get('impressions', 0))
 
-        # PIXEL-PERFECT FIX: Full width progress bar (547px = 136.75 × 4 boxes)
+        # PIXEL-PERFECT FIX: Full content width progress bar (512 points = page width - margins)
+        # Page: 612pt, Margins: 50pt left + 50pt right = 512pt content area
         # This aligns with summary paragraph starting point
         progress_bar = ProgressBarFlowable(
             current_stage=current_stage,
             current_impressions=current_impressions,
-            width=547,  # Exact width for 4 boxes
+            width=512,  # Exact content area width
             height=36
         )
 
@@ -551,9 +552,10 @@ class PDFReportGenerator:
             )
             quote_data = [[quote_paragraph]]
 
-        # PIXEL-PERFECT FIX: Full width table with sun icon OUTSIDE bubble
-        # Column widths: 0.5 inch (sun icon) + 7.0 inches (quote bubble) = 7.5 inches total
-        quote_table = Table(quote_data, colWidths=[0.5*inch, 7.0*inch] if os.path.exists(sun_icon_path) else [7.5*inch])
+        # PIXEL-PERFECT FIX: Full content width table aligned with summary paragraph
+        # Page: 612pt, Margins: 50pt left + 50pt right = 512pt content area
+        # Column widths: 40pt (sun icon 32pt + 8pt gap) + 472pt (quote bubble) = 512pt total
+        quote_table = Table(quote_data, colWidths=[40, 472] if os.path.exists(sun_icon_path) else [512])
         quote_table.setStyle(TableStyle([
             # PIXEL-PERFECT: Gray background ONLY on quote column (second column)
             ('BACKGROUND', (1, 0), (1, 0), SOLVIA_LIGHT_GRAY_BG),  # Only second column
@@ -875,16 +877,17 @@ class PDFReportGenerator:
         metrics = audit_data.get('metrics', {})
         current_impressions = metrics.get('total_impressions', metrics.get('impressions', 0))
 
-        # Create progress bar flowable (same as Page 1)
+        # Create progress bar flowable with full content width (same as Page 1)
+        # Page: 612pt, Margins: 50pt left + 50pt right = 512pt content area
         progress_bar = ProgressBarFlowable(
             current_stage=current_stage,
             current_impressions=current_impressions,
-            width=500,
-            height=60
+            width=512,  # Full content width (same as Page 1)
+            height=36   # Same height as Page 1
         )
 
-        # Center the progress bar
-        center_table = Table([[progress_bar]], colWidths=[6.5*inch])
+        # Center the progress bar in content area
+        center_table = Table([[progress_bar]], colWidths=[512])
         center_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, 0), 'CENTER'),
             ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
@@ -931,8 +934,10 @@ class PDFReportGenerator:
             )
             quote_data = [[quote_paragraph]]
 
-        # PIXEL-PERFECT FIX: Full width table (7.5 inches total) with sun icon OUTSIDE bubble
-        quote_table = Table(quote_data, colWidths=[0.5*inch, 7.0*inch] if os.path.exists(sun_icon_path) else [7.5*inch])
+        # PIXEL-PERFECT FIX: Full content width table aligned with summary paragraph (same as Page 1)
+        # Page: 612pt, Margins: 50pt left + 50pt right = 512pt content area
+        # Column widths: 40pt (sun icon 32pt + 8pt gap) + 472pt (quote bubble) = 512pt total
+        quote_table = Table(quote_data, colWidths=[40, 472] if os.path.exists(sun_icon_path) else [512])
         quote_table.setStyle(TableStyle([
             # PIXEL-PERFECT: Gray background ONLY on quote column (second column)
             ('BACKGROUND', (1, 0), (1, 0), SOLVIA_LIGHT_GRAY_BG),  # Only second column
