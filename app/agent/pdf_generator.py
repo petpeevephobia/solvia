@@ -347,8 +347,7 @@ class PDFReportGenerator:
         story.extend(self._create_page2_health_score(audit_data))
         story.extend(self._create_page2_metrics_table(audit_data))
         story.extend(self._create_page2_next_steps(audit_data))
-        # PIXEL-PERFECT FIX: Add SEO stage description, progress bar, and Page 2 motivational quote per user feedback
-        story.extend(self._create_page2_stage_description(audit_data))
+        # PIXEL-PERFECT FIX: Add progress bar and motivational quote (NO stage description per user feedback)
         story.extend(self._create_page2_progress_bar(audit_data))
         story.extend(self._create_page2_motivational_quote(audit_data))
         # Footer handled in page template
@@ -471,7 +470,7 @@ class PDFReportGenerator:
         return elements
 
     def _create_page1_progress_bar(self, audit_data: Dict[str, Any]):
-        """Create Page 1 progress bar with 3 visual states"""
+        """Create Page 1 progress bar with 3 visual states - FULL WIDTH aligned with summary"""
         elements = []
 
         # Get current stage and impressions
@@ -481,25 +480,19 @@ class PDFReportGenerator:
         metrics = audit_data.get('metrics', {})
         current_impressions = metrics.get('total_impressions', metrics.get('impressions', 0))
 
-        # Create progress bar flowable
+        # PIXEL-PERFECT FIX: Full width progress bar (547px = 136.75 × 4 boxes)
+        # This aligns with summary paragraph starting point
         progress_bar = ProgressBarFlowable(
             current_stage=current_stage,
             current_impressions=current_impressions,
-            width=500,
-            height=60
+            width=547,  # Exact width for 4 boxes
+            height=36
         )
 
-        # Center the progress bar
-        center_table = Table([[progress_bar]], colWidths=[6.5*inch])
-        center_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-            ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
-        ]))
-        elements.append(center_table)
+        # PIXEL-PERFECT FIX: Left-align instead of center to match summary paragraph
+        elements.append(progress_bar)
 
-        # PIXEL-PERFECT FIX: Reduce gap to minimum (8px) per user feedback
-        elements.append(Spacer(1, 8))
-
+        # NO gap - stage description follows immediately
         return elements
 
     def _create_page1_stage_description(self, audit_data: Dict[str, Any]):
@@ -514,8 +507,8 @@ class PDFReportGenerator:
         # ULTRATHINK FIX: Just description paragraph below progress bar (no heading as per Figma)
         elements.append(Paragraph(description, self.styles['SolviaBody']))
 
-        # PIXEL-PERFECT FIX: Reduce gap to minimum (8px) per user feedback
-        elements.append(Spacer(1, 8))
+        # PIXEL-PERFECT FIX: Small gap before motivational quote (12px)
+        elements.append(Spacer(1, 12))
 
         return elements
 
@@ -636,7 +629,8 @@ class PDFReportGenerator:
         ]))
         elements.append(center_table)
 
-        elements.append(Spacer(1, 8))
+        # PIXEL-PERFECT FIX: Reduced spacing to prevent Page 3 overflow (was 8, now 4)
+        elements.append(Spacer(1, 4))
 
         return elements
 
@@ -806,7 +800,8 @@ class PDFReportGenerator:
         ]))
 
         elements.append(table)
-        elements.append(Spacer(1, 8))  # Reduced from 15 to 8 to save space
+        # PIXEL-PERFECT FIX: Reduced spacing to prevent Page 3 overflow (was 8, now 4)
+        elements.append(Spacer(1, 4))
 
         return elements
 
@@ -814,18 +809,23 @@ class PDFReportGenerator:
         """Create Page 2 next steps list (3-5 conditional items) with BULLET POINTS"""
         elements = []
 
+        # PIXEL-PERFECT FIX: Add margin-top before section per user feedback
+        elements.append(Spacer(1, 12))
+
         elements.append(Paragraph("Your Next Steps", self.styles['SolviaHeading2']))
 
         # Get next steps from gamified data
         gamified_data = audit_data.get('gamified_pdf_data', {})
         next_steps = gamified_data.get('next_steps', [])
 
-        # PIXEL-PERFECT FIX: Use bullet points (•) instead of numbered list per user feedback
+        # PIXEL-PERFECT FIX: Use bullet points (•) with MINIMAL spacing per user feedback
         if next_steps:
-            for step in next_steps[:5]:  # Max 5 steps
+            for i, step in enumerate(next_steps[:5]):  # Max 5 steps
                 step_text = f"• {step}"  # Bullet point instead of number
                 elements.append(Paragraph(step_text, self.styles['SolviaBody']))
-                elements.append(Spacer(1, 4))  # Proper gap between bullets per user feedback
+                # PIXEL-PERFECT FIX: Minimal gap (2px) between list items, not 4px
+                if i < len(next_steps) - 1:  # No spacer after last item
+                    elements.append(Spacer(1, 2))
         else:
             # Fallback generic next steps
             default_steps = [
@@ -835,12 +835,15 @@ class PDFReportGenerator:
                 "Continue building high-quality backlinks.",
                 "Keep your content fresh and relevant to your audience."
             ]
-            for step in default_steps:
+            for i, step in enumerate(default_steps):
                 step_text = f"• {step}"  # Bullet point instead of number
                 elements.append(Paragraph(step_text, self.styles['SolviaBody']))
-                elements.append(Spacer(1, 4))  # Proper gap between bullets per user feedback
+                # PIXEL-PERFECT FIX: Minimal gap (2px) between list items
+                if i < len(default_steps) - 1:  # No spacer after last item
+                    elements.append(Spacer(1, 2))
 
-        elements.append(Spacer(1, 10))
+        # Reduced spacing after section (was 10, now 8)
+        elements.append(Spacer(1, 8))
 
         return elements
 
@@ -888,7 +891,8 @@ class PDFReportGenerator:
         ]))
         elements.append(center_table)
 
-        elements.append(Spacer(1, 10))  # Reduced from 20 to 10 to save space
+        # PIXEL-PERFECT FIX: Reduced spacing to prevent Page 3 overflow (was 10, now 4)
+        elements.append(Spacer(1, 4))
 
         return elements
 
