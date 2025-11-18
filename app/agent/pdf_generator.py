@@ -173,11 +173,9 @@ class ProgressBarFlowable(Flowable):
             x = i * self.box_width
             y = 0
 
-            # Determine fill color based on state
+            # PIXEL-PERFECT FIX: Only current stage has orange fill, all others are white
             if i == current_index:
                 fill_color = SOLVIA_ORANGE
-            elif i == current_index + 1:
-                fill_color = SOLVIA_WHITE
             else:
                 fill_color = SOLVIA_WHITE
 
@@ -225,12 +223,12 @@ class ProgressBarFlowable(Flowable):
             x = i * self.box_width
             y = 0
 
-            # Determine text color
+            # PIXEL-PERFECT FIX: Only current stage has special color, all others are black
             if i == current_index:
+                # Current stage: White text on orange background
                 text_color = SOLVIA_WHITE
-            elif i == current_index + 1:
-                text_color = SOLVIA_ORANGE
             else:
+                # All other stages: Black text on white background
                 text_color = SOLVIA_BLACK
 
             # Draw stage name (11px Bold)
