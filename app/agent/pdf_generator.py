@@ -467,10 +467,29 @@ class PDFReportGenerator:
         gamified_data = audit_data.get('gamified_pdf_data', {})
         summary_paragraphs = gamified_data.get('summary_paragraphs', {})
 
+        # DEBUG: Log what we're receiving
+        print(f"[PDF SUMMARY DEBUG] 🔍 Checking summary paragraphs:")
+        print(f"[PDF SUMMARY DEBUG]    Has gamified_pdf_data: {'gamified_pdf_data' in audit_data}")
+        print(f"[PDF SUMMARY DEBUG]    gamified_data keys: {list(gamified_data.keys())}")
+        print(f"[PDF SUMMARY DEBUG]    Has summary_paragraphs: {'summary_paragraphs' in gamified_data}")
+        print(f"[PDF SUMMARY DEBUG]    summary_paragraphs type: {type(summary_paragraphs)}")
+        print(f"[PDF SUMMARY DEBUG]    summary_paragraphs keys: {list(summary_paragraphs.keys()) if isinstance(summary_paragraphs, dict) else 'NOT A DICT'}")
+
+        if summary_paragraphs:
+            for key, value in summary_paragraphs.items():
+                print(f"[PDF SUMMARY DEBUG]    {key}: {value[:80] if value else 'EMPTY'}...")
+        else:
+            print(f"[PDF SUMMARY DEBUG]    ⚠️ summary_paragraphs is empty or None!")
+
         # Get the 3 rule-based paragraphs
         impressions_para = summary_paragraphs.get('impressions_para', 'No data available.')
         clicks_ctr_para = summary_paragraphs.get('clicks_ctr_para', 'No data available.')
         position_para = summary_paragraphs.get('position_para', 'No data available.')
+
+        print(f"[PDF SUMMARY DEBUG] 📝 Final paragraphs to render:")
+        print(f"[PDF SUMMARY DEBUG]    impressions_para: {impressions_para[:80] if len(impressions_para) > 80 else impressions_para}")
+        print(f"[PDF SUMMARY DEBUG]    clicks_ctr_para: {clicks_ctr_para[:80] if len(clicks_ctr_para) > 80 else clicks_ctr_para}")
+        print(f"[PDF SUMMARY DEBUG]    position_para: {position_para[:80] if len(position_para) > 80 else position_para}")
 
         # Replace **text** with bold formatting for HTML rendering
         impressions_para_html = impressions_para.replace('**', '<b>').replace('</b>', '</b>', 1) if '**' in impressions_para else impressions_para
