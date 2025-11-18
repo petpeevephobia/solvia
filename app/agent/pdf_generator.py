@@ -192,12 +192,23 @@ class ScoreCircle(Flowable):
         self.canv.setLineWidth(8)
         self.canv.circle(self.size/2, self.size/2, self.size/2 - 10, stroke=1, fill=0)
 
-        # Draw score text (48/100 format) - reduced to 18pt for better fit
+        # PIXEL-PERFECT FIX: Draw score as TWO separate text elements per Figma
+        # "48" in 36pt bold (top)
         self.canv.setFillColor(SOLVIA_DARK)
-        self.canv.setFont("Helvetica-Bold", 18)
-        text = f"{int(self.score)}/100"
-        text_width = self.canv.stringWidth(text, "Helvetica-Bold", 18)
-        self.canv.drawString((self.size - text_width) / 2, self.size/2 - 6, text)
+        self.canv.setFont("Helvetica-Bold", 36)
+        score_text = f"{int(self.score)}"
+        score_width = self.canv.stringWidth(score_text, "Helvetica-Bold", 36)
+        score_x = (self.size - score_width) / 2
+        score_y = self.size/2 + 2  # Positioned above center
+        self.canv.drawString(score_x, score_y, score_text)
+
+        # "/100" in 14pt regular (bottom, with 8px gap)
+        self.canv.setFont("Helvetica", 14)
+        suffix_text = "/100"
+        suffix_width = self.canv.stringWidth(suffix_text, "Helvetica", 14)
+        suffix_x = (self.size - suffix_width) / 2
+        suffix_y = self.size/2 - 18  # 8px gap below score (converted to points)
+        self.canv.drawString(suffix_x, suffix_y, suffix_text)
 
 
 class PDFReportGenerator:
@@ -210,22 +221,22 @@ class PDFReportGenerator:
         """Create custom styles matching Solvia brand"""
         styles = getSampleStyleSheet()
 
-        # Title style
+        # Title style (PIXEL-PERFECT: 32pt per Figma)
         styles.add(ParagraphStyle(
             name='SolviaTitle',
             parent=styles['Title'],
-            fontSize=28,
+            fontSize=32,
             textColor=SOLVIA_DARK,
             spaceAfter=20,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
 
-        # Heading styles
+        # Heading styles (PIXEL-PERFECT: 21pt per Figma for "Summary", "Health Score")
         styles.add(ParagraphStyle(
             name='SolviaHeading1',
             parent=styles['Heading1'],
-            fontSize=20,
+            fontSize=21,
             textColor=SOLVIA_DARK,
             spaceAfter=12,
             spaceBefore=20,
@@ -235,10 +246,10 @@ class PDFReportGenerator:
         styles.add(ParagraphStyle(
             name='SolviaHeading2',
             parent=styles['Heading2'],
-            fontSize=16,
+            fontSize=12,  # PIXEL-PERFECT: 12pt per Figma for "Your Next Steps"
             textColor=SOLVIA_DARK,
-            spaceAfter=10,
-            spaceBefore=15,
+            spaceAfter=8,  # Reduced from 10 to 8 to match Figma gap
+            spaceBefore=0,  # No extra space before (table provides spacing)
             fontName='Helvetica-Bold'
         ))
 
@@ -263,17 +274,17 @@ class PDFReportGenerator:
             leading=14
         ))
 
-        # Quote style (for motivational quotes)
+        # Quote style (for motivational quotes) - PIXEL-PERFECT: 11pt per Figma
         styles.add(ParagraphStyle(
             name='SolviaQuote',
             parent=styles['Normal'],
-            fontSize=12,
+            fontSize=11,
             textColor=SOLVIA_DARK,
-            alignment=TA_CENTER,
-            spaceAfter=10,
-            spaceBefore=10,
-            fontName='Helvetica-Oblique',
-            leading=16
+            alignment=TA_LEFT,  # Changed from CENTER to LEFT per Figma
+            spaceAfter=0,
+            spaceBefore=0,
+            fontName='Helvetica',  # Changed from Helvetica-Oblique to regular
+            leading=13  # 1.149 line height at 11pt = ~13pt
         ))
 
         return styles
@@ -507,11 +518,11 @@ class PDFReportGenerator:
         clicks_ctr_para_html = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', clicks_ctr_para)
         position_para_html = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', position_para)
 
-        # Add the 3 paragraphs
+        # Add the 3 paragraphs (PIXEL-PERFECT: 8px gap per Figma)
         elements.append(Paragraph(impressions_para_html, self.styles['SolviaBody']))
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 8))  # Changed from 10 to 8 per Figma
         elements.append(Paragraph(clicks_ctr_para_html, self.styles['SolviaBody']))
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 8))  # Changed from 10 to 8 per Figma
         elements.append(Paragraph(position_para_html, self.styles['SolviaBody']))
 
         elements.append(Spacer(1, 30))
@@ -596,16 +607,17 @@ class PDFReportGenerator:
             )
             quote_data = [[quote_paragraph]]
 
-        # Create table for gray bubble effect
+        # Create table for gray bubble effect (PIXEL-PERFECT: 8px top/bottom, 12px left/right per Figma)
         quote_table = Table(quote_data, colWidths=[0.5*inch, 5.5*inch] if os.path.exists(sun_icon_path) else [6*inch])
         quote_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), SOLVIA_LIGHT_GRAY_BG),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 15),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-            ('TOPPADDING', (0, 0), (-1, -1), 15),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
-            ('BOX', (0, 0), (-1, -1), 1, SOLVIA_LIGHT_GRAY),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),  # PIXEL-PERFECT: 12px per Figma
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),  # PIXEL-PERFECT: 12px per Figma
+            ('TOPPADDING', (0, 0), (-1, -1), 8),     # PIXEL-PERFECT: 8px per Figma
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),  # PIXEL-PERFECT: 8px per Figma
+            ('BOX', (0, 0), (-1, -1), 0, SOLVIA_LIGHT_GRAY),  # No border per Figma
+            ('ROUNDEDCORNERS', (0, 0), (-1, -1), 8),  # 8px border radius per Figma
         ]))
 
         elements.append(quote_table)
@@ -785,22 +797,31 @@ class PDFReportGenerator:
             ],
         ]
 
-        # Create table
+        # Create table (PIXEL-PERFECT per Figma specifications)
         table = Table(metrics_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 2.6*inch])
         table.setStyle(TableStyle([
+            # Header row styling (PIXEL-PERFECT: 11pt bold, 4px top/bottom, 12px left/right)
             ('BACKGROUND', (0, 0), (-1, 0), SOLVIA_ORANGE),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),  # PIXEL-PERFECT: 11pt per Figma
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 4),  # PIXEL-PERFECT: 4px per Figma
+            ('TOPPADDING', (0, 0), (-1, 0), 4),      # PIXEL-PERFECT: 4px per Figma
+            ('LEFTPADDING', (0, 0), (-1, 0), 12),    # PIXEL-PERFECT: 12px per Figma
+            ('RIGHTPADDING', (0, 0), (-1, 0), 12),   # PIXEL-PERFECT: 12px per Figma
+            # Body rows styling (PIXEL-PERFECT: 11pt regular, 4px top/bottom)
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, SOLVIA_LIGHT_GRAY),
+            ('GRID', (0, 0), (-1, -1), 0.5, SOLVIA_LIGHT_GRAY),  # PIXEL-PERFECT: 0.5px border
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, SOLVIA_LIGHT_GRAY_BG]),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),  # Reduced from 8 to 4 to save space
-            ('TOPPADDING', (0, 1), (-1, -1), 4),     # Reduced from 8 to 4 to save space
+            ('FONTSIZE', (0, 1), (-1, -1), 11),  # PIXEL-PERFECT: 11pt per Figma
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),  # PIXEL-PERFECT: 4px per Figma
+            ('TOPPADDING', (0, 1), (-1, -1), 4),     # PIXEL-PERFECT: 4px per Figma
+            ('LEFTPADDING', (0, 1), (2, -1), 0),     # 0px for centered columns (Metric, Value, Change)
+            ('RIGHTPADDING', (0, 1), (2, -1), 0),    # 0px for centered columns
+            ('LEFTPADDING', (3, 1), (3, -1), 12),    # PIXEL-PERFECT: 12px for Notes column per Figma
+            ('RIGHTPADDING', (3, 1), (3, -1), 12),   # PIXEL-PERFECT: 12px for Notes column per Figma
+            ('ALIGN', (3, 0), (3, -1), 'LEFT'),      # Notes column left-aligned per Figma
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
 
@@ -904,16 +925,17 @@ class PDFReportGenerator:
             )
             quote_data = [[quote_paragraph]]
 
-        # Create table for gray bubble effect
+        # Create table for gray bubble effect (PIXEL-PERFECT: 8px top/bottom, 12px left/right per Figma)
         quote_table = Table(quote_data, colWidths=[0.5*inch, 5.5*inch] if os.path.exists(sun_icon_path) else [6*inch])
         quote_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), SOLVIA_LIGHT_GRAY_BG),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),  # Reduced from 15 to 10 to save space
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),  # Reduced from 15 to 10 to save space
-            ('TOPPADDING', (0, 0), (-1, -1), 8),     # Reduced from 15 to 8 to save space
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),  # Reduced from 15 to 8 to save space
-            ('BOX', (0, 0), (-1, -1), 1, SOLVIA_LIGHT_GRAY),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),  # PIXEL-PERFECT: 12px per Figma
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),  # PIXEL-PERFECT: 12px per Figma
+            ('TOPPADDING', (0, 0), (-1, -1), 8),     # PIXEL-PERFECT: 8px per Figma
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),  # PIXEL-PERFECT: 8px per Figma
+            ('BOX', (0, 0), (-1, -1), 0, SOLVIA_LIGHT_GRAY),  # No border per Figma
+            ('ROUNDEDCORNERS', (0, 0), (-1, -1), 8),  # 8px border radius per Figma
         ]))
 
         elements.append(quote_table)
