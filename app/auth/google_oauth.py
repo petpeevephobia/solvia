@@ -4,7 +4,7 @@ Google OAuth and Search Console API integration for Solvia.
 import os
 import json
 import math
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -1279,6 +1279,121 @@ class GSCDataFetcher:
         except Exception as e:
             print(f"[GSC FILTER] ❌ Error fetching filtered metrics: {e}")
             raise Exception(f"Failed to fetch filtered metrics: {str(e)}")
+
+    async def fetch_time_series_metrics(
+        self,
+        user_email: str,
+        property_url: str,
+        start_date: datetime,
+        end_date: datetime,
+        search_type: str = 'web'
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch time-series GSC data with daily breakdowns for 28-day change calculations.
+
+        This method fetches daily metrics using dimensions=['date'] to enable
+        V1 (first day) vs V2 (last day) change calculations.
+
+        Args:
+            user_email: User's email address
+            property_url: GSC property URL (e.g., 'sc-domain:example.com')
+            start_date: Start date for data range (datetime object)
+            end_date: End date for data range (datetime object)
+            search_type: GSC search type ('web', 'image', 'video', etc.)
+
+        Returns:
+            List of daily metric dictionaries, sorted by date:
+            [
+                {
+                    'date': '2025-09-30',
+                    'clicks': 0,
+                    'impressions': 5,
+                    'ctr': 0.00,
+                    'position': 10.0
+                },
+                {
+                    'date': '2025-10-01',
+                    'clicks': 1,
+                    'impressions': 8,
+                    'ctr': 0.125,
+                    'position': 8.5
+                },
+                ...
+            ]
+
+        Raises:
+            Exception: If GSC API call fails or credentials are invalid
+        """
+
+        try:
+            print(f"[GSC TIME-SERIES] 📊 Fetching daily time-series data for {property_url}")
+            print(f"[GSC TIME-SERIES] 📅 Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+
+            # Get credentials
+            credentials = self.oauth_handler.get_credentials(user_email)
+            if not credentials or not credentials.valid:
+                raise Exception("Invalid or missing Google credentials")
+
+            # Build Search Console API service
+            service = build('webmasters', 'v3', credentials=credentials)
+
+            # Build request body with dimensions=['date'] for daily breakdown
+            request_body = {
+                'startDate': start_date.strftime('%Y-%m-%d'),
+                'endDate': end_date.strftime('%Y-%m-%d'),
+                'dimensions': ['date'],  # Critical: Get daily breakdown
+                'rowLimit': 1000  # Max daily entries (covers ~3 years)
+            }
+
+            # Add search type if not default 'web'
+            if search_type != 'web':
+                request_body['type'] = search_type
+
+            print(f"[GSC TIME-SERIES] 📤 Request body: {json.dumps(request_body, indent=2)}")
+
+            # Execute API call
+            response = service.searchanalytics().query(
+                siteUrl=property_url,
+                body=request_body
+            ).execute()
+
+            # Parse response into daily metrics list
+            daily_metrics = []
+
+            if 'rows' in response:
+                for row in response['rows']:
+                    date_str = row['keys'][0]  # First dimension is 'date'
+
+                    daily_metrics.append({
+                        'date': date_str,
+                        'clicks': row.get('clicks', 0),
+                        'impressions': row.get('impressions', 0),
+                        'ctr': row.get('ctr', 0.0),  # Decimal format (0.0909 for 9.09%)
+                        'position': round(row.get('position', 0.0), 1)
+                    })
+
+                print(f"[GSC TIME-SERIES] ✅ Retrieved {len(daily_metrics)} days of data")
+                print(f"[GSC TIME-SERIES] 📊 First day: {daily_metrics[0] if daily_metrics else 'N/A'}")
+                print(f"[GSC TIME-SERIES] 📊 Last day: {daily_metrics[-1] if daily_metrics else 'N/A'}")
+            else:
+                print(f"[GSC TIME-SERIES] ⚠️ No time-series data returned from GSC API")
+
+            # Sort by date to ensure V1 (first) and V2 (last) are correct
+            daily_metrics.sort(key=lambda x: x['date'])
+
+            return daily_metrics
+
+        except HttpError as e:
+            print(f"[GSC TIME-SERIES] ❌ HTTP Error: {e}")
+            if e.resp.status == 403:
+                raise Exception("Access denied to Google Search Console. Please check your permissions.")
+            elif e.resp.status == 404:
+                raise Exception("Property not found in Google Search Console.")
+            else:
+                raise Exception(f"Google Search Console API error: {e}")
+        except Exception as e:
+            print(f"[GSC TIME-SERIES] ❌ Error fetching time-series metrics: {e}")
+            raise Exception(f"Failed to fetch time-series metrics: {str(e)}")
 
     # REMOVED: Google Sheets integration methods - migrated to Supabase
     # def _store_metrics(self, user_email: str, property_url: str, metrics: Dict):

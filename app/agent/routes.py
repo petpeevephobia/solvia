@@ -397,7 +397,117 @@ async def trigger_audit(
             }
 
             print(f"[AUDIT DATA] ⚠️ Using fallback base score: {base_score}/100")
-        
+
+        # ========================================================================
+        # GAMIFIED PDF: Fetch time-series data and calculate 28-day changes
+        # ========================================================================
+        print(f"[28-DAY CALC] 🚀 Fetching time-series data for 28-day change calculation...")
+
+        try:
+            from app.agent.pdf_data_processor import (
+                calculate_28day_changes,
+                determine_seo_stage,
+                get_seo_stage_info,
+                generate_next_steps,
+                select_motivational_quote
+            )
+
+            # Fetch daily time-series data using dimensions=['date']
+            time_series_data = await gsc_fetcher.fetch_time_series_metrics(
+                user_email=current_user,
+                property_url=website_url,
+                start_date=start_date,
+                end_date=end_date,
+                search_type='web'
+            )
+
+            # Calculate 28-day changes (V1 vs V2 method)
+            changes = calculate_28day_changes(time_series_data)
+
+            print(f"[28-DAY CALC] ✅ 28-Day Changes Calculated:")
+            print(f"[28-DAY CALC]    Impressions: {changes.get('impressions_change', 'N/A')}")
+            print(f"[28-DAY CALC]    Clicks: {changes.get('clicks_change', 'N/A')}")
+            print(f"[28-DAY CALC]    CTR: {changes.get('ctr_change', 'N/A')}")
+            print(f"[28-DAY CALC]    Position: {changes.get('position_change', 'N/A')}")
+            print(f"[28-DAY CALC]    V1 (first day): {changes.get('v1_date', 'N/A')}")
+            print(f"[28-DAY CALC]    V2 (last day): {changes.get('v2_date', 'N/A')}")
+
+            # Determine SEO stage
+            current_impressions = metrics.get('impressions', 0)
+            seo_stage_key = determine_seo_stage(current_impressions)
+            seo_stage_info = get_seo_stage_info(seo_stage_key)
+
+            print(f"[28-DAY CALC] 📊 SEO Stage: {seo_stage_info['name']} ({current_impressions} impressions)")
+
+            # Generate next steps based on metrics and stage
+            next_steps = generate_next_steps(
+                metrics=metrics,
+                stage=seo_stage_key,
+                issues=None  # No issues data available yet
+            )
+
+            # Select motivational quote for current SEO stage
+            motivational_quote = select_motivational_quote(seo_stage_key)
+
+            print(f"[28-DAY CALC] 📝 Generated {len(next_steps)} next steps")
+            print(f"[28-DAY CALC] 💬 Selected motivational quote: {motivational_quote[:50]}...")
+
+            # Add gamified PDF data to metrics dictionary
+            metrics['gamified_pdf_data'] = {
+                'time_series': time_series_data,  # Full daily data for PDF
+                'changes_28day': changes,          # V1 vs V2 changes
+                'seo_stage': seo_stage_key,        # 'hidden', 'emerging', 'discoverable', 'trusted'
+                'seo_stage_info': seo_stage_info,  # Complete stage details
+                'next_steps': next_steps,          # Priority-based action items (3-5 items)
+                'motivational_quote': motivational_quote,  # Stage-appropriate motivational quote
+                'date_range': {
+                    'start': start_date.strftime('%Y-%m-%d'),
+                    'end': end_date.strftime('%Y-%m-%d'),
+                    'start_display': start_date.strftime('%B %d, %Y'),  # "October 17, 2025"
+                    'end_display': end_date.strftime('%B %d, %Y')
+                }
+            }
+
+            print(f"[28-DAY CALC] 🎯 Gamified PDF data prepared successfully")
+
+        except Exception as calc_error:
+            import traceback
+            print(f"[28-DAY CALC] ⚠️ Error calculating 28-day changes: {calc_error}")
+            print(f"[28-DAY CALC] 📋 Full traceback:")
+            print(traceback.format_exc())
+            print(f"[28-DAY CALC] 🔄 Continuing audit with N/A values for changes...")
+
+            # Fallback: Add empty gamified PDF data structure
+            metrics['gamified_pdf_data'] = {
+                'time_series': [],
+                'changes_28day': {
+                    'impressions_change': 'N/A',
+                    'clicks_change': 'N/A',
+                    'ctr_change': 'N/A',
+                    'position_change': 'N/A',
+                    'indexed_pages_change': 'N/A',
+                    'has_sufficient_data': False
+                },
+                'seo_stage': 'hidden',
+                'seo_stage_info': get_seo_stage_info('hidden'),
+                'next_steps': [
+                    "Review and fix any critical SEO issues identified in this report.",
+                    "Monitor your search performance trends weekly.",
+                    "Optimize underperforming pages for better rankings."
+                ],
+                'motivational_quote': '"Every journey begins with a single step."',
+                'date_range': {
+                    'start': start_date.strftime('%Y-%m-%d'),
+                    'end': end_date.strftime('%Y-%m-%d'),
+                    'start_display': start_date.strftime('%B %d, %Y'),
+                    'end_display': end_date.strftime('%B %d, %Y')
+                }
+            }
+
+        # ========================================================================
+        # End of gamified PDF data processing
+        # ========================================================================
+
         # Start progress tracking
         progress_tracker.start_audit(audit_id, current_user, website_url)
         
@@ -513,6 +623,20 @@ async def trigger_audit(
             print(f"[AUDIT DATA]    Position: {metrics['scores']['position_score']}")
             print(f"[AUDIT DATA]    CTR: {metrics['scores']['ctr_score']}")
             print(f"[AUDIT DATA]    Trends: {metrics['scores']['trend_score']}")
+
+        # ULTRATHINK FIX: Add gamified_pdf_data to audit result for PDF generation
+        if 'gamified_pdf_data' in metrics:
+            audit_result['gamified_pdf_data'] = metrics['gamified_pdf_data']
+            print(f"[AUDIT DATA] 🎯 Added gamified PDF data to audit result:")
+            print(f"[AUDIT DATA]    SEO Stage: {metrics['gamified_pdf_data'].get('seo_stage', 'unknown')}")
+            print(f"[AUDIT DATA]    28-Day Changes: {len(metrics['gamified_pdf_data'].get('changes_28day', {}))} metrics")
+            print(f"[AUDIT DATA]    Time Series Data: {len(metrics['gamified_pdf_data'].get('time_series', []))} days")
+            print(f"[AUDIT DATA] 🔍 DETAILED GAMIFIED DATA:")
+            print(f"[AUDIT DATA]    Changes: {metrics['gamified_pdf_data'].get('changes_28day', {})}")
+            print(f"[AUDIT DATA]    SEO Stage Info: {metrics['gamified_pdf_data'].get('seo_stage_info', {})}")
+        else:
+            print(f"[AUDIT DATA] ⚠️ WARNING: gamified_pdf_data NOT in metrics!")
+            print(f"[AUDIT DATA] 📋 metrics keys: {list(metrics.keys())}")
 
         await progress_tracker.update_progress(
             audit_id,
