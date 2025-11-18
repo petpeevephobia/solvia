@@ -625,7 +625,7 @@ class AuditEngine:
         try:
             # Prepare audit data for storage
             audit_data = {
-                'audit_id': str(audit_result.audit_id),
+                'audit_id': str(audit_result.audit_id),  # UUID string identifier (NOT 'id' which is auto-increment integer)
                 'user_email': audit_result.user_email,
                 'website_url': audit_result.website_url,
                 'seo_score': audit_result.seo_score,
@@ -637,10 +637,17 @@ class AuditEngine:
                 'medium_issues': len([i for i in audit_result.issues if i.severity == IssueSeverity.MEDIUM]),
                 'low_issues': len([i for i in audit_result.issues if i.severity == IssueSeverity.LOW])
             }
-            
-            # Store in audit_results table
-            result = self.db.supabase.table('audit_results').insert(audit_data).execute()
-            
+
+            # Store in audit_results table using service role key to bypass RLS
+            from supabase import create_client
+            if self.db.service_role_key:
+                print("[AUDIT STORAGE] Using service role key to bypass RLS")
+                service_client = create_client(self.db.supabase_url, self.db.service_role_key)
+                result = service_client.table('audit_results').insert(audit_data).execute()
+            else:
+                print("[AUDIT STORAGE] WARNING: No service role key, using regular client")
+                result = self.db.supabase.table('audit_results').insert(audit_data).execute()
+
             if not result.data:
                 print(f"[AUDIT ERROR] Failed to store audit result")
                 return False

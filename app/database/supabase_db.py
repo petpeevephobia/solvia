@@ -681,9 +681,9 @@ class SupabaseAuthDB:
             # Use the audit_id from the audit_data if it exists, otherwise generate new one
             import uuid
             audit_id = audit_data.get('audit_id', str(uuid.uuid4()))
-            
+
             audit_record = {
-                'audit_id': audit_id,  # Use existing audit_id from audit_data
+                'audit_id': audit_id,  # UUID string identifier (NOT 'id' which is auto-increment integer)
                 'user_email': user_email,
                 'website_url': website_url,
                 'audit_data': audit_data,  # JSON data
@@ -692,9 +692,9 @@ class SupabaseAuthDB:
                 'status': 'completed',
                 'created_at': datetime.utcnow().isoformat()
             }
-            
+
             response = service_client.table('audit_results').insert(audit_record).execute()
-            
+
             if response.data and len(response.data) > 0:
                 return audit_id  # Return the UUID we generated
             return None
