@@ -659,7 +659,7 @@ class PDFReportGenerator:
         ]))
         elements.append(center_table)
 
-        elements.append(Spacer(1, 15))  # Reduced from 30 to 15
+        elements.append(Spacer(1, 8))  # Reduced from 15 to 8 to save space
 
         return elements
 
@@ -799,13 +799,13 @@ class PDFReportGenerator:
             ('GRID', (0, 0), (-1, -1), 1, SOLVIA_LIGHT_GRAY),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, SOLVIA_LIGHT_GRAY_BG]),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),  # Reduced from 8 to 4 to save space
+            ('TOPPADDING', (0, 1), (-1, -1), 4),     # Reduced from 8 to 4 to save space
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
 
         elements.append(table)
-        elements.append(Spacer(1, 15))  # Reduced from 30 to 15
+        elements.append(Spacer(1, 8))  # Reduced from 15 to 8 to save space
 
         return elements
 
@@ -823,7 +823,7 @@ class PDFReportGenerator:
             for i, step in enumerate(next_steps[:5], 1):  # Max 5 steps
                 step_text = f"<b>{i}.</b> {step}"
                 elements.append(Paragraph(step_text, self.styles['SolviaBody']))
-                elements.append(Spacer(1, 4))  # Reduced from 6 to 4
+                elements.append(Spacer(1, 2))  # Reduced from 4 to 2 to save space
         else:
             # Fallback generic next steps
             default_steps = [
@@ -836,9 +836,9 @@ class PDFReportGenerator:
             for i, step in enumerate(default_steps, 1):
                 step_text = f"<b>{i}.</b> {step}"
                 elements.append(Paragraph(step_text, self.styles['SolviaBody']))
-                elements.append(Spacer(1, 4))  # Reduced from 6 to 4
+                elements.append(Spacer(1, 2))  # Reduced from 4 to 2 to save space
 
-        elements.append(Spacer(1, 10))  # Reduced from 20 to 10
+        elements.append(Spacer(1, 5))  # Reduced from 10 to 5 to save space
 
         return elements
 
@@ -869,7 +869,7 @@ class PDFReportGenerator:
         ]))
         elements.append(center_table)
 
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 10))  # Reduced from 20 to 10 to save space
 
         return elements
 
@@ -909,15 +909,15 @@ class PDFReportGenerator:
         quote_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), SOLVIA_LIGHT_GRAY_BG),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 15),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-            ('TOPPADDING', (0, 0), (-1, -1), 15),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),  # Reduced from 15 to 10 to save space
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),  # Reduced from 15 to 10 to save space
+            ('TOPPADDING', (0, 0), (-1, -1), 8),     # Reduced from 15 to 8 to save space
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),  # Reduced from 15 to 8 to save space
             ('BOX', (0, 0), (-1, -1), 1, SOLVIA_LIGHT_GRAY),
         ]))
 
         elements.append(quote_table)
-        elements.append(Spacer(1, 10))  # Reduced from 20 to 10
+        elements.append(Spacer(1, 5))  # Reduced from 10 to 5 to save space
 
         return elements
 
