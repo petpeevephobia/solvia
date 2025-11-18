@@ -23,7 +23,7 @@ SOLVIA_DARK = HexColor('#1F2937')
 SOLVIA_GRAY = HexColor('#6B7280')
 SOLVIA_LIGHT_GRAY = HexColor('#F3F4F6')
 SOLVIA_LIGHT_GRAY_BG = HexColor('#EEEEEE')
-SOLVIA_GREEN = HexColor('#10B981')
+SOLVIA_GREEN = HexColor('#16A34A')  # PIXEL-PERFECT: Exact Figma green for positive changes
 SOLVIA_RED = HexColor('#EF4444')
 SOLVIA_YELLOW = HexColor('#F59E0B')
 SOLVIA_BLACK = HexColor('#000000')
@@ -130,10 +130,10 @@ class ProgressBarFlowable(Flowable):
             text_width = canvas.stringWidth(stage_name, "Helvetica-Bold", 11)
             canvas.drawString(x + (self.box_width - text_width) / 2, y + self.box_height - 20, stage_name)
 
-            # Draw threshold (9px Arial Regular)
-            canvas.setFont("Helvetica", 9)
+            # Draw threshold (9px Arial Italic per Figma)
+            canvas.setFont("Helvetica-Oblique", 9)
             threshold_text = stage['threshold']
-            threshold_width = canvas.stringWidth(threshold_text, "Helvetica", 9)
+            threshold_width = canvas.stringWidth(threshold_text, "Helvetica-Oblique", 9)
             canvas.drawString(x + (self.box_width - threshold_width) / 2, y + 10, threshold_text)
 
         # Draw "You are here" indicator below current stage
