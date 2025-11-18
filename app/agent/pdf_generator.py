@@ -40,25 +40,30 @@ def get_hex_string(color):
 
 class ProgressBarFlowable(Flowable):
     """
-    Custom flowable for drawing SEO stage progress bar with 3 visual states
+    Custom flowable for drawing SEO stage progress bar as connected pill shape
+
+    PIXEL-PERFECT SPECS:
+    - Total 4 boxes connected (no gaps)
+    - Each box: 136.75 × 36 pixels
+    - Rounded left end (first box) and right end (last box) only
+    - Middle boxes have square corners where they connect
+    - Gap between stage name and threshold text
 
     Visual States:
-    1. Current Stage: Solid orange fill (#EC6019), white text, 0.5px black border
-    2. Next Target Stage: Orange border (#EC6019), orange text, white fill, 0.5px border
-    3. Future Stages: Black border (#000000), black text, white fill, 0.5px border
-
-    Layout: 4 connected boxes (Hidden, Emerging, Discoverable, Trusted)
+    1. Current Stage: Solid orange fill (#EC6019), white text
+    2. Next Target Stage: Orange border, orange text, white fill
+    3. Future Stages: Black border, black text, white fill
     """
 
-    def __init__(self, current_stage: str, current_impressions: int, width=500, height=60):
+    def __init__(self, current_stage: str, current_impressions: int, width=547, height=36):
         """
         Initialize progress bar
 
         Args:
             current_stage: One of 'hidden', 'emerging', 'discoverable', 'trusted'
-            current_impressions: Current impression count (for threshold display)
-            width: Total width of progress bar
-            height: Total height of progress bar
+            current_impressions: Current impression count
+            width: Total width (136.75 × 4 = 547)
+            height: Height (36 pixels)
         """
         Flowable.__init__(self)
         self.current_stage = current_stage.lower()
@@ -74,13 +79,12 @@ class ProgressBarFlowable(Flowable):
             {'key': 'trusted', 'name': 'Trusted', 'threshold': '2000+ impressions'}
         ]
 
-        # Box dimensions with spacing
-        self.gap = 8  # Gap between boxes
-        self.box_width = (width - (3 * self.gap)) / 4  # Divide space for 4 boxes + 3 gaps
-        self.box_height = height
+        # Box dimensions (NO GAPS - connected pill)
+        self.box_width = 136.75  # Exact width per user spec
+        self.box_height = 36      # Exact height per user spec
 
     def draw(self):
-        """Draw the progress bar with 4 separated boxes and current position indicator"""
+        """Draw the progress bar as connected pill shape (NO 'You are here' indicator)"""
         canvas = self.canv
 
         # Find current stage index
@@ -88,82 +92,60 @@ class ProgressBarFlowable(Flowable):
 
         # Draw each box
         for i, stage in enumerate(self.stages):
-            # Calculate x position with gaps
-            x = i * (self.box_width + self.gap)
+            # Calculate x position (NO GAPS - boxes are connected)
+            x = i * self.box_width
             y = 0
 
             # Determine visual state
             if i == current_index:
                 # Current stage: Solid orange fill, white text
                 fill_color = SOLVIA_ORANGE
-                border_color = SOLVIA_BLACK
+                border_color = SOLVIA_ORANGE
                 text_color = SOLVIA_WHITE
-                border_width = 0.5
+                border_width = 1
             elif i == current_index + 1:
                 # Next target stage: Orange border, orange text, white fill
                 fill_color = SOLVIA_WHITE
                 border_color = SOLVIA_ORANGE
                 text_color = SOLVIA_ORANGE
-                border_width = 0.5
+                border_width = 1
             else:
                 # Future stages: Black border, black text, white fill
                 fill_color = SOLVIA_WHITE
                 border_color = SOLVIA_BLACK
                 text_color = SOLVIA_BLACK
-                border_width = 0.5
+                border_width = 1
 
             # Draw box with fill
             canvas.setFillColor(fill_color)
             canvas.setStrokeColor(border_color)
             canvas.setLineWidth(border_width)
 
-            # ULTRATHINK FIX: Rounded corners on first and last boxes only (4px radius)
-            if i == 0 or i == 3:  # First or last box
-                canvas.roundRect(x, y, self.box_width, self.box_height, 4, stroke=1, fill=1)
-            else:  # Middle boxes stay square
+            # PIXEL-PERFECT: Rounded corners ONLY on first and last boxes (pill shape)
+            if i == 0:
+                # First box: Rounded left corners only (18px radius for pill effect)
+                canvas.roundRect(x, y, self.box_width, self.box_height, 18, stroke=1, fill=1)
+            elif i == 3:
+                # Last box: Rounded right corners only (18px radius for pill effect)
+                canvas.roundRect(x, y, self.box_width, self.box_height, 18, stroke=1, fill=1)
+            else:
+                # Middle boxes: Square corners (connected)
                 canvas.rect(x, y, self.box_width, self.box_height, stroke=1, fill=1)
 
-            # Draw stage name (11px Arial Bold)
+            # PIXEL-PERFECT: Draw stage name (11px Bold) with gap below
             canvas.setFillColor(text_color)
             canvas.setFont("Helvetica-Bold", 11)
             stage_name = stage['name']
-            text_width = canvas.stringWidth(stage_name, "Helvetica-Bold", 11)
-            canvas.drawString(x + (self.box_width - text_width) / 2, y + self.box_height - 20, stage_name)
+            name_width = canvas.stringWidth(stage_name, "Helvetica-Bold", 11)
+            canvas.drawString(x + (self.box_width - name_width) / 2, y + 22, stage_name)
 
-            # Draw threshold (9px Arial Italic per Figma)
+            # PIXEL-PERFECT: Draw threshold (9px Italic) with gap above (3px gap)
             canvas.setFont("Helvetica-Oblique", 9)
             threshold_text = stage['threshold']
             threshold_width = canvas.stringWidth(threshold_text, "Helvetica-Oblique", 9)
-            canvas.drawString(x + (self.box_width - threshold_width) / 2, y + 10, threshold_text)
+            canvas.drawString(x + (self.box_width - threshold_width) / 2, y + 8, threshold_text)
 
-        # Draw "You are here" indicator below current stage
-        current_x = current_index * (self.box_width + self.gap)
-        indicator_text = f"You are here: {self.current_impressions} impressions"
-
-        # Arrow position (centered below current box)
-        arrow_x = current_x + (self.box_width / 2)
-        arrow_y = -10
-
-        # Draw small arrow pointing up to current box
-        canvas.setStrokeColor(SOLVIA_ORANGE)
-        canvas.setFillColor(SOLVIA_ORANGE)
-        canvas.setLineWidth(1.5)
-
-        # Draw arrow line pointing up
-        canvas.line(arrow_x, arrow_y, arrow_x, -2)
-
-        # Draw arrow head (small triangle) using path
-        path = canvas.beginPath()
-        path.moveTo(arrow_x - 3, -2)
-        path.lineTo(arrow_x, 0)
-        path.lineTo(arrow_x + 3, -2)
-        path.close()
-        canvas.drawPath(path, stroke=0, fill=1)
-
-        # Draw indicator text (8px, orange)
-        canvas.setFont("Helvetica-Bold", 8)
-        text_width = canvas.stringWidth(indicator_text, "Helvetica-Bold", 8)
-        canvas.drawString(arrow_x - (text_width / 2), arrow_y - 12, indicator_text)
+        # PIXEL-PERFECT FIX: NO "You are here" indicator per user feedback
 
 
 class ScoreCircle(Flowable):
@@ -348,97 +330,31 @@ class PDFReportGenerator:
         story.extend(self._create_page2_health_score(audit_data))
         story.extend(self._create_page2_metrics_table(audit_data))
         story.extend(self._create_page2_next_steps(audit_data))
-        # ULTRATHINK FIX: Add progress bar and motivational quote to Page 2 as per Figma
-        story.extend(self._create_page1_progress_bar(audit_data))  # Reuse Page 1 progress bar
-        story.extend(self._create_page2_motivational_quote(audit_data))  # Page 2-specific quote
-        # Footer removed - now handled in page template
+        # PIXEL-PERFECT FIX: NO progress bar or motivational quote on Page 2 per user feedback
+        # Footer handled in page template
 
         # Build PDF with page numbers
         doc.build(story, onFirstPage=self._add_page_number, onLaterPages=self._add_page_number)
 
     def _add_page_number(self, canvas, doc):
-        """Add footer with generation date, motivational quote, and page number to every page"""
+        """Add simple footer with generation date on left and page number on right"""
         canvas.saveState()
 
-        # Footer line (orange horizontal line)
-        canvas.setStrokeColor(SOLVIA_ORANGE)
-        canvas.setLineWidth(1)
-        canvas.line(50, 100, letter[0] - 50, 100)
+        # PIXEL-PERFECT FIX: Simple footer per user feedback
+        # Left side: "Generated on [date] with Solvia" (gray font, small)
+        # Right side: Just number "1" or "2" (no "Page" prefix)
 
-        # Footer text: "Generated by Solvia on [date]"
-        generation_date = datetime.now().strftime('%B %d, %Y')  # "November 13, 2025"
-        canvas.setFont('Helvetica', 10)
+        generation_date = datetime.now().strftime('%B %d, %Y')  # "November 18, 2025"
+        canvas.setFont('Helvetica', 9)  # Small font per user request
         canvas.setFillColor(SOLVIA_GRAY)
 
-        # "Generated on" text
-        footer_text = f"Generated on "
-        text_width = canvas.stringWidth(footer_text, 'Helvetica', 10)
-        x_position = (letter[0] - text_width - canvas.stringWidth(generation_date, 'Helvetica', 10) - canvas.stringWidth(" with ", 'Helvetica', 10) - canvas.stringWidth("Solvia", 'Helvetica-Bold', 10)) / 2
-        canvas.drawString(x_position, 80, footer_text)
-        x_position += text_width
+        # Left side: "Generated on [date] with Solvia"
+        footer_left = f"Generated on {generation_date} with Solvia"
+        canvas.drawString(50, 30, footer_left)
 
-        # "[date]" text
-        canvas.setFont('Helvetica', 10)
-        canvas.setFillColor(SOLVIA_GRAY)
-        date_width = canvas.stringWidth(generation_date, 'Helvetica', 10)
-        canvas.drawString(x_position, 80, generation_date)
-        x_position += date_width
-
-        # " with " text
-        with_text = " with "
-        with_width = canvas.stringWidth(with_text, 'Helvetica', 10)
-        canvas.drawString(x_position, 80, with_text)
-        x_position += with_width
-
-        # "Solvia" text (orange, bold)
-        canvas.setFont('Helvetica-Bold', 10)
-        canvas.setFillColor(SOLVIA_ORANGE)
-        solvia_text = "Solvia"
-        canvas.drawString(x_position, 80, solvia_text)
-
-        # Motivational quote with sun icon (below "Generated by Solvia")
-        # Use different quotes for Page 1 and Page 2
-        sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
-        page_num = canvas.getPageNumber()
-
-        if page_num == 1:
-            quote_text = getattr(self, 'motivational_quote_page1', "It's okay to be early! Every great site starts in the shadows before it shines. This is where your foundation is built.")
-        else:  # Page 2
-            quote_text = getattr(self, 'motivational_quote_page2', "Your next step is clarity. Make Google's job easier by showing it what each page is about. That's how visibility starts to grow.")
-
-        # Remove quotes from the quote text for rendering (if present)
-        quote_display = quote_text.strip('"')
-
-        if os.path.exists(sun_icon_path):
-            # Calculate total width for centering (icon + spacing + text)
-            canvas.setFont('Helvetica-Oblique', 10)
-            quote_width = canvas.stringWidth(quote_display, 'Helvetica-Oblique', 10)
-            icon_width = 16
-            spacing = 4
-            total_width = icon_width + spacing + quote_width
-
-            # Calculate starting X position to center the entire group
-            start_x = (letter[0] - total_width) / 2
-
-            # Draw sun icon (16x16px for footer) - centered
-            canvas.drawImage(sun_icon_path, start_x, 55, width=16, height=16, mask='auto')
-
-            # Draw quote text next to icon (italic, dark gray) - centered
-            canvas.setFillColor(SOLVIA_DARK)
-            canvas.drawString(start_x + icon_width + spacing, 60, quote_display)
-        else:
-            # Quote only (no icon) - centered
-            canvas.setFont('Helvetica-Oblique', 10)
-            canvas.setFillColor(SOLVIA_DARK)
-            quote_width = canvas.stringWidth(quote_display, 'Helvetica-Oblique', 10)
-            canvas.drawString((letter[0] - quote_width) / 2, 60, quote_display)
-
-        # Page number (bottom right corner)
-        page_num = canvas.getPageNumber()
-        page_text = f"Page {page_num}"
-        canvas.setFont('Helvetica', 9)
-        canvas.setFillColor(SOLVIA_GRAY)
-        canvas.drawRightString(letter[0] - 50, 30, page_text)
+        # Right side: Just page number (no "Page" prefix)
+        page_num = str(canvas.getPageNumber())
+        canvas.drawRightString(letter[0] - 50, 30, page_num)
 
         canvas.restoreState()
 
@@ -582,47 +498,62 @@ class PDFReportGenerator:
         return elements
 
     def _create_page1_motivational_quote(self, audit_data: Dict[str, Any]):
-        """Create Page 1 motivational quote with sun icon and gray bubble"""
+        """Create Page 1 motivational quote with sun icon OUTSIDE bubble, gray text (#6B7280), non-italic"""
         elements = []
 
-        # ULTRATHINK FIX: Get Page 1-specific motivational quote
+        # PIXEL-PERFECT FIX: Get Page 1-specific motivational quote
         gamified_data = audit_data.get('gamified_pdf_data', {})
         quote = gamified_data.get('motivational_quote_page1', '"It\'s okay to be early! Every great site starts in the shadows before it shines. This is where your foundation is built."')
 
         # Load sun icon (PNG format for ReportLab compatibility)
         sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
 
-        # Create gray bubble with quote and sun icon
+        # PIXEL-PERFECT FIX: Sun icon OUTSIDE bubble + gray bubble chat style
+        # Create layout: [Sun Icon (32×32)] [Gray Bubble with Quote]
         quote_data = []
 
         # Check if sun icon exists
         if os.path.exists(sun_icon_path):
-            # Add sun icon (32x32px) and quote text side by side
+            # Sun icon 32×32px (OUTSIDE bubble)
             sun_icon = Image(sun_icon_path, width=32, height=32)
+
+            # Quote bubble (gray background, #6B7280 text, NON-italic)
             quote_paragraph = Paragraph(
-                f'<font color="{get_hex_string(SOLVIA_DARK)}"><i>{quote}</i></font>',
+                f'<font color="#6B7280">{quote}</font>',  # PIXEL-PERFECT: #6B7280, no italic
                 self.styles['SolviaQuote']
             )
+
+            # Layout: Sun icon in first column (no background), quote in second column (with background)
             quote_data = [[sun_icon, quote_paragraph]]
         else:
             # Quote only (no icon)
             quote_paragraph = Paragraph(
-                f'<font color="{get_hex_string(SOLVIA_DARK)}"><i>{quote}</i></font>',
+                f'<font color="#6B7280">{quote}</font>',
                 self.styles['SolviaQuote']
             )
             quote_data = [[quote_paragraph]]
 
-        # Create table for gray bubble effect (PIXEL-PERFECT: 8px top/bottom, 12px left/right per Figma)
+        # PIXEL-PERFECT FIX: Create table with sun icon OUTSIDE bubble
         quote_table = Table(quote_data, colWidths=[0.5*inch, 5.5*inch] if os.path.exists(sun_icon_path) else [6*inch])
         quote_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), SOLVIA_LIGHT_GRAY_BG),
+            # PIXEL-PERFECT: Gray background ONLY on quote column (second column)
+            ('BACKGROUND', (1, 0), (1, 0), SOLVIA_LIGHT_GRAY_BG),  # Only second column
+            ('BACKGROUND', (0, 0), (0, 0), colors.white),  # First column (sun icon) stays white
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),  # PIXEL-PERFECT: 12px per Figma
-            ('RIGHTPADDING', (0, 0), (-1, -1), 12),  # PIXEL-PERFECT: 12px per Figma
-            ('TOPPADDING', (0, 0), (-1, -1), 8),     # PIXEL-PERFECT: 8px per Figma
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),  # PIXEL-PERFECT: 8px per Figma
-            ('BOX', (0, 0), (-1, -1), 0, SOLVIA_LIGHT_GRAY),  # No border per Figma
-            ('ROUNDEDCORNERS', (0, 0), (-1, -1), 8),  # 8px border radius per Figma
+            # Padding only on quote column
+            ('LEFTPADDING', (1, 0), (1, 0), 12),   # Quote column left padding
+            ('RIGHTPADDING', (1, 0), (1, 0), 12),  # Quote column right padding
+            ('TOPPADDING', (1, 0), (1, 0), 8),     # Quote column top padding
+            ('BOTTOMPADDING', (1, 0), (1, 0), 8),  # Quote column bottom padding
+            # No padding on sun icon column
+            ('LEFTPADDING', (0, 0), (0, 0), 0),
+            ('RIGHTPADDING', (0, 0), (0, 0), 8),   # Small gap between icon and bubble
+            ('TOPPADDING', (0, 0), (0, 0), 0),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
+            # No borders
+            ('BOX', (0, 0), (-1, -1), 0, colors.white),
+            # Rounded corners only on quote bubble (second column)
+            ('ROUNDEDCORNERS', (1, 0), (1, 0), 8),
         ]))
 
         elements.append(quote_table)
@@ -658,15 +589,15 @@ class PDFReportGenerator:
     # ==================== PAGE 2 METHODS ====================
 
     def _create_page2_health_score(self, audit_data: Dict[str, Any]):
-        """Create Page 2 health score circle (48/100 format)"""
+        """Create Page 2 health score circle (48/100 format) - 109×109 pixels"""
         elements = []
 
-        # Title - ULTRATHINK FIX: Changed from "SEO Health Score" to "Health Score" as per Figma
+        # Title - PIXEL-PERFECT: "Health Score" as per Figma
         elements.append(Paragraph("Health Score", self.styles['SolviaHeading1']))
 
-        # Create score circle (reduced size to save space)
+        # PIXEL-PERFECT FIX: Enlarge score circle to 109×109 per user request
         score = audit_data.get('seo_score', 0)
-        score_circle = ScoreCircle(score, size=100)
+        score_circle = ScoreCircle(score, size=109)
 
         # Center the score circle
         center_table = Table([[score_circle]], colWidths=[6.5*inch])
@@ -676,7 +607,7 @@ class PDFReportGenerator:
         ]))
         elements.append(center_table)
 
-        elements.append(Spacer(1, 8))  # Reduced from 15 to 8 to save space
+        elements.append(Spacer(1, 8))
 
         return elements
 
@@ -767,66 +698,81 @@ class PDFReportGenerator:
         except ImportError:
             indexed_pages_note = "Indexing status stable"
 
-        # Create metrics table data (5 rows total)
+        # PIXEL-PERFECT FIX: Helper function to colorize 28-Day Change values
+        def colorize_change(value, formatted_text):
+            """Colorize change values: green for positive, red for negative, gray for N/A"""
+            if isinstance(value, (int, float)):
+                if value > 0:
+                    color = "#16A34A"  # Green for positive changes
+                elif value < 0:
+                    color = "#EF4444"  # Red for negative changes
+                else:
+                    color = "#6B7280"  # Gray for zero
+                return Paragraph(f'<font color="{color}">{formatted_text}</font>', self.styles['SolviaBody'])
+            else:
+                # N/A or other non-numeric values
+                return Paragraph(f'<font color="#6B7280">{formatted_text}</font>', self.styles['SolviaBody'])
+
+        # Create metrics table data (5 rows total) with colorized 28-Day Change column
         metrics_data = [
             ['Metric', 'Current Value', '28-Day Change', 'Notes'],
             [
                 'Total Impressions',
                 f"{current_impressions:,}",
-                f"{impressions_change:+.1f}%" if isinstance(impressions_change, (int, float)) else impressions_change,
+                colorize_change(impressions_change, f"{impressions_change:+.1f}%" if isinstance(impressions_change, (int, float)) else impressions_change),
                 Paragraph(impressions_note, self.styles['SolviaBody'])
             ],
             [
                 'Total Clicks',
                 f"{current_clicks:,}",
-                f"{clicks_change:+.1f}%" if isinstance(clicks_change, (int, float)) else clicks_change,
+                colorize_change(clicks_change, f"{clicks_change:+.1f}%" if isinstance(clicks_change, (int, float)) else clicks_change),
                 Paragraph(clicks_note, self.styles['SolviaBody'])
             ],
             [
                 'Click-Through Rate',
                 current_ctr_display,  # Already formatted as percentage
-                f"{ctr_change:+.2f}pp" if isinstance(ctr_change, (int, float)) else ctr_change,  # pp = percentage points
+                colorize_change(ctr_change, f"{ctr_change:+.2f}pp" if isinstance(ctr_change, (int, float)) else ctr_change),
                 Paragraph(ctr_note, self.styles['SolviaBody'])
             ],
             [
                 'Average Position',
                 f"{current_position:.1f}",
-                f"{position_change:+.1f}" if isinstance(position_change, (int, float)) else position_change,
+                # Note: For position, NEGATIVE is GOOD (moved up), so invert the color logic
+                colorize_change(-position_change if isinstance(position_change, (int, float)) else position_change, f"{position_change:+.1f}" if isinstance(position_change, (int, float)) else position_change),
                 Paragraph(position_note, self.styles['SolviaBody'])
             ],
             [
                 'Indexed Pages',
                 f"{indexed_pages}",
-                f"{indexed_pages_change:+d}" if isinstance(indexed_pages_change, int) else indexed_pages_change,
+                colorize_change(indexed_pages_change, f"{indexed_pages_change:+d}" if isinstance(indexed_pages_change, int) else indexed_pages_change),
                 Paragraph(indexed_pages_note, self.styles['SolviaBody'])
             ],
         ]
 
-        # Create table (PIXEL-PERFECT per Figma specifications)
+        # Create table (PIXEL-PERFECT per user feedback)
         table = Table(metrics_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 2.6*inch])
         table.setStyle(TableStyle([
-            # Header row styling (PIXEL-PERFECT: 11pt bold, 4px top/bottom, 12px left/right)
-            ('BACKGROUND', (0, 0), (-1, 0), SOLVIA_ORANGE),
+            # PIXEL-PERFECT FIX: Header row color #6B7280 (gray) with white font per user feedback
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#6B7280')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),  # PIXEL-PERFECT: 11pt per Figma
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 4),  # PIXEL-PERFECT: 4px per Figma
-            ('TOPPADDING', (0, 0), (-1, 0), 4),      # PIXEL-PERFECT: 4px per Figma
-            ('LEFTPADDING', (0, 0), (-1, 0), 12),    # PIXEL-PERFECT: 12px per Figma
-            ('RIGHTPADDING', (0, 0), (-1, 0), 12),   # PIXEL-PERFECT: 12px per Figma
-            # Body rows styling (PIXEL-PERFECT: 11pt regular, 4px top/bottom)
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 0.5, SOLVIA_LIGHT_GRAY),  # PIXEL-PERFECT: 0.5px border
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, SOLVIA_LIGHT_GRAY_BG]),
-            ('FONTSIZE', (0, 1), (-1, -1), 11),  # PIXEL-PERFECT: 11pt per Figma
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),  # PIXEL-PERFECT: 4px per Figma
-            ('TOPPADDING', (0, 1), (-1, -1), 4),     # PIXEL-PERFECT: 4px per Figma
-            ('LEFTPADDING', (0, 1), (2, -1), 0),     # 0px for centered columns (Metric, Value, Change)
-            ('RIGHTPADDING', (0, 1), (2, -1), 0),    # 0px for centered columns
-            ('LEFTPADDING', (3, 1), (3, -1), 12),    # PIXEL-PERFECT: 12px for Notes column per Figma
-            ('RIGHTPADDING', (3, 1), (3, -1), 12),   # PIXEL-PERFECT: 12px for Notes column per Figma
-            ('ALIGN', (3, 0), (3, -1), 'LEFT'),      # Notes column left-aligned per Figma
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+            ('TOPPADDING', (0, 0), (-1, 0), 4),
+            ('LEFTPADDING', (0, 0), (-1, 0), 12),
+            ('RIGHTPADDING', (0, 0), (-1, 0), 12),
+            # PIXEL-PERFECT FIX: Alternating row colors (white and #F3F4F6) per user feedback
+            ('GRID', (0, 0), (-1, -1), 0.5, SOLVIA_LIGHT_GRAY),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, HexColor('#F3F4F6')]),
+            ('FONTSIZE', (0, 1), (-1, -1), 11),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+            ('TOPPADDING', (0, 1), (-1, -1), 4),
+            ('LEFTPADDING', (0, 1), (2, -1), 0),
+            ('RIGHTPADDING', (0, 1), (2, -1), 0),
+            ('LEFTPADDING', (3, 1), (3, -1), 12),
+            ('RIGHTPADDING', (3, 1), (3, -1), 12),
+            ('ALIGN', (3, 0), (3, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
 
@@ -836,7 +782,7 @@ class PDFReportGenerator:
         return elements
 
     def _create_page2_next_steps(self, audit_data: Dict[str, Any]):
-        """Create Page 2 next steps list (3-5 conditional items)"""
+        """Create Page 2 next steps list (3-5 conditional items) with BULLET POINTS"""
         elements = []
 
         elements.append(Paragraph("Your Next Steps", self.styles['SolviaHeading2']))
@@ -845,11 +791,12 @@ class PDFReportGenerator:
         gamified_data = audit_data.get('gamified_pdf_data', {})
         next_steps = gamified_data.get('next_steps', [])
 
+        # PIXEL-PERFECT FIX: Use bullet points (•) instead of numbered list per user feedback
         if next_steps:
-            for i, step in enumerate(next_steps[:5], 1):  # Max 5 steps
-                step_text = f"<b>{i}.</b> {step}"
+            for step in next_steps[:5]:  # Max 5 steps
+                step_text = f"• {step}"  # Bullet point instead of number
                 elements.append(Paragraph(step_text, self.styles['SolviaBody']))
-                elements.append(Spacer(1, 2))  # Reduced from 4 to 2 to save space
+                elements.append(Spacer(1, 4))  # Proper gap between bullets per user feedback
         else:
             # Fallback generic next steps
             default_steps = [
@@ -859,12 +806,12 @@ class PDFReportGenerator:
                 "Continue building high-quality backlinks.",
                 "Keep your content fresh and relevant to your audience."
             ]
-            for i, step in enumerate(default_steps, 1):
-                step_text = f"<b>{i}.</b> {step}"
+            for step in default_steps:
+                step_text = f"• {step}"  # Bullet point instead of number
                 elements.append(Paragraph(step_text, self.styles['SolviaBody']))
-                elements.append(Spacer(1, 2))  # Reduced from 4 to 2 to save space
+                elements.append(Spacer(1, 4))  # Proper gap between bullets per user feedback
 
-        elements.append(Spacer(1, 5))  # Reduced from 10 to 5 to save space
+        elements.append(Spacer(1, 10))
 
         return elements
 
