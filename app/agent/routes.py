@@ -408,8 +408,13 @@ async def trigger_audit(
                 calculate_28day_changes,
                 determine_seo_stage,
                 get_seo_stage_info,
-                generate_next_steps,
-                select_motivational_quote
+                generate_summary_paragraphs,
+                generate_metric_notes_for_pdf,
+                generate_next_steps_for_pdf
+            )
+            from app.agent.pdf_text_constants import (
+                get_motivational_quote_page1,
+                get_motivational_quote_page2
             )
 
             # Fetch daily time-series data using dimensions=['date']
@@ -439,27 +444,37 @@ async def trigger_audit(
 
             print(f"[28-DAY CALC] 📊 SEO Stage: {seo_stage_info['name']} ({current_impressions} impressions)")
 
-            # Generate next steps based on metrics and stage
-            next_steps = generate_next_steps(
-                metrics=metrics,
-                stage=seo_stage_key,
-                issues=None  # No issues data available yet
-            )
+            # Generate summary paragraphs using rule-based conditional text
+            summary_paragraphs = generate_summary_paragraphs(metrics, changes)
 
-            # Select motivational quote for current SEO stage
-            motivational_quote = select_motivational_quote(seo_stage_key)
+            # Generate metric notes using rule-based conditional text
+            metric_notes = generate_metric_notes_for_pdf(metrics, changes, seo_stage_key)
+
+            # Generate next steps based on metrics and stage using rule-based logic
+            next_steps = generate_next_steps_for_pdf(metrics, changes, seo_stage_key)
+
+            # Select motivational quotes for Page 1 and Page 2 (different quotes)
+            motivational_quote_page1 = get_motivational_quote_page1(seo_stage_key)
+            motivational_quote_page2 = get_motivational_quote_page2(seo_stage_key)
 
             print(f"[28-DAY CALC] 📝 Generated {len(next_steps)} next steps")
-            print(f"[28-DAY CALC] 💬 Selected motivational quote: {motivational_quote[:50]}...")
+            print(f"[28-DAY CALC] 📄 Generated 3 summary paragraphs")
+            print(f"[28-DAY CALC] 📋 Generated 5 metric notes")
+            print(f"[28-DAY CALC] 💬 Selected motivational quotes:")
+            print(f"[28-DAY CALC]    Page 1: {motivational_quote_page1[:50]}...")
+            print(f"[28-DAY CALC]    Page 2: {motivational_quote_page2[:50]}...")
 
             # Add gamified PDF data to metrics dictionary
             metrics['gamified_pdf_data'] = {
-                'time_series': time_series_data,  # Full daily data for PDF
-                'changes_28day': changes,          # V1 vs V2 changes
-                'seo_stage': seo_stage_key,        # 'hidden', 'emerging', 'discoverable', 'trusted'
-                'seo_stage_info': seo_stage_info,  # Complete stage details
-                'next_steps': next_steps,          # Priority-based action items (3-5 items)
-                'motivational_quote': motivational_quote,  # Stage-appropriate motivational quote
+                'time_series': time_series_data,      # Full daily data for PDF
+                'changes_28day': changes,              # V1 vs V2 changes
+                'seo_stage': seo_stage_key,            # 'hidden', 'emerging', 'discoverable', 'trusted'
+                'seo_stage_info': seo_stage_info,      # Complete stage details
+                'summary_paragraphs': summary_paragraphs,  # 3 rule-based summary paragraphs
+                'metric_notes': metric_notes,          # 5 rule-based metric notes
+                'next_steps': next_steps,              # Priority-based action items (3-8 items)
+                'motivational_quote_page1': motivational_quote_page1,  # Page 1 motivational quote
+                'motivational_quote_page2': motivational_quote_page2,  # Page 2 motivational quote (different)
                 'date_range': {
                     'start': start_date.strftime('%Y-%m-%d'),
                     'end': end_date.strftime('%Y-%m-%d'),
@@ -490,12 +505,29 @@ async def trigger_audit(
                 },
                 'seo_stage': 'hidden',
                 'seo_stage_info': get_seo_stage_info('hidden'),
+                'summary_paragraphs': {
+                    'impressions_para': "Your site appeared in front of 0 people in Google search results this month — this means Google hasn't discovered your site yet. Submit your sitemap and check for indexing issues.",
+                    'clicks_ctr_para': "Out of those impressions, 0 visitors clicked through, giving you a CTR of 0.00%. That's below average — focus on improving your titles and descriptions to increase click-through rates.",
+                    'position_para': "On average, your pages appeared in position 0.0, which means you're beyond page 2. Prioritize technical SEO fixes and content optimization to improve visibility."
+                },
+                'metric_notes': {
+                    'impressions_note': "Visibility needs improvement",
+                    'clicks_note': "Good start for early-stage SEO",
+                    'ctr_note': "Low CTR — optimize meta descriptions",
+                    'position_note': "Minor ranking fluctuation",
+                    'indexed_pages_note': "Indexing status stable"
+                },
                 'next_steps': [
-                    "Review and fix any critical SEO issues identified in this report.",
-                    "Monitor your search performance trends weekly.",
-                    "Optimize underperforming pages for better rankings."
+                    "Submit sitemap to Google Search Console",
+                    "Optimize meta titles with emotional, relevant keywords",
+                    "Write one blog post per week for the next month",
+                    "Fix indexing issues for 1 page(s)",
+                    "Focus on content quality and keyword research",
+                    "Add internal links between your existing pages",
+                    "Generate another report after 14 days of these changes being made to track progress"
                 ],
-                'motivational_quote': '"Every journey begins with a single step."',
+                'motivational_quote_page1': "It's okay to be early! Every great site starts in the shadows before it shines. This is where your foundation is built.",
+                'motivational_quote_page2': "Your next step is clarity. Make Google's job easier by showing it what each page is about. That's how visibility starts to grow.",
                 'date_range': {
                     'start': start_date.strftime('%Y-%m-%d'),
                     'end': end_date.strftime('%Y-%m-%d'),

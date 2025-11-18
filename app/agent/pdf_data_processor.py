@@ -8,15 +8,32 @@ This module handles all data processing for the gamified 2-page PDF audit report
 - Rule-based notes generation for each metric
 - Next steps generation (conditional 3-5 items)
 - Motivational quote selection by SEO stage
+- Summary statement generation with conditional endings
 
 Author: Solvia Team
-Date: 2025-11-13
-Version: 1.0.0
+Date: 2025-11-18
+Version: 2.0.0 - Redesigned PDF with rule-based conditional text
 """
 
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import random
+
+# Import rule-based text constants
+from app.agent.pdf_text_constants import (
+    get_stage_description,
+    get_motivational_quote_page1,
+    get_motivational_quote_page2,
+    get_impressions_note,
+    get_clicks_note,
+    get_ctr_note,
+    get_position_note,
+    get_indexed_pages_note,
+    get_all_next_steps,
+    get_impressions_statement,
+    get_clicks_ctr_statement,
+    get_position_statement
+)
 
 
 # ============================================================================
@@ -577,6 +594,152 @@ def format_ctr_display(ctr_decimal: float) -> str:
 
 
 # ============================================================================
+# SUMMARY PARAGRAPH GENERATION (RULE-BASED)
+# ============================================================================
+
+def generate_summary_paragraphs(
+    metrics: Dict[str, Any],
+    changes: Dict[str, Any]
+) -> Dict[str, str]:
+    """
+    Generate 3 summary paragraphs using rule-based conditional text.
+
+    These are used in Page 1 Summary section and follow exact Notion doc rules.
+
+    Args:
+        metrics: Dictionary with current metrics
+        changes: Dictionary with 28-day changes
+
+    Returns:
+        Dictionary with 3 paragraphs:
+            {
+                'impressions_para': "Your site appeared in front of 22 people...",
+                'clicks_ctr_para': "Out of those impressions, 2 visitors clicked through...",
+                'position_para': "On average, your pages appeared in position 4.1..."
+            }
+    """
+    # Extract current values
+    impressions = metrics.get('total_impressions', metrics.get('impressions', 0))
+    clicks = metrics.get('total_clicks', metrics.get('clicks', 0))
+    ctr_decimal = metrics.get('average_ctr', metrics.get('ctr', 0))
+    position = metrics.get('average_position', metrics.get('avg_position', 0))
+
+    # Convert CTR to percentage
+    ctr_percentage = ctr_decimal * 100
+
+    # Generate paragraphs using rule-based functions
+    paragraphs = {
+        'impressions_para': get_impressions_statement(impressions),
+        'clicks_ctr_para': get_clicks_ctr_statement(clicks, ctr_percentage),
+        'position_para': get_position_statement(position)
+    }
+
+    return paragraphs
+
+
+def generate_metric_notes_for_pdf(
+    metrics: Dict[str, Any],
+    changes: Dict[str, Any],
+    seo_stage: str
+) -> Dict[str, str]:
+    """
+    Generate metric notes for PDF table using rule-based conditional text.
+
+    Args:
+        metrics: Dictionary with current metrics
+        changes: Dictionary with 28-day changes
+        seo_stage: Current SEO stage
+
+    Returns:
+        Dictionary with notes for each metric:
+            {
+                'impressions_note': "Visibility increasing steadily",
+                'clicks_note': "Good start for early-stage SEO",
+                'ctr_note': "Strong CTR performance",
+                'position_note': "Minor ranking fluctuation",
+                'indexed_pages_note': "1 unindexed page(s)"
+            }
+    """
+    # Extract current values
+    impressions = metrics.get('total_impressions', metrics.get('impressions', 0))
+    clicks = metrics.get('total_clicks', metrics.get('clicks', 0))
+    ctr_decimal = metrics.get('average_ctr', metrics.get('ctr', 0))
+    position = metrics.get('average_position', metrics.get('avg_position', 0))
+    indexed_pages = metrics.get('indexed_pages', 5)  # Default to 5 if not available
+
+    # Extract changes
+    impressions_change = changes.get('impressions_change', 0)
+    clicks_change = changes.get('clicks_change', 0)
+    ctr_change = changes.get('ctr_change', 0)
+    position_change = changes.get('position_change', 0)
+    indexed_pages_change = changes.get('indexed_pages_change', 0)
+
+    # Convert CTR to percentage
+    ctr_percentage = ctr_decimal * 100
+
+    # Calculate unindexed pages (assuming total pages = indexed + 1 for now)
+    # TODO: Get actual total_pages and unindexed_count from metrics
+    unindexed_count = 1 if indexed_pages < 10 else 0
+
+    # Generate notes using rule-based functions
+    notes = {
+        'impressions_note': get_impressions_note(impressions_change),
+        'clicks_note': get_clicks_note(clicks, clicks_change),
+        'ctr_note': get_ctr_note(ctr_percentage, ctr_change),
+        'position_note': get_position_note(position, position_change),
+        'indexed_pages_note': get_indexed_pages_note(unindexed_count, indexed_pages_change)
+    }
+
+    return notes
+
+
+def generate_next_steps_for_pdf(
+    metrics: Dict[str, Any],
+    changes: Dict[str, Any],
+    seo_stage: str
+) -> List[str]:
+    """
+    Generate next steps list using rule-based conditional logic.
+
+    Args:
+        metrics: Dictionary with current metrics
+        changes: Dictionary with 28-day changes
+        seo_stage: Current SEO stage
+
+    Returns:
+        List of 3-8 next steps (2 always + up to 6 conditional)
+    """
+    # Extract current values
+    impressions = metrics.get('total_impressions', metrics.get('impressions', 0))
+    clicks = metrics.get('total_clicks', metrics.get('clicks', 0))
+    ctr_decimal = metrics.get('average_ctr', metrics.get('ctr', 0))
+    position = metrics.get('average_position', metrics.get('avg_position', 0))
+    indexed_pages = metrics.get('indexed_pages', 5)
+
+    # Convert CTR to percentage
+    ctr_percentage = ctr_decimal * 100
+
+    # Calculate unindexed pages
+    unindexed_count = 1 if indexed_pages < 10 else 0
+
+    # TODO: Get actual sitemap_submitted status from metrics
+    # For now, assume False to trigger the recommendation
+    sitemap_submitted = False
+
+    # Generate next steps using rule-based function
+    next_steps = get_all_next_steps(
+        sitemap_submitted=sitemap_submitted,
+        ctr=ctr_percentage,
+        avg_position=position,
+        total_impressions=impressions,
+        unindexed_count=unindexed_count,
+        total_clicks=clicks
+    )
+
+    return next_steps
+
+
+# ============================================================================
 # MODULE TEST (for development/debugging)
 # ============================================================================
 
@@ -604,12 +767,46 @@ if __name__ == "__main__":
         print(f"{imp} impressions → {info['name']} stage")
     print()
 
-    print("=== Testing Notes Generation ===")
+    print("=== Testing Notes Generation (Old Method) ===")
     print(generate_metric_notes('impressions', 22, 340.0, 'hidden'))
     print(generate_metric_notes('ctr', 9.09, 9.09, 'hidden'))
     print()
 
+    print("=== Testing New Rule-Based Functions ===")
+    test_metrics = {
+        'total_impressions': 22,
+        'total_clicks': 2,
+        'average_ctr': 0.0909,
+        'average_position': 4.1,
+        'indexed_pages': 5
+    }
+    test_changes = changes
+
+    # Test summary paragraphs
+    print("Summary Paragraphs:")
+    paragraphs = generate_summary_paragraphs(test_metrics, test_changes)
+    for key, para in paragraphs.items():
+        print(f"  {key}: {para[:100]}...")
+    print()
+
+    # Test metric notes
+    print("Metric Notes:")
+    notes = generate_metric_notes_for_pdf(test_metrics, test_changes, 'hidden')
+    for key, note in notes.items():
+        print(f"  {key}: {note}")
+    print()
+
+    # Test next steps
+    print("Next Steps:")
+    steps = generate_next_steps_for_pdf(test_metrics, test_changes, 'hidden')
+    for i, step in enumerate(steps, 1):
+        print(f"  {i}. {step}")
+    print()
+
     print("=== Testing Motivational Quotes ===")
     for stage_key in ['hidden', 'emerging', 'discoverable', 'trusted']:
-        quote = select_motivational_quote(stage_key)
-        print(f"{stage_key}: {quote[:50]}...")
+        quote_p1 = get_motivational_quote_page1(stage_key)
+        quote_p2 = get_motivational_quote_page2(stage_key)
+        print(f"{stage_key}:")
+        print(f"  Page 1: {quote_p1[:50]}...")
+        print(f"  Page 2: {quote_p2[:50]}...")
