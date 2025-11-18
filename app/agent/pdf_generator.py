@@ -38,6 +38,78 @@ def get_hex_string(color):
     return "#000000"
 
 
+class RoundedQuoteBox(Flowable):
+    """
+    Custom flowable for motivational quote with rounded gray background
+
+    PIXEL-PERFECT SPECS:
+    - Rounded corners (8px radius)
+    - Gray background (#F3F4F6)
+    - Sun icon outside the box (32×32px)
+    - Quote text inside box with padding
+    """
+
+    def __init__(self, quote_text: str, icon_path: str, width=472, style=None):
+        """
+        Initialize rounded quote box
+
+        Args:
+            quote_text: The motivational quote text
+            icon_path: Path to sun icon PNG
+            width: Width of the quote bubble (not including icon)
+            style: ParagraphStyle for text formatting
+        """
+        Flowable.__init__(self)
+        self.quote_text = quote_text
+        self.icon_path = icon_path
+        self.bubble_width = width
+        self.style = style
+        self.icon_size = 32
+        self.gap = 8  # Gap between icon and bubble
+        self.padding = 12  # Internal padding
+        self.radius = 8  # Corner radius
+
+    def wrap(self, availWidth, availHeight):
+        """Calculate required space"""
+        # Create paragraph to measure text height
+        from reportlab.platypus import Paragraph
+        p = Paragraph(f'<font color="#6B7280">{self.quote_text}</font>', self.style)
+        text_width = self.bubble_width - (self.padding * 2)
+        text_width, text_height = p.wrap(text_width, availHeight)
+
+        # Total height is max of icon height or text height + padding
+        content_height = max(self.icon_size, text_height + (self.padding * 2))
+        total_width = self.icon_size + self.gap + self.bubble_width
+
+        return (total_width, content_height)
+
+    def draw(self):
+        """Draw icon and rounded quote box"""
+        canvas = self.canv
+
+        # Draw sun icon
+        if os.path.exists(self.icon_path):
+            from reportlab.platypus import Image as RLImage
+            icon = RLImage(self.icon_path, width=self.icon_size, height=self.icon_size)
+            icon.drawOn(canvas, 0, 0)
+
+        # Draw rounded rectangle background
+        bubble_x = self.icon_size + self.gap
+        canvas.setFillColor(SOLVIA_LIGHT_GRAY_BG)
+        canvas.setStrokeColor(SOLVIA_LIGHT_GRAY_BG)
+        canvas.roundRect(bubble_x, 0, self.bubble_width, self.height, self.radius, stroke=0, fill=1)
+
+        # Draw text
+        from reportlab.platypus import Paragraph
+        p = Paragraph(f'<font color="#6B7280">{self.quote_text}</font>', self.style)
+        text_width = self.bubble_width - (self.padding * 2)
+        text_width, text_height = p.wrap(text_width, self.height)
+
+        # Center text vertically in bubble
+        text_y = (self.height - text_height) / 2
+        p.drawOn(canvas, bubble_x + self.padding, text_y)
+
+
 class ProgressBarFlowable(Flowable):
     """
     Custom flowable for drawing SEO stage progress bar as connected pill shape
@@ -79,9 +151,10 @@ class ProgressBarFlowable(Flowable):
             {'key': 'trusted', 'name': 'Trusted', 'threshold': '2000+ impressions'}
         ]
 
+        # PIXEL-PERFECT FIX: Calculate box width dynamically based on total width
         # Box dimensions (NO GAPS - connected pill)
-        self.box_width = 136.75  # Exact width per user spec
-        self.box_height = 36      # Exact height per user spec
+        self.box_width = width / 4  # Dynamic calculation (512 / 4 = 128pt per box)
+        self.box_height = height     # Use provided height
 
     def draw(self):
         """Draw the progress bar as connected pill shape (NO 'You are here' indicator)"""
@@ -465,7 +538,8 @@ class PDFReportGenerator:
         elements.append(Spacer(1, 8))  # Changed from 10 to 8 per Figma
         elements.append(Paragraph(position_para_html, self.styles['SolviaBody']))
 
-        elements.append(Spacer(1, 30))
+        # PIXEL-PERFECT FIX: Reduced spacing before progress bar per user feedback (was 30, now 12)
+        elements.append(Spacer(1, 12))
 
         return elements
 
@@ -493,7 +567,9 @@ class PDFReportGenerator:
         # PIXEL-PERFECT FIX: Left-align instead of center to match summary paragraph
         elements.append(progress_bar)
 
-        # NO gap - stage description follows immediately
+        # PIXEL-PERFECT FIX: Small margin bottom after progress bar per user feedback (4px)
+        elements.append(Spacer(1, 4))
+
         return elements
 
     def _create_page1_stage_description(self, audit_data: Dict[str, Any]):
@@ -524,63 +600,16 @@ class PDFReportGenerator:
         # Load sun icon (PNG format for ReportLab compatibility)
         sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
 
-        # PIXEL-PERFECT FIX: Sun icon OUTSIDE bubble + gray bubble chat style + FULL WIDTH
-        # Create layout: [Sun Icon (32×32)] [Gray Bubble with Quote]
-        # Total usable width: 7.5 inches (8.5" page - 1" margins)
-        # Sun icon: 32px = ~0.44 inch
-        # Quote width: 7.5 - 0.44 - 0.1 (gap) = ~7.0 inches
-        quote_data = []
+        # PIXEL-PERFECT FIX: Use custom RoundedQuoteBox for proper rounded corners
+        # Bubble width: 472pt (512pt content - 32pt icon - 8pt gap)
+        quote_box = RoundedQuoteBox(
+            quote_text=quote,
+            icon_path=sun_icon_path,
+            width=472,
+            style=self.styles['SolviaQuote']
+        )
 
-        # Check if sun icon exists
-        if os.path.exists(sun_icon_path):
-            # Sun icon 32×32px (OUTSIDE bubble, left-aligned)
-            sun_icon = Image(sun_icon_path, width=32, height=32)
-
-            # Quote bubble (gray background, #6B7280 text, NON-italic)
-            quote_paragraph = Paragraph(
-                f'<font color="#6B7280">{quote}</font>',  # PIXEL-PERFECT: #6B7280, no italic
-                self.styles['SolviaQuote']
-            )
-
-            # Layout: Sun icon in first column (no background), quote in second column (with background)
-            quote_data = [[sun_icon, quote_paragraph]]
-        else:
-            # Quote only (no icon)
-            quote_paragraph = Paragraph(
-                f'<font color="#6B7280">{quote}</font>',
-                self.styles['SolviaQuote']
-            )
-            quote_data = [[quote_paragraph]]
-
-        # PIXEL-PERFECT FIX: Full content width table aligned with summary paragraph
-        # Page: 612pt, Margins: 50pt left + 50pt right = 512pt content area
-        # Column widths: 40pt (sun icon 32pt + 8pt gap) + 472pt (quote bubble) = 512pt total
-        quote_table = Table(quote_data, colWidths=[40, 472] if os.path.exists(sun_icon_path) else [512])
-        quote_table.setStyle(TableStyle([
-            # PIXEL-PERFECT: Gray background ONLY on quote column (second column)
-            ('BACKGROUND', (1, 0), (1, 0), SOLVIA_LIGHT_GRAY_BG),  # Only second column
-            ('BACKGROUND', (0, 0), (0, 0), colors.white),  # First column (sun icon) stays white
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            # PIXEL-PERFECT: Minimum height 32px for sun icon alignment
-            # Padding only on quote column (12px left/right, 8px top/bottom per user spec)
-            ('LEFTPADDING', (1, 0), (1, 0), 12),   # Quote column left padding
-            ('RIGHTPADDING', (1, 0), (1, 0), 12),  # Quote column right padding
-            ('TOPPADDING', (1, 0), (1, 0), 8),     # Quote column top padding
-            ('BOTTOMPADDING', (1, 0), (1, 0), 8),  # Quote column bottom padding
-            # No padding on sun icon column (left-aligned)
-            ('LEFTPADDING', (0, 0), (0, 0), 0),
-            ('RIGHTPADDING', (0, 0), (0, 0), 8),   # Small gap between icon and bubble
-            ('TOPPADDING', (0, 0), (0, 0), 0),
-            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
-            ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Sun icon left-aligned
-            ('ALIGN', (1, 0), (1, 0), 'LEFT'),  # Quote text left-aligned
-            # No borders
-            ('BOX', (0, 0), (-1, -1), 0, colors.white),
-            # PIXEL-PERFECT: Rounded corners only on quote bubble (second column, 8px radius)
-            ('ROUNDEDCORNERS', (1, 0), (1, 0), 8),
-        ]))
-
-        elements.append(quote_table)
+        elements.append(quote_box)
         elements.append(Spacer(1, 20))
 
         return elements
@@ -894,8 +923,8 @@ class PDFReportGenerator:
         ]))
         elements.append(center_table)
 
-        # PIXEL-PERFECT FIX: Reduced spacing to prevent Page 3 overflow (was 10, now 4)
-        elements.append(Spacer(1, 4))
+        # PIXEL-PERFECT FIX: Add gap before motivational quote per user feedback (was 4, now 8)
+        elements.append(Spacer(1, 8))
 
         return elements
 
@@ -910,59 +939,16 @@ class PDFReportGenerator:
         # Load sun icon (PNG format for ReportLab compatibility)
         sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
 
-        # PIXEL-PERFECT FIX: Same style as Page 1 (sun icon OUTSIDE bubble + full width + rounded gray box)
-        quote_data = []
+        # PIXEL-PERFECT FIX: Use custom RoundedQuoteBox for proper rounded corners (same as Page 1)
+        # Bubble width: 472pt (512pt content - 32pt icon - 8pt gap)
+        quote_box = RoundedQuoteBox(
+            quote_text=quote,
+            icon_path=sun_icon_path,
+            width=472,
+            style=self.styles['SolviaQuote']
+        )
 
-        # Check if sun icon exists
-        if os.path.exists(sun_icon_path):
-            # Sun icon 32×32px (OUTSIDE bubble, left-aligned)
-            sun_icon = Image(sun_icon_path, width=32, height=32)
-
-            # Quote bubble (gray background, #6B7280 text, NON-italic)
-            quote_paragraph = Paragraph(
-                f'<font color="#6B7280">{quote}</font>',  # PIXEL-PERFECT: #6B7280, no italic
-                self.styles['SolviaQuote']
-            )
-
-            # Layout: Sun icon in first column (no background), quote in second column (with background)
-            quote_data = [[sun_icon, quote_paragraph]]
-        else:
-            # Quote only (no icon)
-            quote_paragraph = Paragraph(
-                f'<font color="#6B7280">{quote}</font>',
-                self.styles['SolviaQuote']
-            )
-            quote_data = [[quote_paragraph]]
-
-        # PIXEL-PERFECT FIX: Full content width table aligned with summary paragraph (same as Page 1)
-        # Page: 612pt, Margins: 50pt left + 50pt right = 512pt content area
-        # Column widths: 40pt (sun icon 32pt + 8pt gap) + 472pt (quote bubble) = 512pt total
-        quote_table = Table(quote_data, colWidths=[40, 472] if os.path.exists(sun_icon_path) else [512])
-        quote_table.setStyle(TableStyle([
-            # PIXEL-PERFECT: Gray background ONLY on quote column (second column)
-            ('BACKGROUND', (1, 0), (1, 0), SOLVIA_LIGHT_GRAY_BG),  # Only second column
-            ('BACKGROUND', (0, 0), (0, 0), colors.white),  # First column (sun icon) stays white
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            # PIXEL-PERFECT: Minimum height 32px for sun icon alignment per user spec
-            # Padding only on quote column (12px left/right, 8px top/bottom)
-            ('LEFTPADDING', (1, 0), (1, 0), 12),   # Quote column left padding
-            ('RIGHTPADDING', (1, 0), (1, 0), 12),  # Quote column right padding
-            ('TOPPADDING', (1, 0), (1, 0), 8),     # Quote column top padding
-            ('BOTTOMPADDING', (1, 0), (1, 0), 8),  # Quote column bottom padding
-            # No padding on sun icon column (left-aligned)
-            ('LEFTPADDING', (0, 0), (0, 0), 0),
-            ('RIGHTPADDING', (0, 0), (0, 0), 8),   # Small gap between icon and bubble
-            ('TOPPADDING', (0, 0), (0, 0), 0),
-            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
-            ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Sun icon left-aligned
-            ('ALIGN', (1, 0), (1, 0), 'LEFT'),  # Quote text left-aligned
-            # No borders
-            ('BOX', (0, 0), (-1, -1), 0, colors.white),
-            # PIXEL-PERFECT: Rounded corners only on quote bubble (second column, 8px radius)
-            ('ROUNDEDCORNERS', (1, 0), (1, 0), 8),
-        ]))
-
-        elements.append(quote_table)
+        elements.append(quote_box)
         elements.append(Spacer(1, 10))
 
         return elements
