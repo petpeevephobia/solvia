@@ -198,67 +198,27 @@ class ProgressBarFlowable(Flowable):
                 # Middle boxes: Square corners
                 canvas.rect(x, y, self.box_width, self.box_height, stroke=0, fill=1)
 
-        # CRITICAL FIX: Now draw borders ONLY on outer edges and between different colored boxes
-        for i, stage in enumerate(self.stages):
-            x = i * self.box_width
-            y = 0
+        # CRITICAL FIX: Draw borders using proper rounded rectangle outline
+        # Draw the complete outer border as one rounded rectangle
+        total_width = self.width
+        canvas.setStrokeColor(SOLVIA_BLACK)
+        canvas.setLineWidth(1)
+        canvas.roundRect(0, 0, total_width, self.box_height, radius, stroke=1, fill=0)
 
-            # Determine border color
-            if i == current_index:
-                border_color = SOLVIA_ORANGE
-            elif i == current_index + 1:
-                border_color = SOLVIA_ORANGE
-            else:
-                border_color = SOLVIA_BLACK
+        # Draw vertical separators between boxes with different colors
+        for i in range(3):  # Only between boxes, not at edges
+            x = (i + 1) * self.box_width
 
-            canvas.setStrokeColor(border_color)
-            canvas.setLineWidth(1)
+            # Check if adjacent boxes have different states
+            left_state = current_index if i == current_index else (current_index + 1 if i == current_index + 1 else -1)
+            right_state = current_index if i + 1 == current_index else (current_index + 1 if i + 1 == current_index + 1 else -1)
 
-            # Draw top border
-            canvas.line(x, y + self.box_height, x + self.box_width, y + self.box_height)
-            # Draw bottom border
-            canvas.line(x, y, x + self.box_width, y)
-
-            # Draw left border only for first box or when color changes
-            if i == 0:
-                # First box: Draw left curved edge
-                canvas.setLineWidth(1)
-                if i == current_index:
-                    canvas.roundRect(x, y, self.box_width, self.box_height, radius, stroke=1, fill=0)
-                else:
-                    # Draw just the left rounded edge
-                    p = canvas.beginPath()
-                    p.moveTo(x, y + radius)
-                    p.arcTo(x, y, x + radius, y, radius)
-                    p.lineTo(x + radius, y)
-                    canvas.drawPath(p, stroke=1, fill=0)
-                    p = canvas.beginPath()
-                    p.moveTo(x, y + self.box_height - radius)
-                    p.arcTo(x, y + self.box_height, x + radius, y + self.box_height, radius)
-                    p.lineTo(x + radius, y + self.box_height)
-                    canvas.drawPath(p, stroke=1, fill=0)
-                    # Draw left edge
-                    canvas.line(x, y + radius, x, y + self.box_height - radius)
-
-            # Draw right border only for last box or when next box has different color
-            if i == 3:
-                # Last box: Draw right curved edge
-                p = canvas.beginPath()
-                p.moveTo(x + self.box_width, y + radius)
-                p.arcTo(x + self.box_width, y, x + self.box_width - radius, y, radius)
-                canvas.drawPath(p, stroke=1, fill=0)
-                p = canvas.beginPath()
-                p.moveTo(x + self.box_width, y + self.box_height - radius)
-                p.arcTo(x + self.box_width, y + self.box_height, x + self.box_width - radius, y + self.box_height, radius)
-                canvas.drawPath(p, stroke=1, fill=0)
-                # Draw right edge
-                canvas.line(x + self.box_width, y + radius, x + self.box_width, y + self.box_height - radius)
-            elif i < 3:
-                # Check if next box has different state (draw vertical separator)
-                next_state = current_index if i + 1 == current_index else (current_index + 1 if i + 1 == current_index + 1 else -1)
-                current_state = current_index if i == current_index else (current_index + 1 if i == current_index + 1 else -1)
-                if next_state != current_state:
-                    canvas.line(x + self.box_width, y, x + self.box_width, y + self.box_height)
+            if left_state != right_state:
+                # Draw separator line between different colored boxes
+                border_color = SOLVIA_ORANGE if (left_state == current_index or right_state == current_index or
+                                                 left_state == current_index + 1 or right_state == current_index + 1) else SOLVIA_BLACK
+                canvas.setStrokeColor(border_color)
+                canvas.line(x, y, x, y + self.box_height)
 
         # Draw text labels
         for i, stage in enumerate(self.stages):
@@ -587,8 +547,8 @@ class PDFReportGenerator:
         elements.append(Spacer(1, 8))  # Changed from 10 to 8 per Figma
         elements.append(Paragraph(position_para_html, self.styles['SolviaBody']))
 
-        # PIXEL-PERFECT FIX: Reduced spacing before progress bar per user feedback (was 30, now 12)
-        elements.append(Spacer(1, 12))
+        # PIXEL-PERFECT FIX: Spacing before progress bar (match with spacing after)
+        elements.append(Spacer(1, 8))
 
         return elements
 
@@ -616,8 +576,8 @@ class PDFReportGenerator:
         # PIXEL-PERFECT FIX: Left-align instead of center to match summary paragraph
         elements.append(progress_bar)
 
-        # PIXEL-PERFECT FIX: Small margin bottom after progress bar per user feedback (4px)
-        elements.append(Spacer(1, 4))
+        # PIXEL-PERFECT FIX: Spacing after progress bar (match with spacing before: 8px)
+        elements.append(Spacer(1, 8))
 
         return elements
 
