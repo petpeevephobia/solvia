@@ -607,7 +607,7 @@ class PDFReportGenerator:
         quote = gamified_data.get('motivational_quote_page1', '"It\'s okay to be early! Every great site starts in the shadows before it shines. This is where your foundation is built."')
 
         # Load sun icon (PNG format for ReportLab compatibility)
-        sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
+        sun_icon_path = os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'orange-emblem.png')
 
         # PIXEL-PERFECT FIX: Use custom RoundedQuoteBox for proper rounded corners
         # Bubble width: 472pt (512pt content - 32pt icon - 8pt gap)
@@ -946,7 +946,7 @@ class PDFReportGenerator:
         quote = gamified_data.get('motivational_quote_page2', '"Your next step is clarity. Make Google\'s job easier by showing it what each page is about. That\'s how visibility starts to grow."')
 
         # Load sun icon (PNG format for ReportLab compatibility)
-        sun_icon_path = '/Users/jarotekosaputra/Documents/SOLVIA/App/solvia/app/static/images/orange-emblem.png'
+        sun_icon_path = os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'orange-emblem.png')
 
         # PIXEL-PERFECT FIX: Use custom RoundedQuoteBox for proper rounded corners (same as Page 1)
         # Bubble width: 472pt (512pt content - 32pt icon - 8pt gap)
