@@ -764,6 +764,13 @@ class PDFReportGenerator:
         # PIXEL-PERFECT FIX: Helper function to colorize 28-Day Change values
         def colorize_change(value, formatted_text):
             """Colorize change values: green for positive, red for negative, gray for N/A"""
+            # Create center-aligned style for change column
+            center_style = ParagraphStyle(
+                'ChangeColumnStyle',
+                parent=self.styles['SolviaBody'],
+                alignment=TA_CENTER
+            )
+
             if isinstance(value, (int, float)):
                 if value > 0:
                     color = "#16A34A"  # Green for positive changes
@@ -771,10 +778,10 @@ class PDFReportGenerator:
                     color = "#EF4444"  # Red for negative changes
                 else:
                     color = "#6B7280"  # Gray for zero
-                return Paragraph(f'<font color="{color}">{formatted_text}</font>', self.styles['SolviaBody'])
+                return Paragraph(f'<font color="{color}">{formatted_text}</font>', center_style)
             else:
                 # N/A or other non-numeric values
-                return Paragraph(f'<font color="#6B7280">{formatted_text}</font>', self.styles['SolviaBody'])
+                return Paragraph(f'<font color="#6B7280">{formatted_text}</font>', center_style)
 
         # Create metrics table data (5 rows total) with colorized 28-Day Change column
         metrics_data = [
@@ -794,7 +801,7 @@ class PDFReportGenerator:
             [
                 'Click-Through Rate',
                 current_ctr_display,  # Already formatted as percentage
-                colorize_change(ctr_change, f"{ctr_change:+.2f}pp" if isinstance(ctr_change, (int, float)) else ctr_change),
+                colorize_change(ctr_change, f"{ctr_change:+.2f}pp*" if isinstance(ctr_change, (int, float)) else ctr_change),
                 Paragraph(ctr_note, self.styles['SolviaBody'])
             ],
             [
@@ -818,7 +825,10 @@ class PDFReportGenerator:
             # PIXEL-PERFECT FIX: Header row color #6B7280 (gray) with white font per user feedback
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#6B7280')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Center all columns by default
+            ('ALIGN', (2, 0), (2, -1), 'CENTER'),  # Explicitly center column 2 (28-Day Change)
+            ('ALIGN', (3, 0), (3, -1), 'LEFT'),  # Notes column left-aligned
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Vertical center
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 11),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
@@ -840,6 +850,26 @@ class PDFReportGenerator:
         ]))
 
         elements.append(table)
+        
+        # Add 2pt spacing after table
+        elements.append(Spacer(1, 2))
+        
+        # Add note explaining "pp" abbreviation
+        footnote_text = '<font color="#6B7280" size="9"><i>*pp = percentage points</i></font>'
+        footnote = Paragraph(footnote_text, self.styles['SolviaBody'])
+        # Left-align footnote to match table start position
+        # Table width: 1.5 + 1.5 + 1.5 + 2.6 = 7.1 inches
+        footnote_table = Table([[footnote]], colWidths=[7.1*inch])
+        footnote_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Change from CENTER to LEFT
+            ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (0, 0), 0),
+            ('RIGHTPADDING', (0, 0), (0, 0), 0),
+            ('TOPPADDING', (0, 0), (0, 0), 0),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
+        ]))
+        elements.append(footnote_table)
+        
         # PIXEL-PERFECT FIX: Reduced spacing to prevent Page 3 overflow (was 8, now 4)
         elements.append(Spacer(1, 4))
 
