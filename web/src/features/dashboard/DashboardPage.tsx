@@ -66,7 +66,7 @@ export default function DashboardPage() {
   })
 
   // Track banner hide timeout
-  const bannerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cleanup banner timeout on unmount
   useEffect(() => {

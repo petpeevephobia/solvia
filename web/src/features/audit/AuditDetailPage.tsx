@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, AlertCircle, Info, CheckCircle, Download, FileText, FileJson, ChevronLeft } from 'lucide-react'
+import { AlertTriangle, AlertCircle, Info, CheckCircle, FileText, FileJson, ChevronLeft } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, ScoreCircle } from '@/components/ui'
 import { auditService } from '@/services/audit'
 import { clsx } from 'clsx'
