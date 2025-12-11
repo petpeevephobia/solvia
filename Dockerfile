@@ -1,70 +1,74 @@
-# Multi-stage build for optimized production image
-FROM python:3.11-slim as builder
+# Multi-stage build for Solvia V2 (Go API + React Frontend)
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_DEFAULT_TIMEOUT=100
+# ============================================
+# Stage 1: Build React Frontend
+# ============================================
+FROM node:20-alpine AS frontend-builder
 
-# Install system dependencies for building
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app/web
 
-# Create virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Copy package files
+COPY web/package*.json ./
 
-# Copy and install Python dependencies
-COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+# Install dependencies
+RUN npm ci
 
-# Production stage
-FROM python:3.11-slim
+# Copy source code
+COPY web/ ./
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH=/app
+# Build for production
+RUN npm run build
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# ============================================
+# Stage 2: Build Go API
+# ============================================
+FROM golang:1.22-alpine AS api-builder
 
-# Create non-root user
-RUN groupadd -r solvia && useradd -r -g solvia solvia
-
-# Copy virtual environment from builder
-COPY --from=builder /opt/venv /opt/venv
-
-# Set working directory
 WORKDIR /app
 
-# Copy application code
-COPY --chown=solvia:solvia . .
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
 
-# Create necessary directories
-RUN mkdir -p /app/logs && \
-    chown -R solvia:solvia /app
+# Copy go mod files
+COPY api/go.mod api/go.sum ./
 
-# Switch to non-root user
-USER solvia
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY api/ ./
+
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /solvia-api ./cmd/api
+
+# ============================================
+# Stage 3: Final Runtime Image
+# ============================================
+FROM alpine:3.19
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates tzdata curl
+
+# Copy binary from builder
+COPY --from=api-builder /solvia-api /app/solvia-api
+
+# Copy React build from frontend builder
+COPY --from=frontend-builder /app/web/dist /app/web/dist
+
+# Create reports directory
+RUN mkdir -p /app/reports
+
+# Set timezone
+ENV TZ=Asia/Singapore
+
+# Expose port
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 
-# Expose port
-EXPOSE 8000
-
-# Start command using gunicorn with uvicorn workers for production
-CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info", "--timeout", "300", "--graceful-timeout", "300", "--keep-alive", "75", "--limit-request-line", "8190", "--limit-request-field_size", "8190"]
+# Run the application
+CMD ["/app/solvia-api"]

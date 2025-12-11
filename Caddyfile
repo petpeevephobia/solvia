@@ -1,52 +1,32 @@
-# Caddyfile for Solvia SEO Audit Tool
+# Caddyfile for Solvia V2 (Go API + React SPA)
 # Handles both development (localhost) and production domains
 
 # Global options
 {
-	# Enable debug mode in development
-	# debug
-
-	# Admin API endpoint
 	admin off
-
-	# Global server options
 	servers {
 		metrics
 		timeouts {
 			read_body   10s
 			read_header 5s
-			write       30s
+			write       60s
 			idle        2m
 		}
 	}
 }
 
-# Import environment variable for domain (defaults to localhost)
 {$DOMAIN:localhost} {
 	# Compression
 	encode zstd gzip
 
 	# Security headers
 	header {
-		# HSTS
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-
-		# Prevent clickjacking
 		X-Frame-Options "SAMEORIGIN"
-
-		# Prevent MIME type sniffing
 		X-Content-Type-Options "nosniff"
-
-		# XSS Protection (for older browsers)
 		X-XSS-Protection "1; mode=block"
-
-		# Referrer Policy
 		Referrer-Policy "strict-origin-when-cross-origin"
-
-		# Permissions Policy
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
-
-		# Remove server header
 		-Server
 	}
 
@@ -57,72 +37,31 @@
 		level INFO
 	}
 
-	# Static file handling with aggressive caching
-	handle /static/* {
-		# Remove /static prefix and serve from /srv/static
-		uri strip_prefix /static
-		root * /srv/static
-
-		# File server with directory browsing disabled
-		file_server {
-			hide .git .env
-			index index.html
-		}
-
-		# Cache static assets
-		@static {
-			path *.css *.js *.jpg *.jpeg *.png *.gif *.svg *.woff *.woff2 *.ttf *.eot
-		}
-		header @static Cache-Control "public, max-age=31536000, immutable"
-
-		# Don't cache HTML files
-		@html {
-			path *.html
-		}
-		header @html Cache-Control "no-cache, no-store, must-revalidate"
-	}
-
-	# Landing page static files (special handling)
-	handle /landing/* {
-		reverse_proxy app:8000 {
-			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-		}
-	}
-
-	# Health check endpoint (bypass auth)
+	# Health check endpoint
 	handle /health {
-		reverse_proxy app:8000 {
+		reverse_proxy app:8080 {
 			health_uri /health
 			health_interval 30s
 			health_timeout 5s
 		}
 	}
 
-	# API endpoints
+	# API endpoints - Go backend
 	handle /api/* {
-		reverse_proxy app:8000 {
-			# Load balancing (if scaling)
+		reverse_proxy app:8080 {
 			lb_policy round_robin
-
-			# Headers
 			header_up Host {host}
 			header_up X-Real-IP {remote_host}
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
-
-			# Timeouts for API calls
 			transport http {
-				read_timeout 30s
-				write_timeout 30s
+				read_timeout 120s
+				write_timeout 120s
 				dial_timeout 5s
 			}
-
-			# Circuit breaker
 			fail_duration 10s
 			max_fails 3
 			unhealthy_status 5xx
-			unhealthy_latency 5s
 		}
 
 		# CORS headers for API
@@ -135,29 +74,13 @@
 		}
 	}
 
-	# WebSocket support for real-time features
-	handle /ws/* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-
-			# WebSocket specific
-			header_up Connection {>Connection}
-			header_up Upgrade {>Upgrade}
-		}
-	}
-
-	# Authentication endpoints (special handling)
+	# Auth endpoints (OAuth flow - needs longer timeout)
 	handle /auth/* {
-		reverse_proxy app:8000 {
+		reverse_proxy app:8080 {
 			header_up Host {host}
 			header_up X-Real-IP {remote_host}
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
-
-			# Longer timeout for OAuth flows
 			transport http {
 				read_timeout 60s
 				write_timeout 60s
@@ -165,110 +88,37 @@
 		}
 	}
 
-	# Agent endpoints (Solvia AI)
-	handle /agent/* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-
-			# Longer timeout for AI processing
-			transport http {
-				read_timeout 120s
-				write_timeout 120s
-			}
-
-			# Larger buffer for AI responses
-			flush_interval -1
-		}
+	# Static assets from React build (with caching)
+	handle /assets/* {
+		root * /srv/web/dist
+		file_server
+		header Cache-Control "public, max-age=31536000, immutable"
 	}
 
-	# SPA Dashboard
-	handle /spa* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-
-			# Timeouts for long-running requests
-			transport http {
-				read_timeout 30s
-				write_timeout 30s
-				dial_timeout 10s
-			}
-		}
-	}
-
-	# Dashboard authentication pages
-	handle /login* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	handle /register* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	handle /logout* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	# Dashboard main pages
-	handle /dashboard* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	handle /domain-selection* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	handle /property-selection* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	handle /setup* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	handle /ui* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	handle /test-* {
-		reverse_proxy app:8000 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	# Landing Page (root and all static assets) - served by nginx container
+	# Landing page (nginx container)
 	handle {
-		reverse_proxy solvia-landing:80 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
+		# Try React SPA first, fallback to landing page
+		@notApi {
+			not path /api/* /auth/* /health /assets/*
+		}
+
+		# For app routes like /dashboard, /audit, /settings - serve React SPA
+		@appRoutes {
+			path /login /dashboard /dashboard/* /audit /audit/* /settings /chat /gsc /domain-selection /auth/callback
+		}
+		handle @appRoutes {
+			root * /srv/web/dist
+			try_files {path} /index.html
+			file_server
+			header Cache-Control "no-cache, no-store, must-revalidate"
+		}
+
+		# Everything else goes to landing page
+		handle {
+			reverse_proxy solvia-landing:80 {
+				header_up Host {host}
+				header_up X-Real-IP {remote_host}
+			}
 		}
 	}
 
@@ -286,15 +136,12 @@
 	}
 }
 
-# Redirect www to non-www (production)
+# Redirect www to non-www
 www.{$DOMAIN:localhost} {
 	redir https://{$DOMAIN:localhost}{uri} permanent
 }
 
 # Health check endpoint for monitoring
-:8080 {
+:8081 {
 	respond /health "OK" 200
-	respond /metrics 200 {
-		body "# Metrics endpoint for Prometheus"
-	}
 }

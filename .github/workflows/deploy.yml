@@ -1,4 +1,4 @@
-name: Deploy Solvia Dashboard
+name: Deploy Solvia V2
 
 on:
   push:
@@ -16,9 +16,9 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Setup SSH with official action
+    - name: Setup SSH
       uses: webfactory/ssh-agent@v0.9.0
       with:
         ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
@@ -35,9 +35,9 @@ jobs:
     - name: Deploy to Server
       run: |
         ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
-          set -e  # Exit on any error
+          set -e
 
-          echo "🔄 Starting deployment..."
+          echo "🚀 Starting Solvia V2 deployment (Go + React)..."
           cd ${{ env.DEPLOY_DIR }}
 
           # Git pull latest changes
@@ -48,55 +48,68 @@ jobs:
 
           echo "✅ Code updated successfully"
 
-          # ULTRATHINK FIX: Force cleanup of existing containers
-          echo "🧹 Cleaning up existing containers..."
+          # Stop existing containers
+          echo "🧹 Stopping existing containers..."
+          docker stop solvia-app solvia-caddy 2>/dev/null || true
+          docker rm -f solvia-app solvia-caddy 2>/dev/null || true
 
-          # Stop containers if running (ignore errors if not running)
-          docker stop solvia-app solvia-redis solvia-caddy 2>/dev/null || true
-
-          # Remove containers (ignore errors if not exist)
-          docker rm -f solvia-app solvia-redis solvia-caddy 2>/dev/null || true
-
-          # Clean up any orphaned containers with production config
-          docker-compose -f docker-compose.yml -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
-
-          # Prune stopped containers
+          # Clean up orphaned containers
+          docker-compose down --remove-orphans 2>/dev/null || true
           docker container prune -f
+
+          # Clean up old images to save space
+          docker image prune -f
 
           echo "✅ Cleanup completed"
 
-          # Rebuild and restart containers WITH PRODUCTION CONFIG
-          echo "🔧 Rebuilding Docker containers (production mode)..."
-          docker-compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
-          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+          # Create web directory for Caddy
+          mkdir -p /srv/web
+
+          # Build and start containers
+          echo "🔧 Building Docker containers (Go + React)..."
+          docker-compose build --no-cache
+
+          echo "🚀 Starting containers..."
+          docker-compose up -d
 
           # Wait for services to start
           echo "⏳ Waiting for services to start..."
-          sleep 10
+          sleep 20
+
+          # Copy built frontend to Caddy serve location
+          echo "📁 Setting up frontend assets..."
+          docker cp solvia-app:/app/web/dist /srv/web/ 2>/dev/null || echo "Frontend served from container"
 
           # Verify deployment
           echo "🔍 Verifying deployment..."
-          docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
-          docker logs solvia-app --tail 10
+          docker-compose ps
+          echo ""
+          echo "=== Container Logs ==="
+          docker logs solvia-app --tail 20
 
+          echo ""
           echo "✅ Deployment completed successfully!"
         ENDSSH
 
     - name: Health Check
       run: |
-        sleep 15
+        sleep 25
         response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.SERVER_HOST }}/health || echo "000")
         if [ "$response" = "200" ] || [ "$response" = "308" ]; then
-          echo "✅ Deployment successful! Health check passed."
+          echo "✅ Deployment successful! Health check passed (status: $response)"
         else
           echo "❌ Health check failed with response: $response"
+          echo "Checking container logs..."
+          ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "docker logs solvia-app --tail 50"
           exit 1
         fi
 
     - name: Notify Success
       if: success()
-      run: echo "🚀 Solvia Dashboard deployed successfully!"
+      run: echo "🚀 Solvia V2 (Go + React) deployed successfully!"
 
     - name: Notify Failure
       if: failure()
-      run: echo "❌ Deployment failed. Check logs for details."
+      run: |
+        echo "❌ Deployment failed!"
+        ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "docker logs solvia-app --tail 100" || true

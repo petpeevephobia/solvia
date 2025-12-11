@@ -1,224 +1,186 @@
-# Solvia Makefile
-# Simplify Docker and deployment commands
+# Solvia v2 Monorepo Makefile
+# ============================
 
-.PHONY: help
-help: ## Show this help message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+.PHONY: help dev build test lint clean docker-up docker-down api web db
 
-.DEFAULT_GOAL := help
+# Colors
+CYAN := \033[36m
+GREEN := \033[32m
+YELLOW := \033[33m
+RESET := \033[0m
 
-# Variables
-DOCKER_COMPOSE = docker-compose
-DOCKER_COMPOSE_PROD = $(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml
-APP_NAME = solvia-app
-DOMAIN ?= localhost
+help:
+	@echo ""
+	@echo "$(CYAN)Solvia v2 - Available Commands$(RESET)"
+	@echo "================================"
+	@echo ""
+	@echo "$(GREEN)Development:$(RESET)"
+	@echo "  make dev          - Start all services (API + DB + Web)"
+	@echo "  make api          - Start API only (hot reload)"
+	@echo "  make web          - Start React dev server"
+	@echo "  make build        - Build all services"
+	@echo "  make test         - Run all tests"
+	@echo "  make lint         - Run linters"
+	@echo ""
+	@echo "$(GREEN)Docker:$(RESET)"
+	@echo "  make docker-up    - Start services via Docker"
+	@echo "  make docker-down  - Stop all services"
+	@echo "  make docker-logs  - View logs"
+	@echo "  make docker-dev   - Start with dev tools (pgAdmin)"
+	@echo "  make docker-prod  - Start production config"
+	@echo ""
+	@echo "$(GREEN)Database:$(RESET)"
+	@echo "  make db-up        - Start PostgreSQL only"
+	@echo "  make db-migrate   - Run migrations"
+	@echo "  make db-reset     - Reset database"
+	@echo "  make db-shell     - Open psql shell"
+	@echo ""
+	@echo "$(GREEN)Utilities:$(RESET)"
+	@echo "  make clean        - Remove build artifacts"
+	@echo "  make install      - Install dependencies"
+	@echo "  make setup        - Initial project setup"
+	@echo ""
 
-# Development Commands
-.PHONY: dev
-dev: ## Start development environment
-	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up
+# ===================
+# Development
+# ===================
 
-.PHONY: dev-build
-dev-build: ## Build and start development environment
-	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up --build
+dev: docker-up
+	@echo "$(GREEN)All services started!$(RESET)"
+	@echo "API:    http://localhost:8080"
+	@echo "Web:    http://localhost:3000 (if enabled)"
+	@echo "DB:     localhost:5432"
 
-.PHONY: dev-stop
-dev-stop: ## Stop development environment
-	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml stop
+api:
+	@echo "$(CYAN)Starting API with hot reload...$(RESET)"
+	cd api && air -c .air.toml
 
-.PHONY: dev-down
-dev-down: ## Stop and remove development containers
-	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml down
+web:
+	@echo "$(CYAN)Starting React dev server...$(RESET)"
+	cd web && npm run dev
 
-.PHONY: dev-logs
-dev-logs: ## Show development logs
-	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml logs -f
+build:
+	@echo "$(CYAN)Building all services...$(RESET)"
+	cd api && go build -o ../bin/solvia-api ./cmd/api
+	cd web && npm run build
 
-.PHONY: dev-shell
-dev-shell: ## Enter app container shell
-	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml exec app /bin/bash
+test:
+	@echo "$(CYAN)Running tests...$(RESET)"
+	cd api && go test -v ./...
+	cd web && npm test
 
-.PHONY: dev-test
-dev-test: ## Run tests in development
-	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml exec app pytest
+lint:
+	@echo "$(CYAN)Running linters...$(RESET)"
+	cd api && golangci-lint run ./...
+	cd web && npm run lint
 
-# Production Commands
-.PHONY: prod-up
-prod-up: ## Start production environment
-	DOMAIN=$(DOMAIN) $(DOCKER_COMPOSE_PROD) up -d
+# ===================
+# Docker
+# ===================
 
-.PHONY: prod-build
-prod-build: ## Build production images
-	$(DOCKER_COMPOSE_PROD) build \
-		--build-arg BUILD_VERSION=$$(git describe --tags --always) \
-		--build-arg BUILD_DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+docker-up:
+	@echo "$(CYAN)Starting services...$(RESET)"
+	docker-compose up -d
 
-.PHONY: prod-deploy
-prod-deploy: prod-build prod-up ## Build and deploy production
+docker-down:
+	@echo "$(CYAN)Stopping services...$(RESET)"
+	docker-compose down
 
-.PHONY: prod-stop
-prod-stop: ## Stop production environment
-	$(DOCKER_COMPOSE_PROD) stop
+docker-logs:
+	docker-compose logs -f
 
-.PHONY: prod-down
-prod-down: ## Stop and remove production containers
-	$(DOCKER_COMPOSE_PROD) down
+docker-dev:
+	@echo "$(CYAN)Starting with dev tools...$(RESET)"
+	docker-compose --profile dev up -d
+	@echo "pgAdmin: http://localhost:5050"
 
-.PHONY: prod-logs
-prod-logs: ## Show production logs
-	$(DOCKER_COMPOSE_PROD) logs -f
+docker-prod:
+	@echo "$(CYAN)Starting production...$(RESET)"
+	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-.PHONY: prod-ps
-prod-ps: ## Show production container status
-	$(DOCKER_COMPOSE_PROD) ps
+docker-build:
+	docker-compose build
 
-# Database Commands
-.PHONY: db-migrate
-db-migrate: ## Run database migrations
-	$(DOCKER_COMPOSE) exec app python -m app.database.migrate
-
-.PHONY: db-backup
-db-backup: ## Create database backup
-	@mkdir -p backups
-	@BACKUP_FILE="backups/solvia-backup-$$(date +%Y%m%d-%H%M%S).sql"
-	@echo "Creating backup: $$BACKUP_FILE"
-	$(DOCKER_COMPOSE) exec -T app python -c "from app.database import export_data; export_data()" > $$BACKUP_FILE
-	@echo "Backup created successfully"
-
-.PHONY: db-restore
-db-restore: ## Restore database from backup (BACKUP_FILE=path/to/backup.sql)
-	@if [ -z "$(BACKUP_FILE)" ]; then \
-		echo "Please specify BACKUP_FILE=path/to/backup.sql"; \
-		exit 1; \
-	fi
-	$(DOCKER_COMPOSE) exec -T app python -c "from app.database import import_data; import_data()" < $(BACKUP_FILE)
-
-# Utility Commands
-.PHONY: clean
-clean: ## Clean up Docker resources
+docker-clean:
+	docker-compose down -v --remove-orphans
 	docker system prune -f
-	docker volume prune -f
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete
 
-.PHONY: lint
-lint: ## Run code linting
-	$(DOCKER_COMPOSE) exec app python -m flake8 app/
-	$(DOCKER_COMPOSE) exec app python -m black --check app/
-	$(DOCKER_COMPOSE) exec app python -m isort --check-only app/
+# ===================
+# Database
+# ===================
 
-.PHONY: format
-format: ## Format code
-	$(DOCKER_COMPOSE) exec app python -m black app/
-	$(DOCKER_COMPOSE) exec app python -m isort app/
+db-up:
+	docker-compose up -d postgres
+	@echo "$(GREEN)PostgreSQL started on localhost:5432$(RESET)"
 
-.PHONY: security
-security: ## Run security checks
-	$(DOCKER_COMPOSE) exec app python -m bandit -r app/
-	$(DOCKER_COMPOSE) exec app python -m safety check
+db-migrate:
+	@echo "$(CYAN)Running migrations...$(RESET)"
+	docker-compose exec postgres psql -U solvia -d solvia -f /docker-entrypoint-initdb.d/001_init.sql
 
-.PHONY: stats
-stats: ## Show Docker stats
-	docker stats --no-stream
+db-reset:
+	@echo "$(YELLOW)Resetting database...$(RESET)"
+	docker-compose exec postgres psql -U solvia -d solvia -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+	$(MAKE) db-migrate
 
-.PHONY: build
-build: ## Build all Docker images
-	$(DOCKER_COMPOSE) build
+db-shell:
+	docker-compose exec postgres psql -U solvia -d solvia
 
-.PHONY: pull
-pull: ## Pull latest Docker images
-	$(DOCKER_COMPOSE) pull
+db-backup:
+	@echo "$(CYAN)Backing up database...$(RESET)"
+	docker-compose exec postgres pg_dump -U solvia solvia > backups/solvia_$(shell date +%Y%m%d_%H%M%S).sql
 
-.PHONY: restart
-restart: ## Restart all services
-	$(DOCKER_COMPOSE) restart
+# ===================
+# Utilities
+# ===================
 
-.PHONY: caddy-reload
-caddy-reload: ## Reload Caddy configuration
-	$(DOCKER_COMPOSE) exec caddy caddy reload --config /etc/caddy/Caddyfile
+install:
+	@echo "$(CYAN)Installing dependencies...$(RESET)"
+	cd api && go mod download
+	cd web && npm install
 
-.PHONY: caddy-fmt
-caddy-fmt: ## Format Caddyfile
-	$(DOCKER_COMPOSE) exec caddy caddy fmt --overwrite /etc/caddy/Caddyfile
+setup: install
+	@echo "$(CYAN)Setting up project...$(RESET)"
+	cp .env.example .env
+	$(MAKE) db-up
+	sleep 5
+	$(MAKE) db-migrate
+	@echo "$(GREEN)Setup complete!$(RESET)"
 
-# Installation Commands
-.PHONY: install
-install: ## Initial setup for development
-	@echo "Setting up Solvia development environment..."
-	@cp .env.example .env
-	@echo "Please edit .env with your configuration"
-	@make dev-build
+clean:
+	@echo "$(CYAN)Cleaning...$(RESET)"
+	rm -rf bin/
+	rm -rf api/tmp/
+	rm -rf web/dist/
+	rm -rf web/node_modules/.cache/
 
-.PHONY: uninstall
-uninstall: ## Remove all containers and volumes
-	$(DOCKER_COMPOSE) down -v
-	docker rmi $(APP_NAME):latest 2>/dev/null || true
+# ===================
+# API-specific
+# ===================
 
-# Monitoring Commands
-.PHONY: health
-health: ## Check service health
-	@echo "Checking service health..."
-	@curl -f http://localhost/health || echo "App health check failed"
-	@curl -f http://localhost:8080/health || echo "Caddy health check failed"
+api-build:
+	cd api && go build -ldflags="-w -s" -o ../bin/solvia-api ./cmd/api
 
-.PHONY: metrics
-metrics: ## Show metrics
-	@curl -s http://localhost:8080/metrics
+api-test:
+	cd api && go test -v -cover ./...
 
-# Server Commands (requires SSH access)
-.PHONY: server-setup
-server-setup: ## Setup production server
-	./deploy.sh setup
+api-lint:
+	cd api && golangci-lint run ./...
 
-.PHONY: server-deploy
-server-deploy: ## Deploy to production server
-	./deploy.sh deploy
+api-generate:
+	cd api && go generate ./...
 
-.PHONY: server-status
-server-status: ## Check production server status
-	./deploy.sh status
+# ===================
+# Web-specific
+# ===================
 
-.PHONY: server-rollback
-server-rollback: ## Rollback production deployment
-	./deploy.sh rollback
+web-build:
+	cd web && npm run build
 
-# Quick Commands
-.PHONY: up
-up: dev ## Alias for dev
+web-test:
+	cd web && npm test
 
-.PHONY: down
-down: dev-down ## Alias for dev-down
+web-lint:
+	cd web && npm run lint
 
-.PHONY: logs
-logs: dev-logs ## Alias for dev-logs
-
-.PHONY: shell
-shell: dev-shell ## Alias for dev-shell
-
-.PHONY: ps
-ps: ## Show all container status
-	$(DOCKER_COMPOSE) ps
-
-# Testing shortcuts
-.PHONY: test
-test: dev-test ## Alias for dev-test
-
-.PHONY: test-unit
-test-unit: ## Run unit tests only
-	$(DOCKER_COMPOSE) exec app pytest tests/unit
-
-.PHONY: test-integration
-test-integration: ## Run integration tests only
-	$(DOCKER_COMPOSE) exec app pytest tests/integration
-
-.PHONY: test-coverage
-test-coverage: ## Run tests with coverage
-	$(DOCKER_COMPOSE) exec app pytest --cov=app --cov-report=html
-
-# Version information
-.PHONY: version
-version: ## Show version information
-	@echo "Solvia Version: $$(git describe --tags --always)"
-	@echo "Build Date: $$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-	@echo "Docker Version: $$(docker --version)"
-	@echo "Docker Compose Version: $$(docker-compose --version)"
+web-preview:
+	cd web && npm run preview

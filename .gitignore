@@ -1,192 +1,72 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+bin/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-<<<<<<< HEAD
-MANIFEST
-CLAUDE*.md
-# PyInstaller
-*.manifest
-*.spec
-*.env*
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+*.exe
+*.dll
+*.so
+*.dylib
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
+# Environment
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+.env.local
+.env.*.local
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
 
 # OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-
-# Google Sheets credentials
-credentials.json
-token.json
-*.json
 
 # Logs
 *.log
 logs/
 
-# Temporary files
+# Test coverage
+coverage/
+*.out
+coverage.html
+
+# Temporary
+tmp/
+temp/
 *.tmp
-*.temp 
-=======
 
-# Virtual Environment
-venv/
-ENV/
-env/
-.venv/
+# Go
+api/tmp/
+*.test
+go.work
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# React/Vite
+web/node_modules/
+web/dist/
+web/.cache/
 
-# Environment variables and secrets
-.env
-*.env
-secrets.json
-credentials.json
-token.pickle
-config/token.pickle
-*.token
+# Docker
+docker-compose.override.yml
+
+# Backups
+backups/*.sql
+*.backup
+
+# Secrets
+*.pem
 *.key
+credentials.json
 
-# Logs
-*.log
-debug.log
-
-# Local development
-.DS_Store
-Thumbs.db
-
-# Node-related (if any frontend/React)
-node_modules/
-package-lock.json
-yarn.lock
-
-# Build output
-*.egg-info/
-
-# Frontend artifacts (if you use React or Tailwind)
-*.css.map
-*.js.map
-
-# Airtable/backup exports
-*.csv
-*.xlsx
-*.bak
-
-# Jupyter Notebooks (if used for testing)
-.ipynb_checkpoints/
-
-# PyInstaller / Build folders
-*.spec
-
-# Output / reports
+# Generated reports
+*.pdf
+api/cmd/api/storage/
 reports/
-*.md.html
-output/
-# Private SSH keys - DO NOT COMMIT
-github_actions_*
-NEW_SSH_KEY_*
+
+# Binaries
+api/api
+solvia-api

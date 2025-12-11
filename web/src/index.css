@@ -1,0 +1,264 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   SOLVIA DESIGN SYSTEM - Global Styles
+   ============================================ */
+
+@layer base {
+  html {
+    @apply antialiased scroll-smooth;
+  }
+
+  body {
+    @apply bg-background-light text-text-primary font-sans;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-semibold text-text-primary;
+  }
+
+  h1 { @apply text-h1; }
+  h2 { @apply text-h2; }
+  h3 { @apply text-h3; }
+  h4 { @apply text-h4; }
+
+  p {
+    @apply text-body text-text-secondary;
+  }
+
+  /* Links */
+  a {
+    @apply text-primary-600 hover:text-primary-700 transition-colors;
+  }
+
+  /* Focus styles */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-primary-100 text-primary-900;
+  }
+}
+
+/* ============================================
+   COMPONENT STYLES
+   ============================================ */
+
+@layer components {
+  /* ---------- Buttons ---------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5
+           rounded-button font-ui font-medium text-body-sm
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-primary text-white
+           shadow-button hover:shadow-button-hover
+           hover:brightness-110 active:brightness-95
+           focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-text-primary border border-gray-200
+           hover:bg-gray-50 hover:border-gray-300
+           focus:ring-gray-400;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-text-secondary
+           hover:bg-gray-100 hover:text-text-primary
+           focus:ring-gray-400;
+  }
+
+  .btn-danger {
+    @apply btn bg-status-error text-white
+           hover:bg-red-600
+           focus:ring-red-500;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-caption;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-body;
+  }
+
+  .btn-icon {
+    @apply p-2.5 aspect-square;
+  }
+
+  /* ---------- Cards ---------- */
+  .card {
+    @apply bg-background-card rounded-card shadow-card
+           border border-gray-100 p-6
+           transition-shadow duration-200;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-card-hover;
+  }
+
+  .card-interactive {
+    @apply card-hover cursor-pointer active:scale-[0.99];
+  }
+
+  /* ---------- Inputs ---------- */
+  .input {
+    @apply w-full px-4 py-2.5
+           bg-white border border-gray-200 rounded-input
+           font-sans text-body text-text-primary
+           placeholder:text-text-muted
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500
+           disabled:bg-gray-50 disabled:cursor-not-allowed;
+  }
+
+  .input-error {
+    @apply input border-status-error focus:ring-status-error/20 focus:border-status-error;
+  }
+
+  .input-label {
+    @apply block text-body-sm font-medium text-text-primary mb-1.5;
+  }
+
+  .input-helper {
+    @apply text-caption text-text-muted mt-1;
+  }
+
+  .input-error-message {
+    @apply text-caption text-status-error mt-1;
+  }
+
+  /* ---------- SEO Score Colors ---------- */
+  .score-excellent { @apply text-score-excellent; }
+  .score-good { @apply text-score-good; }
+  .score-average { @apply text-score-average; }
+  .score-poor { @apply text-score-poor; }
+  .score-critical { @apply text-score-critical; }
+
+  .score-bg-excellent { @apply bg-score-excellent; }
+  .score-bg-good { @apply bg-score-good; }
+  .score-bg-average { @apply bg-score-average; }
+  .score-bg-poor { @apply bg-score-poor; }
+  .score-bg-critical { @apply bg-score-critical; }
+
+  /* ---------- Status Badges ---------- */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full
+           text-caption font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-green-100 text-green-700;
+  }
+
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-700;
+  }
+
+  .badge-error {
+    @apply badge bg-red-100 text-red-700;
+  }
+
+  .badge-info {
+    @apply badge bg-blue-100 text-blue-700;
+  }
+
+  .badge-neutral {
+    @apply badge bg-gray-100 text-gray-700;
+  }
+
+  /* ---------- Sidebar ---------- */
+  /* Note: Sidebar uses inline Tailwind classes in component for white bg design */
+  /* Original Solvia design: white background, gray border, hover-expand */
+
+  .nav-item-icon {
+    @apply w-5 h-5 flex-shrink-0;
+  }
+
+  /* ---------- Mobile Dock ---------- */
+  .mobile-dock {
+    @apply fixed bottom-0 left-0 right-0
+           bg-white border-t border-gray-200
+           flex items-center justify-around
+           py-2 px-4 z-50
+           md:hidden;
+  }
+
+  .mobile-dock-item {
+    @apply flex flex-col items-center gap-1 p-2
+           text-text-muted text-caption
+           transition-colors duration-200;
+  }
+
+  .mobile-dock-item-active {
+    @apply mobile-dock-item text-primary-600;
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-gradient-primary bg-clip-text text-transparent;
+  }
+
+  /* Safe area padding for mobile */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Hide scrollbar but allow scroll */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Truncate multiline */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
