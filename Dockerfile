@@ -35,14 +35,12 @@ ENV GOTOOLCHAIN=auto
 # Copy go mod files
 COPY api/go.mod api/go.sum ./
 
-# Download dependencies (will auto-download Go 1.24 toolchain if needed)
-RUN go mod download
-
-# Copy source code
+# Copy source code (needed for build)
 COPY api/ ./
 
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /solvia-api ./cmd/api
+# Download dependencies and build in single step (preserves downloaded Go 1.24 toolchain)
+RUN go mod download && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /solvia-api ./cmd/api
 
 # ============================================
 # Stage 3: Final Runtime Image
