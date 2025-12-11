@@ -22,7 +22,7 @@ RUN npm run build
 # ============================================
 # Stage 2: Build Go API
 # ============================================
-FROM golang:1.22-alpine AS api-builder
+FROM golang:1.23-alpine AS api-builder
 
 WORKDIR /app
 
