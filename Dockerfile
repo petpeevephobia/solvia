@@ -29,10 +29,13 @@ WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
 
+# Enable automatic toolchain download for newer Go versions
+ENV GOTOOLCHAIN=auto
+
 # Copy go mod files
 COPY api/go.mod api/go.sum ./
 
-# Download dependencies
+# Download dependencies (will auto-download Go 1.24 toolchain if needed)
 RUN go mod download
 
 # Copy source code
