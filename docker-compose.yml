@@ -37,6 +37,11 @@ services:
       - "8080"
     env_file:
       - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - PORT=8080
@@ -68,7 +73,29 @@ services:
       - "com.solvia.description=Solvia SEO Audit Tool V2 (Go + React)"
       - "com.solvia.service=api"
 
-  # Redis Cache (Optional - for session management and caching)
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: solvia-postgres
+    restart: unless-stopped
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_USER: solvia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-solvia_db_prod_Xk9Lm3Np7Qr_2025}
+      POSTGRES_DB: solvia
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - solvia-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U solvia -d solvia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: solvia-redis
@@ -99,4 +126,6 @@ volumes:
   caddy_config:
     driver: local
   redis_data:
+    driver: local
+  postgres_data:
     driver: local
