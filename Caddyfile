@@ -88,10 +88,9 @@
 		}
 	}
 
-	# Static assets from React build (with caching)
+	# Static assets from React build (proxy to Go app with caching)
 	handle /assets/* {
-		root * /srv/web/dist
-		file_server
+		reverse_proxy app:8080
 		header Cache-Control "public, max-age=31536000, immutable"
 	}
 
@@ -102,23 +101,24 @@
 			not path /api/* /auth/* /health /assets/*
 		}
 
-		# For app routes like /dashboard, /audit, /settings - serve React SPA
+		# For app routes like /dashboard, /audit, /settings - proxy to Go app (serves React SPA)
 		@appRoutes {
 			path /login /dashboard /dashboard/* /audit /audit/* /settings /chat /gsc /domain-selection /auth/callback
 		}
 		handle @appRoutes {
-			root * /srv/web/dist
-			try_files {path} /index.html
-			file_server
-			header Cache-Control "no-cache, no-store, must-revalidate"
-		}
-
-		# Everything else goes to landing page
-		handle {
-			reverse_proxy solvia-landing:80 {
+			reverse_proxy app:8080 {
 				header_up Host {host}
 				header_up X-Real-IP {remote_host}
+				header_up X-Forwarded-For {remote_host}
+				header_up X-Forwarded-Proto {scheme}
 			}
+		}
+
+		# Everything else goes to landing page (static files)
+		handle {
+			root * /landing
+			try_files {path} {path}.html {path}/index.html /index.html
+			file_server
 		}
 	}
 
