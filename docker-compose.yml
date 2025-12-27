@@ -1,89 +1,102 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  # Go API Backend
-  api:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
-    container_name: solvia-api
+  # Caddy - Reverse Proxy & Web Server
+  caddy:
+    image: caddy:2-alpine
+    container_name: solvia-caddy
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - solvia-network
+    depends_on:
+      - app
     environment:
-      - ENVIRONMENT=development
-      - PORT=8080
-      - DATABASE_URL=postgres://solvia:solvia_secret@postgres:5432/solvia?sslmode=disable
+      - DOMAIN=${DOMAIN:-localhost}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Go API + React Frontend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: solvia-app
+    restart: unless-stopped
+    expose:
+      - "8080"
     env_file:
       - .env
-    depends_on:
-      postgres:
-        condition: service_healthy
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - PORT=8080
+      - DATABASE_URL=${DATABASE_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM=${SMTP_FROM}
+    volumes:
+      - ./reports:/app/reports
     networks:
       - solvia-network
-    restart: unless-stopped
-    volumes:
-      - ./web/dist:/app/web/dist:ro
-
-  # PostgreSQL Database
-  postgres:
-    image: postgres:17-alpine
-    container_name: solvia-postgres
-    environment:
-      POSTGRES_USER: solvia
-      POSTGRES_PASSWORD: solvia_secret
-      POSTGRES_DB: solvia
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U solvia -d solvia"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - solvia-network
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "com.solvia.description=Solvia SEO Audit Tool V2 (Go + React)"
+      - "com.solvia.service=api"
+
+  # Redis Cache (Optional - for session management and caching)
+  redis:
+    image: redis:7-alpine
+    container_name: solvia-redis
     restart: unless-stopped
-
-  # React Frontend (development server)
-  web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    container_name: solvia-web
-    ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_URL=http://localhost:8080
+    expose:
+      - "6379"
     volumes:
-      - ./web:/app
-      - /app/node_modules
+      - redis_data:/data
     networks:
       - solvia-network
-    profiles:
-      - dev
-
-  # pgAdmin (development only)
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: solvia-pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@solvia.app
-      PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    ports:
-      - "5050:80"
-    depends_on:
-      - postgres
-    networks:
-      - solvia-network
-    profiles:
-      - dev
+    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD:-solvia_redis_secret}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   solvia-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
 
 volumes:
-  postgres_data:
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+  redis_data:
+    driver: local
