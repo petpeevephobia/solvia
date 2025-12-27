@@ -70,3 +70,11 @@ reports/
 # Binaries
 api/api
 solvia-api
+
+# Private docs (keep local only)
+CLAUDE.md
+task.md
+note.md
+docs/
+.claude/
+backup_env_*.env

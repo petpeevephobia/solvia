@@ -511,12 +511,12 @@ func (g *Generator) drawParagraph(pdf *gofpdf.Fpdf, y float64, text string) floa
 	}
 
 	// Simple text without bold
-	pdf.SetXY(MarginLeft, y)
 	lines := pdf.SplitText(text, ContentWidth)
 
 	lineHeight := StyleBody.FontSize * StyleBody.LineHeight
 	for _, line := range lines {
-		pdf.SetX(MarginLeft)
+		// Must set BOTH X and Y for each line (Cell doesn't auto-advance Y)
+		pdf.SetXY(MarginLeft, y)
 		pdf.Cell(ContentWidth, lineHeight, line)
 		y += lineHeight
 	}
@@ -555,29 +555,26 @@ func (g *Generator) drawProgressBar(pdf *gofpdf.Fpdf, y float64, currentStage st
 		}
 	}
 
-	// Draw fills
+	// PIXEL-PERFECT FIX: Draw in correct order to prevent gaps
+	// 1. Draw WHITE fills first (non-current stages)
+	// 2. Draw outer border
+	// 3. Draw BLACK separators only (not adjacent to current)
+	// 4. Draw current stage's ORANGE fill LAST (covers any lines at its edges)
+
 	for i, stage := range stages {
 		boxX := x + float64(i)*boxWidth
 		isCurrent := stage.key == currentStage
 
-		// Set fill color
-		if isCurrent {
-			r, gr, b := SolviaOrange.ToRGB()
-			pdf.SetFillColor(r, gr, b)
-		} else {
+		// Only draw non-current (white) fills first
+		if !isCurrent {
 			pdf.SetFillColor(255, 255, 255)
-		}
-
-		// Draw box (with rounded corners for first/last)
-		if i == 0 {
-			// First box: rounded left, square right
-			g.drawRoundedRectLeft(pdf, boxX, y, boxWidth, height, radius)
-		} else if i == 3 {
-			// Last box: square left, rounded right
-			g.drawRoundedRectRight(pdf, boxX, y, boxWidth, height, radius)
-		} else {
-			// Middle boxes: square
-			pdf.Rect(boxX, y, boxWidth, height, "F")
+			if i == 0 {
+				g.drawRoundedRectLeft(pdf, boxX, y, boxWidth, height, radius)
+			} else if i == 3 {
+				g.drawRoundedRectRight(pdf, boxX, y, boxWidth, height, radius)
+			} else {
+				pdf.Rect(boxX, y, boxWidth, height, "F")
+			}
 		}
 	}
 
@@ -587,20 +584,52 @@ func (g *Generator) drawProgressBar(pdf *gofpdf.Fpdf, y float64, currentStage st
 	pdf.SetDrawColor(r, gr, b)
 	g.drawRoundedRectBorder(pdf, x, y, ProgressBarWidth, height, radius)
 
-	// Draw separators
+	// Draw separators (only BLACK ones - not adjacent to current stage)
 	for i := 1; i < 4; i++ {
-		sepX := x + float64(i)*boxWidth
-
-		// Color based on adjacency to current stage
+		// Skip separators at edges of current stage - they'll be covered by orange fill
 		if i == currentIdx || i == currentIdx+1 {
-			r, gr, b := SolviaOrange.ToRGB()
-			pdf.SetDrawColor(r, gr, b)
-		} else {
-			r, gr, b := SolviaBlack.ToRGB()
-			pdf.SetDrawColor(r, gr, b)
+			continue
 		}
-
+		sepX := x + float64(i)*boxWidth
+		r, gr, b := SolviaBlack.ToRGB()
+		pdf.SetDrawColor(r, gr, b)
 		pdf.Line(sepX, y, sepX, y+height)
+	}
+
+	// Draw current stage's ORANGE fill LAST - extends to cover separator lines
+	// This ensures edge-to-edge fill with no gaps
+	for i, stage := range stages {
+		boxX := x + float64(i)*boxWidth
+		isCurrent := stage.key == currentStage
+
+		if isCurrent {
+			r, gr, b := SolviaOrange.ToRGB()
+			pdf.SetFillColor(r, gr, b)
+
+			// Extend fill slightly beyond box boundaries to cover any separator lines
+			const edgeOverlap = 1.0
+			fillX := boxX
+			fillW := boxWidth
+
+			// Extend left edge (unless first box)
+			if i > 0 {
+				fillX -= edgeOverlap
+				fillW += edgeOverlap
+			}
+			// Extend right edge (unless last box)
+			if i < 3 {
+				fillW += edgeOverlap
+			}
+
+			// Draw the fill
+			if i == 0 {
+				g.drawRoundedRectLeft(pdf, boxX, y, fillW, height, radius)
+			} else if i == 3 {
+				g.drawRoundedRectRight(pdf, fillX, y, fillW, height, radius)
+			} else {
+				pdf.Rect(fillX, y, fillW, height, "F")
+			}
+		}
 	}
 
 	// Draw text (1:1 with Python positions)

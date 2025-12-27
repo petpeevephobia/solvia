@@ -1,0 +1,32 @@
+version: '3.8'
+
+# Production overrides
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: solvia-api
+    environment:
+      - ENVIRONMENT=production
+      - PORT=8080
+    env_file:
+      - .env
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

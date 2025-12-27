@@ -66,7 +66,7 @@ export default function DashboardPage() {
   })
 
   // Track banner hide timeout
-  const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bannerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Cleanup banner timeout on unmount
   useEffect(() => {
@@ -306,7 +306,7 @@ export default function DashboardPage() {
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 font-heading">
             Hey, {userName}!{' '}
             {selectedWebsite && (
               <>
@@ -328,7 +328,7 @@ export default function DashboardPage() {
       <section className="overview mb-8">
         <div className="flex justify-between items-center mb-5">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Overview</h2>
+            <h2 className="text-lg font-bold text-gray-900 font-heading">Overview</h2>
             <p className="text-[13px] text-gray-500 mt-1">
               {datePreset === 'custom'
                 ? `${formatDateDisplay(dateRange.startDate)} - ${formatDateDisplay(dateRange.endDate)}`
@@ -404,7 +404,7 @@ export default function DashboardPage() {
       {/* Current Issues Section */}
       <section className="current-issues mb-8">
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-semibold text-gray-900">Current Issues</h2>
+          <h2 className="text-lg font-bold text-gray-900 font-heading">Current Issues</h2>
           <button
             onClick={() => runAuditMutation.mutate()}
             disabled={!selectedWebsite || runAuditMutation.isPending}

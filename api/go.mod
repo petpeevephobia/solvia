@@ -1,6 +1,8 @@
 module github.com/petpeevephobia/solvia-v2/api
 
-go 1.23
+go 1.24
+
+toolchain go1.24.4
 
 require (
 	github.com/gin-contrib/cors v1.7.2

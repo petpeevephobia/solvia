@@ -1,21 +1,26 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+// Removed useNavigate - now using PDF preview modal instead of separate page
 import { Eye, Download, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { auditService } from '@/services/audit'
 import { useWebsiteStore } from '@/stores/websiteStore'
+import { PdfPreviewModal } from './components/PdfPreviewModal'
 
 type FilterType = 'all' | 'week' | 'month' | 'high_score' | 'low_score' | 'critical_issues'
 type SortType = 'created_at_desc' | 'created_at_asc' | 'seo_score_desc' | 'seo_score_asc'
 
 export default function AuditHistoryPage() {
-  const navigate = useNavigate()
   const { selectedWebsite } = useWebsiteStore()
   const queryClient = useQueryClient()
 
   const [filter, setFilter] = useState<FilterType>('all')
   const [sort, setSort] = useState<SortType>('created_at_desc')
+
+  // PDF Preview Modal state
+  const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  const [previewAuditId, setPreviewAuditId] = useState<string | null>(null)
+  const [previewWebsiteUrl, setPreviewWebsiteUrl] = useState<string | undefined>(undefined)
 
   const { data: audits, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['audit-history'],
@@ -98,8 +103,17 @@ export default function AuditHistoryPage() {
   const auditsData = audits || []
   const processedAudits = sortAudits(filterAudits(auditsData))
 
-  const handleViewDetails = (auditId: string) => {
-    navigate(`/audit/${auditId}`)
+  // Open PDF preview modal instead of navigating to detail page
+  const handlePreviewPdf = (auditId: string, websiteUrl?: string) => {
+    setPreviewAuditId(auditId)
+    setPreviewWebsiteUrl(websiteUrl)
+    setPreviewModalOpen(true)
+  }
+
+  const handleClosePreview = () => {
+    setPreviewModalOpen(false)
+    setPreviewAuditId(null)
+    setPreviewWebsiteUrl(undefined)
   }
 
   const handleDownloadPdf = async (auditId: string) => {
@@ -247,11 +261,12 @@ export default function AuditHistoryPage() {
                     {/* Actions - Eye icon and Download icon */}
                     <td className="px-3 py-4">
                       <div className="flex items-center gap-2 justify-center">
-                        {/* View button */}
+                        {/* Preview PDF button */}
                         <button
-                          onClick={() => handleViewDetails(audit.audit_id)}
-                          className="p-2 hover:bg-gray-100 rounded-md transition-colors"
-                          title="View audit details"
+                          onClick={() => handlePreviewPdf(audit.audit_id, audit.website_url)}
+                          disabled={!audit.pdf_generated}
+                          className={`p-2 hover:bg-gray-100 rounded-md transition-colors ${!audit.pdf_generated ? 'opacity-30 cursor-not-allowed' : ''}`}
+                          title={audit.pdf_generated ? "Preview PDF" : "PDF not available yet"}
                         >
                           <Eye className="w-[18px] h-[18px] text-gray-600" />
                         </button>
@@ -300,6 +315,16 @@ export default function AuditHistoryPage() {
             Run First Audit
           </Button>
         </div>
+      )}
+
+      {/* PDF Preview Modal */}
+      {previewAuditId && (
+        <PdfPreviewModal
+          isOpen={previewModalOpen}
+          onClose={handleClosePreview}
+          auditId={previewAuditId}
+          websiteUrl={previewWebsiteUrl}
+        />
       )}
     </div>
   )

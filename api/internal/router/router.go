@@ -201,5 +201,15 @@ func New(handlers *Handlers, config *Config) *gin.Engine {
 		}
 	}
 
+	// Serve React SPA static files
+	r.Static("/assets", "/app/web/dist/assets")
+	r.StaticFile("/favicon.svg", "/app/web/dist/favicon.svg")
+	r.Static("/images", "/app/web/dist/images")
+
+	// SPA fallback - serve index.html for all non-API routes
+	r.NoRoute(func(c *gin.Context) {
+		c.File("/app/web/dist/index.html")
+	})
+
 	return r
 }

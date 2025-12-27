@@ -237,9 +237,11 @@ func (r *PostgresAuditRepository) GetIssuesByAudit(ctx context.Context, auditID 
 		WHERE audit_id = $1
 		ORDER BY
 			CASE severity
+				WHEN 'critical' THEN 0
 				WHEN 'high' THEN 1
 				WHEN 'medium' THEN 2
 				WHEN 'low' THEN 3
+				ELSE 4
 			END
 	`
 

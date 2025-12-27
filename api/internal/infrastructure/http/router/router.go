@@ -84,7 +84,7 @@ func NewRouter(cfg *config.Config, db *database.PostgresDB) *gin.Engine {
 	}
 
 	// Serve React SPA static files
-	r.Static("/assets", "../web/dist/assets")
+	r.Static("/assets", "./web/dist/assets")
 	r.NoRoute(spaHandler())
 
 	return r
@@ -134,6 +134,6 @@ func placeholderHandler(name string) gin.HandlerFunc {
 // spaHandler serves the React SPA
 func spaHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.File("../web/dist/index.html")
+		c.File("./web/dist/index.html")
 	}
 }
