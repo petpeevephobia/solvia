@@ -141,7 +141,7 @@ export default function AuditHistoryPage() {
     <div className="space-y-6">
       {/* Page header - minimal like original */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Audit History</h1>
+        <h1 className="text-2xl font-bold text-gray-900 font-heading">Audit History</h1>
         <p className="text-gray-500 mt-1">View and download your past SEO audit reports</p>
       </div>
 
@@ -203,7 +203,7 @@ export default function AuditHistoryPage() {
       {!isLoading && processedAudits.length > 0 && (
         <div>
           {/* Header with count */}
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-bold text-gray-900 font-heading mb-4">
             Audit Reports ({processedAudits.length} found)
           </h3>
 

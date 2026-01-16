@@ -432,19 +432,10 @@ export default function DashboardPage() {
               <IssueCard key={issue.id || index} issue={issue} />
             ))
           ) : (
-            <div className="col-span-full bg-green-50 rounded-xl p-8 text-center">
-              <span className="text-4xl mb-4 block">All Good!</span>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Issues Found</h3>
-              <p className="text-gray-600 mb-4">
-                No critical issues found. Your website is performing well! Run a new audit to get the latest insights.
+            <div className="col-span-full py-12 text-center">
+              <p className="text-gray-500 text-sm">
+                No issues. Run a new audit to get new insights.
               </p>
-              <button
-                onClick={() => runAuditMutation.mutate()}
-                disabled={!selectedWebsite || runAuditMutation.isPending}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
-              >
-                Run New Audit
-              </button>
             </div>
           )}
         </div>
