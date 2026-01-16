@@ -15,7 +15,7 @@
 	}
 }
 
-{$DOMAIN:localhost} {
+www.{$DOMAIN:localhost} {
 	# Compression
 	encode zstd gzip
 
@@ -144,9 +144,9 @@
 	}
 }
 
-# Redirect www to non-www
-www.{$DOMAIN:localhost} {
-	redir https://{$DOMAIN:localhost}{uri} permanent
+# Redirect non-www to www
+{$DOMAIN:localhost} {
+	redir https://www.{$DOMAIN:localhost}{uri} permanent
 }
 
 # Health check endpoint for monitoring
