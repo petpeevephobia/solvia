@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { gscService } from '@/services/gsc'
 import { useWebsiteStore } from '@/stores/websiteStore'
 import { useAuthStore } from '@/stores/authStore'
+import { authService } from '@/services/auth'
 import type { GSCWebsite } from '@/types'
 import { clsx } from 'clsx'
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { selectedWebsite, selectWebsite, setWebsites } = useWebsiteStore()
-  const { user } = useAuthStore()
+  const { user, logout } = useAuthStore()
   const [pendingSelection, setPendingSelection] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
@@ -75,6 +78,19 @@ export default function SettingsPage() {
     if (pendingSelection && pendingSelection !== selectedWebsite) {
       selectMutation.mutate(pendingSelection)
     }
+  }
+
+  const handleLogout = async () => {
+    if (!confirm('Are you sure you want to log out?')) {
+      return
+    }
+    try {
+      await authService.logout()
+    } catch {
+      // Ignore errors
+    }
+    logout()
+    navigate('/login')
   }
 
   return (
@@ -202,6 +218,14 @@ export default function SettingsPage() {
             {user?.email || 'Loading...'}
           </div>
         </div>
+
+        {/* Logout Link */}
+        <button
+          onClick={handleLogout}
+          className="mt-8 text-xs text-status-error hover:text-red-600 underline cursor-pointer bg-transparent border-none p-0 text-left"
+        >
+          Log out
+        </button>
       </div>
     </div>
   )

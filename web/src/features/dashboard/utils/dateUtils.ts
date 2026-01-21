@@ -11,7 +11,8 @@ export function calculateDateRange(preset: DatePreset): { startDate: string; end
 
   switch (preset) {
     case '24h':
-      startDate.setDate(startDate.getDate() - 1)
+      // Single day: startDate = endDate (yesterday)
+      // No modification needed - startDate already equals endDate
       break
     case '7d':
       startDate.setDate(startDate.getDate() - 7)
