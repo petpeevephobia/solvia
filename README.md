@@ -55,3 +55,4 @@ make build      # Build for production
 - [Architecture](./docs/ARCHITECTURE.md)
 - [API Reference](./docs/API.md)
 - [Deployment](./docs/DEPLOYMENT.md)
+- [Local Development](./docs/LOCAL_DEV.md)

@@ -9,6 +9,15 @@ GREEN := \033[32m
 YELLOW := \033[33m
 RESET := \033[0m
 
+# Windows vs Unix (copy and sleep). On Windows, Make uses sh (Git Bash) so "copy" isn't available; use cmd /c.
+ifeq ($(OS),Windows_NT)
+CP_CMD = cmd /c "copy /Y .env.example .env"
+SLEEP_CMD = timeout /t 5 /nobreak > nul
+else
+CP_CMD = cp .env.example .env
+SLEEP_CMD = sleep 5
+endif
+
 help:
 	@echo ""
 	@echo "$(CYAN)Solvia v2 - Available Commands$(RESET)"
@@ -46,10 +55,11 @@ help:
 # ===================
 
 dev: docker-up
-	@echo "$(GREEN)All services started!$(RESET)"
+	@echo "$(GREEN)Starting local API + Web...$(RESET)"
 	@echo "API:    http://localhost:8080"
-	@echo "Web:    http://localhost:3000 (if enabled)"
-	@echo "DB:     localhost:5432"
+	@echo "Web:    http://localhost:3000"
+	@(cd api && go run ./cmd/api) & \
+	sleep 3 && cd web && npm run dev
 
 api:
 	@echo "$(CYAN)Starting API with hot reload...$(RESET)"
@@ -140,10 +150,10 @@ install:
 
 setup: install
 	@echo "$(CYAN)Setting up project...$(RESET)"
-	cp .env.example .env
-	$(MAKE) db-up
-	sleep 5
-	$(MAKE) db-migrate
+	$(CP_CMD)
+	make db-up
+	$(SLEEP_CMD)
+	make db-migrate
 	@echo "$(GREEN)Setup complete!$(RESET)"
 
 clean:
