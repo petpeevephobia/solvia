@@ -9,7 +9,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "5432:5432"
+      # - "5432:5432"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -28,7 +28,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # Go API + React Frontend
+  # Go API + React Frontend AKA app service
   app:
     build:
       context: .

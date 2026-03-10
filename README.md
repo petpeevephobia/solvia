@@ -27,10 +27,6 @@ make dev
 # Web:  http://localhost:3000
 ```
 
-### Quick start (local)
-
-Run the API and frontend on your machine with hot reload (Postgres in Docker): copy `.env` to `api/.env`, set `DATABASE_URL=...@localhost:5432/...`, start Postgres with `docker-compose up -d postgres` (ensure `postgres` has `ports: "5432:5432"`), then run the API (`cd api && go run ./cmd/api`) and frontend (`make web`). Full steps: [Local Development Guide](./docs/LOCAL_DEV.md).
-
 ## Tech Stack
 
 ### Backend
