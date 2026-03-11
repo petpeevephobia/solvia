@@ -408,7 +408,7 @@ export default function DashboardPage() {
       {/* Current Issues Section */}
       <section className="current-issues mb-8">
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-bold text-gray-900 font-heading">Current Issues</h2>
+          <h2 className="text-lg font-bold text-gray-900 font-heading">Current Issues Of The Month</h2>
           <button
             onClick={() => runAuditMutation.mutate()}
             disabled={!selectedWebsite || runAuditMutation.isPending}
