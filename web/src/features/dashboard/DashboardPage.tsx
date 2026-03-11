@@ -23,6 +23,7 @@ import {
   calculateDateRange,
   DATE_PRESET_LABELS,
   formatDateDisplay,
+  formatDateRangeDisplay,
   formatNumber,
   type DatePreset,
 } from './utils/dateUtils'
@@ -365,6 +366,9 @@ export default function DashboardPage() {
             >
               Custom
             </button>
+            <span className="ml-2 text-[11px] text-[#6B7280] font-normal font-sans">
+              {formatDateRangeDisplay(dateRange.startDate, dateRange.endDate)}
+            </span>
           </div>
         </div>
 
