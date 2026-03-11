@@ -316,9 +316,9 @@ export default function DashboardPage() {
               </>
             )}
           </h1>
-          <div className="text-sm text-gray-500">
-            <span className="text-gray-400">Last Update: </span>
-            <span className="text-gray-900 font-medium">
+          <div className="text-[11px] text-[#6B7280]">
+            <span>Last Update: </span>
+            <span>
               {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           </div>
