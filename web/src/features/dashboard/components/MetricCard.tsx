@@ -30,9 +30,9 @@ export function MetricCard({ label, value, change, icon, isLoading }: MetricCard
         {icon}
       </div>
       <div className="metric-content">
-        <div className="text-sm text-gray-500 font-medium mb-2">{label}</div>
-        <div className="text-[32px] font-semibold text-gray-900 mb-1">{value}</div>
-        <div className="text-[13px] text-gray-500">{change}</div>
+        <div className="text-p2 font-sans font-medium text-text-secondary mb-2">{label}</div>
+        <div className="text-h2 font-heading font-semibold text-text-primary mb-1">{value}</div>
+        <div className="text-p2 font-sans text-text-secondary">{change}</div>
       </div>
     </div>
   )

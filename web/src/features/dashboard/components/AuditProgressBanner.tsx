@@ -32,8 +32,8 @@ export function AuditProgressBanner({
                 </svg>
               </div>
               <div>
-                <div className="font-semibold text-sm">Running SEO Audit</div>
-                <div className="text-xs text-white/80">{message}</div>
+                <div className="font-semibold text-p2 font-sans">Running SEO Audit</div>
+                <div className="text-note font-sans text-white/80">{message}</div>
               </div>
             </div>
 
@@ -48,7 +48,7 @@ export function AuditProgressBanner({
             </div>
 
             {/* Progress Percentage */}
-            <div className="text-sm font-bold">{progress}%</div>
+            <div className="text-p2 font-sans font-bold">{progress}%</div>
           </div>
 
           {/* Minimize Button */}

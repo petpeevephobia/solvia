@@ -32,7 +32,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             className={clsx(
               'w-full px-4 py-2.5',
               'bg-white border rounded-input',
-              'font-sans text-body text-text-primary',
+              'font-sans text-p1 text-text-primary',
               'placeholder:text-text-muted',
               'transition-all duration-200',
               'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500',

@@ -37,34 +37,34 @@ function ChatMessage({ message, isUser }: { message: { content: string; role: st
         'rounded-2xl px-4 py-3 max-w-[80%]',
         isUser ? 'bg-[#FFEADE]' : 'bg-gray-100'
       )}>
-        <div className="text-sm text-gray-700">
+        <div className="text-p1 font-sans text-text-secondary">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               // Text elements
-              p: ({ children }) => <p className="text-sm mb-2 last:mb-0">{children}</p>,
+              p: ({ children }) => <p className="text-p1 font-sans mb-2 last:mb-0">{children}</p>,
               strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
               em: ({ children }) => <em className="italic">{children}</em>,
               // Lists
-              ul: ({ children }) => <ul className="text-sm list-disc list-inside mb-2 last:mb-0 space-y-1">{children}</ul>,
-              ol: ({ children }) => <ol className="text-sm list-decimal list-inside mb-2 last:mb-0 space-y-1">{children}</ol>,
-              li: ({ children }) => <li className="text-sm">{children}</li>,
+              ul: ({ children }) => <ul className="text-p1 font-sans list-disc list-inside mb-2 last:mb-0 space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="text-p1 font-sans list-decimal list-inside mb-2 last:mb-0 space-y-1">{children}</ol>,
+              li: ({ children }) => <li className="text-p1 font-sans">{children}</li>,
               // Headings
-              h1: ({ children }) => <h1 className="text-base font-bold mb-2">{children}</h1>,
-              h2: ({ children }) => <h2 className="text-sm font-bold mb-2">{children}</h2>,
-              h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
+              h1: ({ children }) => <h1 className="text-h3 font-heading font-bold mb-2">{children}</h1>,
+              h2: ({ children }) => <h2 className="text-h3 font-heading font-semibold mb-2">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-h3 font-heading font-semibold mb-1">{children}</h3>,
               // Code
               code: ({ children, className }) => {
                 const isInline = !className
                 return isInline
-                  ? <code className="text-xs bg-gray-200 px-1 py-0.5 rounded">{children}</code>
-                  : <code className="block text-xs bg-gray-800 text-green-400 p-2 rounded overflow-x-auto my-2">{children}</code>
+                  ? <code className="text-note font-sans bg-gray-200 px-1 py-0.5 rounded">{children}</code>
+                  : <code className="block text-note font-sans bg-gray-800 text-green-400 p-2 rounded overflow-x-auto my-2">{children}</code>
               },
-              pre: ({ children }) => <pre className="text-xs bg-gray-800 text-green-400 p-2 rounded overflow-x-auto my-2">{children}</pre>,
+              pre: ({ children }) => <pre className="text-note font-sans bg-gray-800 text-green-400 p-2 rounded overflow-x-auto my-2">{children}</pre>,
               // Tables
               table: ({ children }) => (
                 <div className="overflow-x-auto my-2">
-                  <table className="text-xs border-collapse border border-gray-300 w-full">{children}</table>
+                  <table className="text-note font-sans border-collapse border border-gray-300 w-full">{children}</table>
                 </div>
               ),
               thead: ({ children }) => <thead className="bg-gray-100">{children}</thead>,
@@ -75,7 +75,7 @@ function ChatMessage({ message, isUser }: { message: { content: string; role: st
               // Links
               a: ({ href, children }) => <a href={href} className="text-primary-600 underline hover:text-primary-700" target="_blank" rel="noopener noreferrer">{children}</a>,
               // Blockquote
-              blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-3 italic text-gray-600 my-2">{children}</blockquote>,
+              blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-3 italic text-text-secondary my-2">{children}</blockquote>,
               // Horizontal rule
               hr: () => <hr className="my-2 border-gray-300" />,
             }}
@@ -193,8 +193,8 @@ export function ChatSection({ selectedWebsite, onAuditRequest }: ChatSectionProp
     <section className="chat-section">
       <div className="bg-white rounded-xl p-6 shadow-sm">
         <div className="mb-4 pb-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Solvia</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-h2 font-heading font-semibold text-text-primary">Solvia</h2>
+          <p className="text-p1 font-sans text-text-secondary">
             I oversee your entire SEO team. Ask me anything about your SEO performance.
           </p>
         </div>
@@ -204,7 +204,7 @@ export function ChatSection({ selectedWebsite, onAuditRequest }: ChatSectionProp
           {isLoading ? (
             <div className="flex items-center justify-center py-4">
               <div className="animate-spin h-5 w-5 border-2 border-primary-600 border-t-transparent rounded-full"></div>
-              <span className="ml-2 text-sm text-gray-500">Loading conversation...</span>
+              <span className="ml-2 text-p2 font-sans text-text-secondary">Loading conversation...</span>
             </div>
           ) : messages.length === 0 ? (
             <ChatMessage
@@ -225,7 +225,7 @@ export function ChatSection({ selectedWebsite, onAuditRequest }: ChatSectionProp
                 </svg>
               </div>
               <div className="bg-gray-100 rounded-2xl px-4 py-3">
-                <p className="text-sm text-gray-500">Thinking...</p>
+                <p className="text-p2 font-sans text-text-secondary">Thinking...</p>
               </div>
             </div>
           )}
@@ -240,7 +240,7 @@ export function ChatSection({ selectedWebsite, onAuditRequest }: ChatSectionProp
             onChange={(e) => setChatInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage(chatInput)}
             placeholder="Type a message ..."
-            className="flex-1 px-4 py-3 text-sm border border-gray-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+            className="flex-1 px-4 py-3 text-p1 font-sans border border-gray-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
             disabled={isSending}
           />
           <button
@@ -262,7 +262,7 @@ export function ChatSection({ selectedWebsite, onAuditRequest }: ChatSectionProp
               onClick={() => sendMessage(suggestion)}
               disabled={isSending}
               className={clsx(
-                'px-3 py-1.5 text-sm rounded-full border transition-all',
+                'px-3 py-1.5 text-p2 font-sans rounded-full border transition-all',
                 'bg-white text-primary-600 border-primary-600',
                 'hover:bg-primary-600 hover:text-white',
                 'disabled:opacity-50 disabled:cursor-not-allowed'

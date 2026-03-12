@@ -81,9 +81,9 @@ export function PdfPreviewModal({ isOpen, onClose, auditId, websiteUrl }: PdfPre
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">PDF Preview</h3>
+            <h3 className="text-h3 font-heading font-semibold text-text-primary">PDF Preview</h3>
             {websiteUrl && (
-              <p className="text-sm text-gray-500 mt-0.5">{websiteUrl}</p>
+              <p className="text-p2 font-sans text-text-secondary mt-0.5">{websiteUrl}</p>
             )}
           </div>
           <div className="flex items-center gap-3">
@@ -91,7 +91,7 @@ export function PdfPreviewModal({ isOpen, onClose, auditId, websiteUrl }: PdfPre
               onClick={handleDownload}
               disabled={isDownloading || isLoading}
               className={clsx(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-p1 font-sans font-medium transition-all',
                 'bg-primary-600 text-white hover:bg-primary-700',
                 'disabled:opacity-50 disabled:cursor-not-allowed'
               )}
@@ -108,7 +108,7 @@ export function PdfPreviewModal({ isOpen, onClose, auditId, websiteUrl }: PdfPre
               className="p-2 rounded-lg hover:bg-gray-200 transition-colors"
               title="Close"
             >
-              <X className="w-5 h-5 text-gray-600" />
+              <X className="w-5 h-5 text-text-secondary" />
             </button>
           </div>
         </div>
@@ -119,7 +119,7 @@ export function PdfPreviewModal({ isOpen, onClose, auditId, websiteUrl }: PdfPre
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <Loader2 className="w-10 h-10 text-primary-600 animate-spin mx-auto mb-4" />
-                <p className="text-gray-600">Loading PDF preview...</p>
+                <p className="text-p1 font-sans text-text-secondary">Loading PDF preview...</p>
               </div>
             </div>
           )}
@@ -128,11 +128,11 @@ export function PdfPreviewModal({ isOpen, onClose, auditId, websiteUrl }: PdfPre
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="text-5xl mb-4">📄</div>
-                <p className="text-gray-600 mb-4">{error}</p>
+                <p className="text-p1 font-sans text-text-secondary mb-4">{error}</p>
                 <button
                   onClick={handleDownload}
                   className={clsx(
-                    'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all mx-auto',
+                    'flex items-center gap-2 px-4 py-2 rounded-lg text-p1 font-sans font-medium transition-all mx-auto',
                     'bg-primary-600 text-white hover:bg-primary-700'
                   )}
                 >
@@ -153,13 +153,13 @@ export function PdfPreviewModal({ isOpen, onClose, auditId, websiteUrl }: PdfPre
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <div className="text-5xl mb-4">📄</div>
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-p1 font-sans text-text-secondary mb-4">
                     Your browser doesn't support PDF preview.
                   </p>
                   <button
                     onClick={handleDownload}
                     className={clsx(
-                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all mx-auto',
+                      'flex items-center gap-2 px-4 py-2 rounded-lg text-p1 font-sans font-medium transition-all mx-auto',
                       'bg-primary-600 text-white hover:bg-primary-700'
                     )}
                   >

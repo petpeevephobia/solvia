@@ -64,32 +64,32 @@ export function IssueCard({ issue }: { issue: AuditIssue }) {
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         <SeverityIcon severity={issue.severity} />
-        <h3 className="font-semibold text-gray-900">{issue.title}</h3>
+        <h3 className="text-h3 font-heading font-semibold text-text-primary">{issue.title}</h3>
       </div>
 
       {/* Description */}
       <div className="mb-3">
         {!expanded ? (
-          <span className="text-sm text-gray-600 block">{issue.description}</span>
+          <span className="text-p2 font-sans text-text-secondary block">{issue.description}</span>
         ) : (
-          <div className="text-sm text-gray-600">
-            <span className="font-semibold text-gray-700 block mb-2">Detailed Analysis:</span>
+          <div className="text-p2 font-sans text-text-secondary">
+            <span className="font-semibold text-text-primary block mb-2">Detailed Analysis:</span>
             <span className="block">{issue.description}</span>
           </div>
         )}
 
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-sm text-primary-600 hover:text-primary-700 mt-2 font-medium"
+          className="text-p2 font-sans text-primary-600 hover:text-primary-700 mt-2 font-medium"
         >
           {expanded ? '← Show less' : 'Show more details →'}
         </button>
       </div>
 
       {/* Fix Recommendation */}
-      <div className="text-sm">
-        <span className="font-medium text-gray-700">Fix: </span>
-        <span className="text-gray-600">{issue.recommendation || 'Review and address this issue to improve your SEO score.'}</span>
+      <div className="text-p2 font-sans">
+        <span className="font-medium text-text-primary">Fix: </span>
+        <span className="text-text-secondary">{issue.recommendation || 'Review and address this issue to improve your SEO score.'}</span>
       </div>
     </div>
   )

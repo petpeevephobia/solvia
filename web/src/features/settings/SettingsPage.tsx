@@ -97,14 +97,14 @@ export default function SettingsPage() {
     <div className="p-8">
       {/* Page Header */}
       <div className="mb-10">
-        <h1 className="text-[32px] font-semibold text-gray-800 mb-2">Settings</h1>
-        <p className="text-sm text-gray-500">Manage your Solvia preferences and configuration</p>
+        <h1 className="text-h1 font-heading font-bold text-text-primary mb-2">Settings</h1>
+        <p className="text-p1 font-sans text-text-secondary">Manage your Solvia preferences and configuration</p>
       </div>
 
       {/* Website Configuration Section */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-2">Website Configuration</h2>
-        <p className="text-sm text-gray-500 mb-6">Select the Google Search Console property you want Solvia to analyze</p>
+        <h2 className="text-h2 font-heading font-semibold text-text-primary mb-2">Website Configuration</h2>
+        <p className="text-p1 font-sans text-text-secondary mb-6">Select the Google Search Console property you want Solvia to analyze</p>
 
         {/* Card Selection Grid */}
         {isLoadingWebsites ? (
@@ -161,12 +161,12 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Website URL */}
-                    <div className="text-[15px] font-semibold text-gray-800 mb-2 break-words">
+                    <div className="text-p1 font-sans font-semibold text-text-primary mb-2 break-words">
                       {getDisplayUrl(website.site_url)}
                     </div>
 
                     {/* Website Type Badge */}
-                    <div className="text-[13px] text-gray-500 flex items-center gap-1.5">
+                    <div className="text-p2 font-sans text-text-secondary flex items-center gap-1.5">
                       {isHttps(website.site_url) ? (
                         <>
                           <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -193,7 +193,7 @@ export default function SettingsPage() {
               onClick={handleSaveChanges}
               disabled={!hasChanges || selectMutation.isPending}
               className={clsx(
-                'px-6 py-3 rounded-lg text-sm font-medium transition-all',
+                'px-6 py-3 rounded-lg text-p1 font-sans font-medium transition-all',
                 hasChanges && !selectMutation.isPending
                   ? 'bg-primary-600 text-white hover:bg-primary-700 cursor-pointer'
                   : 'bg-primary-600 text-white opacity-50 cursor-not-allowed'
@@ -203,7 +203,7 @@ export default function SettingsPage() {
             </button>
           </>
         ) : (
-          <div className="text-center py-10 text-gray-500">
+          <div className="text-center py-10 text-p1 font-sans text-text-secondary">
             <p>No websites found in your Google Search Console account.</p>
           </div>
         )}
@@ -211,10 +211,10 @@ export default function SettingsPage() {
 
       {/* Account Information Section */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-800 mb-5">Account Information</h2>
+        <h2 className="text-h2 font-heading font-semibold text-text-primary mb-5">Account Information</h2>
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-2">Email Address</label>
-          <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800">
+          <label className="block text-p2 font-sans font-medium text-text-primary mb-2">Email Address</label>
+          <div className="px-4 py-3 bg-gray-50 rounded-lg text-p1 font-sans text-text-primary">
             {user?.email || 'Loading...'}
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function SettingsPage() {
         {/* Logout Link */}
         <button
           onClick={handleLogout}
-          className="mt-8 text-xs text-status-error hover:text-red-600 underline cursor-pointer bg-transparent border-none p-0 text-left"
+          className="mt-8 text-p2 font-sans text-[#CB0000] hover:opacity-90 underline cursor-pointer bg-transparent border-none p-0 text-left"
         >
           Log out
         </button>

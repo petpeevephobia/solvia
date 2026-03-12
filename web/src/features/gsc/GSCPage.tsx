@@ -23,8 +23,8 @@ export default function GSCPage() {
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Search Console</h1>
-        <p className="text-gray-600 mt-1">View your Google Search Console data</p>
+        <h1 className="text-h1 font-heading font-bold text-text-primary">Search Console</h1>
+        <p className="text-p1 font-sans text-text-secondary mt-1">View your Google Search Console data</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -38,7 +38,7 @@ export default function GSCPage() {
           </CardHeader>
           <CardContent>
             {queriesLoading ? (
-              <p className="text-gray-500">Loading...</p>
+              <p className="text-p1 font-sans text-text-secondary">Loading...</p>
             ) : queries && queries.length > 0 ? (
               <div className="space-y-3">
                 {queries.slice(0, 10).map((query, index) => (
@@ -54,7 +54,7 @@ export default function GSCPage() {
                         <span>{(query.ctr * 100).toFixed(1)}% CTR</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                    <div className="flex items-center gap-1 text-p2 font-sans text-text-secondary">
                       <TrendingUp className="w-4 h-4" />
                       {query.position.toFixed(1)}
                     </div>
@@ -62,7 +62,7 @@ export default function GSCPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">No query data available</p>
+              <p className="text-p1 font-sans text-text-secondary text-center py-8">No query data available</p>
             )}
           </CardContent>
         </Card>
@@ -77,7 +77,7 @@ export default function GSCPage() {
           </CardHeader>
           <CardContent>
             {pagesLoading ? (
-              <p className="text-gray-500">Loading...</p>
+              <p className="text-p1 font-sans text-text-secondary">Loading...</p>
             ) : pages && pages.length > 0 ? (
               <div className="space-y-3">
                 {pages.slice(0, 10).map((page, index) => (
@@ -86,14 +86,14 @@ export default function GSCPage() {
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate text-sm">{page.page}</p>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                      <p className="text-p2 font-sans font-medium text-text-primary truncate">{page.page}</p>
+                      <div className="flex items-center gap-4 mt-1 text-note font-sans text-text-secondary">
                         <span>{page.clicks} clicks</span>
                         <span>{page.impressions} impr.</span>
                         <span>{(page.ctr * 100).toFixed(1)}% CTR</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                    <div className="flex items-center gap-1 text-p2 font-sans text-text-secondary">
                       <TrendingUp className="w-4 h-4" />
                       {page.position.toFixed(1)}
                     </div>
@@ -101,7 +101,7 @@ export default function GSCPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">No page data available</p>
+              <p className="text-p1 font-sans text-text-secondary text-center py-8">No page data available</p>
             )}
           </CardContent>
         </Card>

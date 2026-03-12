@@ -76,11 +76,11 @@ export default function AuditDetailPage() {
   }
 
   if (isLoading) {
-    return <div className="text-center py-12 text-gray-500">Loading audit...</div>
+    return <div className="text-center py-12 text-p1 font-sans text-text-secondary">Loading audit...</div>
   }
 
   if (!audit) {
-    return <div className="text-center py-12 text-gray-500">Audit not found</div>
+    return <div className="text-center py-12 text-p1 font-sans text-text-secondary">Audit not found</div>
   }
 
   return (
@@ -97,9 +97,9 @@ export default function AuditDetailPage() {
       {/* Page header with download buttons */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Audit Report</h1>
-          <p className="text-gray-600 mt-1">{audit.website_url}</p>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-h1 font-heading font-bold text-text-primary">Audit Report</h1>
+          <p className="text-p1 font-sans text-text-secondary mt-1">{audit.website_url}</p>
+          <p className="text-p2 font-sans text-text-secondary mt-1">
             {new Date(audit.created_at).toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
@@ -114,7 +114,7 @@ export default function AuditDetailPage() {
             onClick={handleDownloadPdf}
             disabled={isDownloading}
             className={clsx(
-              'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
+              'flex items-center gap-2 px-4 py-2.5 rounded-lg text-p1 font-sans font-medium transition-all',
               'bg-primary-600 text-white hover:bg-primary-700',
               'disabled:opacity-50 disabled:cursor-not-allowed'
             )}
@@ -125,8 +125,8 @@ export default function AuditDetailPage() {
           <button
             onClick={handleDownloadJson}
             className={clsx(
-              'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
-              'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              'flex items-center gap-2 px-4 py-2.5 rounded-lg text-p1 font-sans font-medium transition-all',
+              'bg-white text-text-primary border border-gray-200 hover:bg-gray-50'
             )}
           >
             <FileJson className="w-4 h-4" />
@@ -149,19 +149,19 @@ export default function AuditDetailPage() {
             <div className="grid grid-cols-4 gap-4">
               <div className="text-center p-4 bg-red-50 rounded-lg">
                 <p className="text-3xl font-bold text-red-600">{criticalIssues}</p>
-                <p className="text-sm text-red-600">Critical</p>
+                <p className="text-p2 font-sans text-red-600">Critical</p>
               </div>
               <div className="text-center p-4 bg-orange-50 rounded-lg">
                 <p className="text-3xl font-bold text-orange-600">{highIssues}</p>
-                <p className="text-sm text-orange-600">High</p>
+                <p className="text-p2 font-sans text-orange-600">High</p>
               </div>
               <div className="text-center p-4 bg-yellow-50 rounded-lg">
                 <p className="text-3xl font-bold text-yellow-600">{mediumIssues}</p>
-                <p className="text-sm text-yellow-600">Medium</p>
+                <p className="text-p2 font-sans text-yellow-600">Medium</p>
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg">
                 <p className="text-3xl font-bold text-blue-600">{lowIssues}</p>
-                <p className="text-sm text-blue-600">Low</p>
+                <p className="text-p2 font-sans text-blue-600">Low</p>
               </div>
             </div>
           </CardContent>
@@ -190,15 +190,15 @@ export default function AuditDetailPage() {
                   <div className="flex items-start gap-3">
                     {getSeverityIcon(issue.severity)}
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{issue.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{issue.description}</p>
+                      <h4 className="text-h4 font-sans font-medium text-text-primary">{issue.title}</h4>
+                      <p className="text-p2 font-sans text-text-secondary mt-1">{issue.description}</p>
                       {issue.recommendation && (
-                        <p className="text-sm text-gray-700 mt-2">
+                        <p className="text-p2 font-sans text-text-primary mt-2">
                           <strong>Recommendation:</strong> {issue.recommendation}
                         </p>
                       )}
                       {issue.affected_url && (
-                        <p className="text-xs text-gray-500 mt-2 font-mono">{issue.affected_url}</p>
+                        <p className="text-note font-sans text-text-secondary mt-2 font-mono">{issue.affected_url}</p>
                       )}
                     </div>
                   </div>
@@ -206,7 +206,7 @@ export default function AuditDetailPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-8">No issues found - great job!</p>
+            <p className="text-p1 font-sans text-text-secondary text-center py-8">No issues found - great job!</p>
           )}
         </CardContent>
       </Card>
