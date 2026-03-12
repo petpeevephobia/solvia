@@ -184,10 +184,10 @@ export default function AuditHistoryPage() {
         <button
           onClick={() => refetch()}
           disabled={isRefetching}
-          className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+          className="p-2.5 rounded-xl bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
           title="Refresh audit history"
         >
-          <RefreshCw className={`w-5 h-5 text-gray-600 ${isRefetching ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-5 h-5 text-white ${isRefetching ? 'animate-spin' : ''}`} />
         </button>
       </div>
 

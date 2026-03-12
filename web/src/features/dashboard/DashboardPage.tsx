@@ -23,6 +23,7 @@ import {
   calculateDateRange,
   DATE_PRESET_LABELS,
   formatDateDisplay,
+  formatDateRangeDisplay,
   formatNumber,
   type DatePreset,
 } from './utils/dateUtils'
@@ -315,9 +316,9 @@ export default function DashboardPage() {
               </>
             )}
           </h1>
-          <div className="text-sm text-gray-500">
-            <span className="text-gray-400">Last Update: </span>
-            <span className="text-gray-900 font-medium">
+          <div className="text-[11px] text-[#6B7280]">
+            <span>Last Update: </span>
+            <span>
               {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           </div>
@@ -365,6 +366,9 @@ export default function DashboardPage() {
             >
               Custom
             </button>
+            <span className="ml-2 text-[11px] text-[#6B7280] font-normal font-sans">
+              {formatDateRangeDisplay(dateRange.startDate, dateRange.endDate)}
+            </span>
           </div>
         </div>
 
@@ -404,7 +408,7 @@ export default function DashboardPage() {
       {/* Current Issues Section */}
       <section className="current-issues mb-8">
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-bold text-gray-900 font-heading">Current Issues</h2>
+          <h2 className="text-lg font-bold text-gray-900 font-heading">Current Issues Of The Month</h2>
           <button
             onClick={() => runAuditMutation.mutate()}
             disabled={!selectedWebsite || runAuditMutation.isPending}
