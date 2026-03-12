@@ -81,7 +81,7 @@ services:
     container_name: solvia-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: solvia
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-solvia_db_prod_Xk9Lm3Np7Qr_2025}
