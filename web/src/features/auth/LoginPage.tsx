@@ -38,12 +38,12 @@ export default function LoginPage() {
       </div>
 
       {/* Heading */}
-      <h1 className="text-[32px] font-bold text-gray-900 mb-4 leading-tight tracking-tight">
+      <h1 className="text-h1 font-heading font-bold text-text-primary mb-4 leading-tight tracking-tight">
         Welcome to Solvia
       </h1>
 
       {/* Subtitle */}
-      <p className="text-gray-500 text-[15px] leading-relaxed mb-10">
+      <p className="text-p1 font-sans text-text-secondary leading-relaxed mb-10">
         Skip the learning curve and stop micromanaging freelancers. Let Solvia automate your SEO today.
       </p>
 
@@ -58,7 +58,7 @@ export default function LoginPage() {
       <button
         onClick={handleGoogleLogin}
         disabled={isLoading}
-        className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[#EC6019] hover:bg-[#d85516] text-white font-semibold text-[15px] rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[#EC6019] hover:bg-[#d85516] text-white font-sans font-semibold text-p1 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">

@@ -63,8 +63,8 @@ export function AuditResultModal({
         <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-5 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-semibold">Audit Complete!</h3>
-              <p className="text-primary-100 text-sm mt-1">Your SEO report is ready</p>
+              <h3 className="text-h3 font-heading font-semibold">Audit Complete!</h3>
+              <p className="text-primary-100 text-p2 font-sans mt-1">Your SEO report is ready</p>
             </div>
             <button
               onClick={onClose}
@@ -87,29 +87,29 @@ export function AuditResultModal({
             )}>
               <span className="text-3xl font-bold">{Math.round(score)}</span>
             </div>
-            <p className={clsx('text-lg font-semibold', getStageColor(seoStage).split(' ')[0])}>
+            <p className={clsx('text-h2 font-heading font-semibold', getStageColor(seoStage).split(' ')[0])}>
               {getStageName(seoStage)}
             </p>
-            <p className="text-sm text-gray-500 mt-1">{auditResult.website_url}</p>
+            <p className="text-p2 font-sans text-text-secondary mt-1">{auditResult.website_url}</p>
           </div>
 
           {/* Issues Summary */}
           <div className="grid grid-cols-4 gap-3 mb-6">
             <div className="text-center p-3 bg-red-50 rounded-lg">
-              <p className="text-xl font-bold text-red-600">{criticalIssues}</p>
-              <p className="text-xs text-red-600">Critical</p>
+              <p className="text-h2 font-heading font-bold text-red-600">{criticalIssues}</p>
+              <p className="text-note font-sans text-red-600">Critical</p>
             </div>
             <div className="text-center p-3 bg-orange-50 rounded-lg">
-              <p className="text-xl font-bold text-orange-600">{highIssues}</p>
-              <p className="text-xs text-orange-600">High</p>
+              <p className="text-h2 font-heading font-bold text-orange-600">{highIssues}</p>
+              <p className="text-note font-sans text-orange-600">High</p>
             </div>
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
-              <p className="text-xl font-bold text-yellow-600">{mediumIssues}</p>
-              <p className="text-xs text-yellow-600">Medium</p>
+              <p className="text-h2 font-heading font-bold text-yellow-600">{mediumIssues}</p>
+              <p className="text-note font-sans text-yellow-600">Medium</p>
             </div>
             <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <p className="text-xl font-bold text-blue-600">{lowIssues}</p>
-              <p className="text-xs text-blue-600">Low</p>
+              <p className="text-h2 font-heading font-bold text-blue-600">{lowIssues}</p>
+              <p className="text-note font-sans text-blue-600">Low</p>
             </div>
           </div>
 
@@ -119,7 +119,7 @@ export function AuditResultModal({
               onClick={onDownloadPdf}
               disabled={isDownloading}
               className={clsx(
-                'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all',
+                'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-p1 font-sans font-medium transition-all',
                 'bg-primary-600 text-white hover:bg-primary-700',
                 'disabled:opacity-50 disabled:cursor-not-allowed'
               )}
@@ -134,8 +134,8 @@ export function AuditResultModal({
               <button
                 onClick={onDownloadJson}
                 className={clsx(
-                  'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all',
-                  'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                  'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-p1 font-sans font-medium transition-all',
+                  'bg-white text-text-primary border border-gray-200 hover:bg-gray-50'
                 )}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -147,7 +147,7 @@ export function AuditResultModal({
               <button
                 onClick={onViewReport}
                 className={clsx(
-                  'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all',
+                  'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-p1 font-sans font-medium transition-all',
                   'bg-white text-primary-600 border border-primary-600 hover:bg-primary-50'
                 )}
               >

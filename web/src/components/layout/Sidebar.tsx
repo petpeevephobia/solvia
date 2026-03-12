@@ -67,7 +67,7 @@ export default function Sidebar() {
             className={({ isActive }) =>
               clsx(
                 'nav-item flex items-center rounded-lg cursor-pointer transition-all duration-200 mb-1',
-                'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                'text-text-secondary hover:bg-gray-100 hover:text-text-primary',
                 isHovered ? 'justify-start px-4 py-3 gap-3' : 'justify-center p-3',
                 isActive && 'bg-[#FEF3E7] !text-primary-600'
               )
@@ -95,7 +95,7 @@ export default function Sidebar() {
             isHovered ? 'opacity-100 px-4' : 'opacity-0 h-0 overflow-hidden'
           )}
         >
-          <p className="text-xs text-gray-400 whitespace-nowrap">AI Model: Gemini 2.0</p>
+          <p className="text-note font-sans text-text-muted whitespace-nowrap">AI Model: Gemini 2.0</p>
         </div>
 
         {/* Separator below AI model text */}
@@ -107,7 +107,7 @@ export default function Sidebar() {
           className={({ isActive }) =>
             clsx(
               'sidebar-footer-item flex items-center rounded-lg cursor-pointer transition-all duration-200 mb-1',
-              'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+              'text-text-secondary hover:bg-gray-100 hover:text-text-primary',
               isHovered ? 'justify-start px-4 py-3 gap-3' : 'justify-center p-3',
               isActive && 'bg-[#FEF3E7] !text-primary-600'
             )
@@ -131,7 +131,7 @@ export default function Sidebar() {
           onClick={logout}
           className={clsx(
             'sidebar-footer-item flex items-center rounded-lg cursor-pointer transition-all duration-200 mb-1 w-full',
-            'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+            'text-text-secondary hover:bg-gray-100 hover:text-text-primary',
             isHovered ? 'justify-start px-4 py-3 gap-3' : 'justify-center p-3'
           )}
         >
@@ -171,7 +171,7 @@ export default function Sidebar() {
               isHovered ? 'opacity-100 w-auto max-w-[150px]' : 'opacity-0 w-0'
             )}
           >
-            <p className="text-[13px] text-gray-500 truncate">
+            <p className="text-p2 font-sans text-text-secondary truncate">
               {user?.email || 'Loading...'}
             </p>
           </div>

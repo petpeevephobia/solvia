@@ -39,7 +39,7 @@ export default function Header() {
           <div className="p-1.5 bg-primary-100 rounded-lg">
             <Globe className="w-4 h-4 text-primary-600" />
           </div>
-          <span className="text-body-sm font-medium text-text-primary max-w-[200px] truncate hidden sm:block">
+          <span className="text-p2 font-medium text-text-primary max-w-[200px] truncate hidden sm:block">
             {selectedWebsite || 'Select website'}
           </span>
           <ChevronDown className={clsx(
@@ -53,7 +53,7 @@ export default function Header() {
             <div className="fixed inset-0 z-10" onClick={() => setShowWebsiteMenu(false)} />
             <div className="absolute top-full left-0 mt-2 w-72 bg-background-card rounded-card shadow-modal border border-gray-100 py-2 z-20 animate-fade-in">
               <div className="px-4 py-2 border-b border-gray-100">
-                <p className="text-caption text-text-muted font-medium uppercase tracking-wide">
+                <p className="text-note font-sans text-text-muted font-medium uppercase tracking-wide">
                   Connected Sites
                 </p>
               </div>
@@ -66,7 +66,7 @@ export default function Header() {
                       setShowWebsiteMenu(false)
                     }}
                     className={clsx(
-                      'w-full text-left px-4 py-3 text-body-sm transition-colors',
+                      'w-full text-left px-4 py-3 text-p2 transition-colors',
                       'hover:bg-gray-50',
                       selectedWebsite === site.site_url && 'bg-primary-50 text-primary-700'
                     )}
@@ -99,13 +99,13 @@ export default function Header() {
             />
           ) : (
             <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-medium">
+              <span className="text-white text-p2 font-sans font-medium">
                 {user?.email?.charAt(0).toUpperCase()}
               </span>
             </div>
           )}
           <div className="text-left hidden sm:block">
-            <p className="text-body-sm font-medium text-text-primary line-clamp-1">
+            <p className="text-p2 font-medium text-text-primary line-clamp-1">
               {user?.name || user?.email?.split('@')[0]}
             </p>
           </div>
@@ -121,10 +121,10 @@ export default function Header() {
             <div className="absolute top-full right-0 mt-2 w-56 bg-background-card rounded-card shadow-modal border border-gray-100 py-2 z-20 animate-fade-in">
               {/* User info */}
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-body-sm font-medium text-text-primary truncate">
+                <p className="text-p2 font-medium text-text-primary truncate">
                   {user?.name || user?.email?.split('@')[0]}
                 </p>
-                <p className="text-caption text-text-muted truncate">{user?.email}</p>
+                <p className="text-note font-sans text-text-muted truncate">{user?.email}</p>
               </div>
 
               {/* Menu items */}
@@ -134,7 +134,7 @@ export default function Header() {
                     navigate('/settings')
                     setShowUserMenu(false)
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-body-sm text-text-primary hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-p2 text-text-primary hover:bg-gray-50 transition-colors"
                 >
                   <Settings className="w-4 h-4 text-text-muted" />
                   Settings
@@ -145,7 +145,7 @@ export default function Header() {
               <div className="border-t border-gray-100 pt-1">
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-body-sm text-status-error hover:bg-red-50 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-p2 text-status-error hover:bg-red-50 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                   Sign out

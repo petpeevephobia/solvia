@@ -228,12 +228,12 @@ export default function DashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl p-6 shadow-xl w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Custom Date Range</h3>
+              <h3 className="text-h3 font-heading font-semibold text-text-primary">Custom Date Range</h3>
               <button
                 onClick={() => setShowCustomDateModal(false)}
                 className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -241,27 +241,27 @@ export default function DashboardPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <label className="block text-p2 font-sans font-medium text-text-primary mb-1">Start Date</label>
                 <input
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
                   max={customEndDate || new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-p1 font-sans focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                <label className="block text-p2 font-sans font-medium text-text-primary mb-1">End Date</label>
                 <input
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
                   min={customStartDate}
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-p1 font-sans focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                 />
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-note font-sans text-text-secondary">
                 Note: GSC data has a ~1 day delay. Very recent data may not be available.
               </p>
             </div>
@@ -269,14 +269,14 @@ export default function DashboardPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowCustomDateModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-p2 font-sans font-medium text-text-secondary hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCustomDateApply}
                 disabled={!customStartDate || !customEndDate}
-                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg text-p1 font-sans font-medium hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Apply
               </button>
@@ -307,7 +307,7 @@ export default function DashboardPage() {
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900 font-heading">
+          <h1 className="text-h1 font-heading font-bold text-text-primary">
             Hey, {userName}!{' '}
             {selectedWebsite && (
               <>
@@ -316,7 +316,7 @@ export default function DashboardPage() {
               </>
             )}
           </h1>
-          <div className="text-[11px] text-[#6B7280]">
+          <div className="text-p2 font-sans text-text-secondary">
             <span>Last Update: </span>
             <span>
               {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -329,8 +329,8 @@ export default function DashboardPage() {
       <section className="overview mb-8">
         <div className="flex justify-between items-center mb-5">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 font-heading">Overview</h2>
-            <p className="text-[13px] text-gray-500 mt-1">
+            <h2 className="text-h2 font-heading font-semibold text-text-primary">Overview</h2>
+            <p className="text-p2 font-sans text-text-secondary mt-1">
               {datePreset === 'custom'
                 ? `${formatDateDisplay(dateRange.startDate)} - ${formatDateDisplay(dateRange.endDate)}`
                 : `All data displayed are from the ${DATE_PRESET_LABELS[datePreset]}`}
@@ -343,10 +343,10 @@ export default function DashboardPage() {
                 onClick={() => setDatePreset(period)}
                 disabled={metricsLoading}
                 className={clsx(
-                  'px-3 py-1.5 text-sm font-medium rounded-lg border transition-all',
+                  'px-3 py-1.5 text-p2 font-sans font-medium rounded-lg border transition-all',
                   period === datePreset
                     ? 'bg-primary-600 text-white border-primary-600'
-                    : 'bg-white text-gray-600 border-gray-200 hover:text-primary-600 hover:border-primary-200 hover:bg-orange-50',
+                    : 'bg-white text-text-secondary border-gray-200 hover:text-primary-600 hover:border-primary-200 hover:bg-orange-50',
                   metricsLoading && 'opacity-50 cursor-not-allowed'
                 )}
               >
@@ -357,16 +357,16 @@ export default function DashboardPage() {
               onClick={openCustomDateModal}
               disabled={metricsLoading}
               className={clsx(
-                'px-3 py-1.5 text-sm font-medium rounded-lg border transition-all',
+                'px-3 py-1.5 text-p2 font-sans font-medium rounded-lg border transition-all',
                 datePreset === 'custom'
                   ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white text-gray-600 border-gray-200 hover:text-primary-600 hover:border-primary-200 hover:bg-orange-50',
+                  : 'bg-white text-text-secondary border-gray-200 hover:text-primary-600 hover:border-primary-200 hover:bg-orange-50',
                 metricsLoading && 'opacity-50 cursor-not-allowed'
               )}
             >
               Custom
             </button>
-            <span className="ml-2 text-[11px] text-[#6B7280] font-normal font-sans">
+            <span className="ml-2 text-p2 font-sans text-text-secondary">
               {formatDateRangeDisplay(dateRange.startDate, dateRange.endDate)}
             </span>
           </div>
@@ -408,12 +408,12 @@ export default function DashboardPage() {
       {/* Current Issues Section */}
       <section className="current-issues mb-8">
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-bold text-gray-900 font-heading">Current Issues Of The Month</h2>
+          <h2 className="text-h2 font-heading font-semibold text-text-primary">Current Issues Of The Month</h2>
           <button
             onClick={() => runAuditMutation.mutate()}
             disabled={!selectedWebsite || runAuditMutation.isPending}
             className={clsx(
-              'px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
+              'px-4 py-2.5 rounded-lg text-p2 font-sans font-medium transition-all',
               'bg-white text-primary-600 border border-primary-600',
               'hover:bg-primary-600 hover:text-white',
               'disabled:opacity-50 disabled:cursor-not-allowed'
@@ -437,7 +437,7 @@ export default function DashboardPage() {
             ))
           ) : (
             <div className="col-span-full py-12 text-center">
-              <p className="text-gray-500 text-sm">
+              <p className="text-p2 font-sans text-text-secondary">
                 No issues. Run a new audit to get new insights.
               </p>
             </div>

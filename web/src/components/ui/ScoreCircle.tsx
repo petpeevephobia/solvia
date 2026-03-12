@@ -25,9 +25,9 @@ export default function ScoreCircle({
   const colors = getScoreColor(score)
 
   const sizes = {
-    sm: { container: 'w-14 h-14', text: 'text-base', label: 'text-xs', strokeWidth: 3 },
-    md: { container: 'w-24 h-24', text: 'text-2xl', label: 'text-body-sm', strokeWidth: 5 },
-    lg: { container: 'w-36 h-36', text: 'text-4xl', label: 'text-body', strokeWidth: 7 },
+    sm: { container: 'w-14 h-14', text: 'text-p1', label: 'text-note', strokeWidth: 3 },
+    md: { container: 'w-24 h-24', text: 'text-h2', label: 'text-p2', strokeWidth: 5 },
+    lg: { container: 'w-36 h-36', text: 'text-h1', label: 'text-p1', strokeWidth: 7 },
   }
 
   const { container, text, label: labelSize, strokeWidth } = sizes[size]

@@ -87,8 +87,8 @@ export default function ChatPage() {
       {/* Page header */}
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">AI Assistant</h1>
-          <p className="text-gray-600 mt-1">Get SEO recommendations and insights</p>
+          <h1 className="text-h1 font-heading font-bold text-text-primary">AI Assistant</h1>
+          <p className="text-p1 font-sans text-text-secondary mt-1">Get SEO recommendations and insights</p>
         </div>
         <Button variant="secondary" onClick={startNewConversation}>
           New Chat
@@ -98,7 +98,7 @@ export default function ChatPage() {
       {/* Warning if no website selected */}
       {!selectedWebsite && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-yellow-800 text-sm">
+          <p className="text-yellow-800 text-p2 font-sans">
             No website selected. Please select a website in Settings to get personalized SEO data.
           </p>
         </div>
@@ -108,14 +108,14 @@ export default function ChatPage() {
       {isAuditRunning && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
           <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-          <p className="text-blue-800 text-sm">Running SEO audit... This may take a few minutes.</p>
+          <p className="text-blue-800 text-p2 font-sans">Running SEO audit... This may take a few minutes.</p>
         </div>
       )}
 
       {/* Audit completed banner with PDF download */}
       {latestAuditId && !isAuditRunning && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-          <p className="text-green-800 text-sm">Audit completed successfully!</p>
+          <p className="text-green-800 text-p2 font-sans">Audit completed successfully!</p>
           <Button
             variant="secondary"
             size="sm"
@@ -135,8 +135,8 @@ export default function ChatPage() {
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <Bot className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Start a conversation with your SEO assistant</p>
-                <p className="text-sm text-gray-400 mt-2">
+                <p className="text-p1 font-sans text-text-secondary">Start a conversation with your SEO assistant</p>
+                <p className="text-p2 font-sans text-text-muted mt-2">
                   Ask about your website's SEO, get recommendations, or analyze issues
                 </p>
               </div>
@@ -160,7 +160,7 @@ export default function ChatPage() {
                     'max-w-[70%] px-4 py-2 rounded-2xl',
                     msg.role === 'user'
                       ? 'bg-primary-600 text-white rounded-tr-sm'
-                      : 'bg-gray-100 text-gray-900 rounded-tl-sm'
+                      : 'bg-gray-100 text-text-primary rounded-tl-sm'
                   )}
                 >
                   {msg.role === 'assistant' ? (
@@ -172,8 +172,8 @@ export default function ChatPage() {
                   )}
                   <p
                     className={clsx(
-                      'text-xs mt-1',
-                      msg.role === 'user' ? 'text-primary-200' : 'text-gray-400'
+                      'text-note font-sans mt-1',
+                      msg.role === 'user' ? 'text-primary-200' : 'text-text-muted'
                     )}
                   >
                     {new Date(msg.created_at).toLocaleTimeString()}
@@ -181,7 +181,7 @@ export default function ChatPage() {
                 </div>
                 {msg.role === 'user' && (
                   <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-gray-600" />
+                    <User className="w-4 h-4 text-text-secondary" />
                   </div>
                 )}
               </div>

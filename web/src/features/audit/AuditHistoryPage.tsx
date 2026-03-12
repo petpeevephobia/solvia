@@ -141,8 +141,8 @@ export default function AuditHistoryPage() {
     <div className="space-y-6">
       {/* Page header - minimal like original */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 font-heading">Audit History</h1>
-        <p className="text-gray-500 mt-1">View and download your past SEO audit reports</p>
+        <h1 className="text-h1 font-heading font-bold text-text-primary">Audit History</h1>
+        <p className="text-p1 font-sans text-text-secondary mt-1">View and download your past SEO audit reports</p>
       </div>
 
       {/* Controls bar - matching original exactly */}
@@ -150,11 +150,11 @@ export default function AuditHistoryPage() {
         {/* Left side: Filters */}
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Filter:</label>
+            <label className="text-p2 font-sans font-medium text-text-primary">Filter:</label>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value as FilterType)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-p2 font-sans text-text-primary bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             >
               <option value="all">All Audits</option>
               <option value="week">Last Week</option>
@@ -166,11 +166,11 @@ export default function AuditHistoryPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Sort:</label>
+            <label className="text-p2 font-sans font-medium text-text-primary">Sort:</label>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortType)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-p2 font-sans text-text-primary bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             >
               <option value="created_at_desc">Newest First</option>
               <option value="created_at_asc">Oldest First</option>
@@ -195,7 +195,7 @@ export default function AuditHistoryPage() {
       {isLoading && (
         <div className="text-center py-16">
           <div className="w-10 h-10 mx-auto mb-4 border-3 border-gray-200 border-t-orange-500 rounded-full animate-spin" />
-          <p className="text-gray-500">Loading audit history...</p>
+          <p className="text-p1 font-sans text-text-secondary">Loading audit history...</p>
         </div>
       )}
 
@@ -203,7 +203,7 @@ export default function AuditHistoryPage() {
       {!isLoading && processedAudits.length > 0 && (
         <div>
           {/* Header with count */}
-          <h3 className="text-lg font-bold text-gray-900 font-heading mb-4">
+          <h3 className="text-h3 font-heading font-semibold text-text-primary mb-4">
             Audit Reports ({processedAudits.length} found)
           </h3>
 
@@ -211,19 +211,19 @@ export default function AuditHistoryPage() {
             <table className="w-full border-collapse bg-white rounded-lg overflow-hidden shadow-sm">
               <thead>
                 <tr className="bg-gray-50 border-b-2 border-gray-200">
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-h4 font-sans font-medium text-text-primary uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-h4 font-sans font-medium text-text-primary uppercase tracking-wider">
                     Website
                   </th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-center text-h4 font-sans font-medium text-text-primary uppercase tracking-wider">
                     SEO Score
                   </th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-center text-h4 font-sans font-medium text-text-primary uppercase tracking-wider">
                     Issues
                   </th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-center text-h4 font-sans font-medium text-text-primary uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -235,25 +235,25 @@ export default function AuditHistoryPage() {
                     className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
                   >
                     {/* Date */}
-                    <td className="px-3 py-4 text-sm text-gray-900 whitespace-nowrap">
+                    <td className="px-3 py-4 text-p2 font-sans text-text-primary whitespace-nowrap">
                       {formatDate(audit.audit_date)}
                     </td>
 
                     {/* Website */}
-                    <td className="px-3 py-4 text-sm text-gray-500 max-w-[200px] overflow-hidden text-ellipsis">
+                    <td className="px-3 py-4 text-p2 font-sans text-text-secondary max-w-[200px] overflow-hidden text-ellipsis">
                       {audit.website_url || 'Website'}
                     </td>
 
                     {/* SEO Score - format as XX/100 like original */}
                     <td className="px-3 py-4 text-center">
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-p2 font-sans font-semibold text-text-primary">
                         {Math.round(audit.seo_score || 0)}/100
                       </span>
                     </td>
 
                     {/* Issues - total count */}
                     <td className="px-3 py-4 text-center">
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-p2 font-sans font-semibold text-text-primary">
                         {getTotalIssues(audit)}
                       </span>
                     </td>
@@ -268,7 +268,7 @@ export default function AuditHistoryPage() {
                           className={`p-2 hover:bg-gray-100 rounded-md transition-colors ${!audit.pdf_generated ? 'opacity-30 cursor-not-allowed' : ''}`}
                           title={audit.pdf_generated ? "Preview PDF" : "PDF not available yet"}
                         >
-                          <Eye className="w-[18px] h-[18px] text-gray-600" />
+                          <Eye className="w-[18px] h-[18px] text-text-secondary" />
                         </button>
 
                         {/* Download PDF button - only show if PDF is generated */}
@@ -286,7 +286,7 @@ export default function AuditHistoryPage() {
                             className="p-2 opacity-30 cursor-not-allowed"
                             title="PDF not available yet"
                           >
-                            <Download className="w-[18px] h-[18px] text-gray-400" />
+                            <Download className="w-[18px] h-[18px] text-text-muted" />
                           </button>
                         )}
                       </div>
@@ -303,8 +303,8 @@ export default function AuditHistoryPage() {
       {!isLoading && processedAudits.length === 0 && (
         <div className="text-center py-16">
           <div className="text-5xl mb-4">📊</div>
-          <div className="text-lg font-semibold text-gray-900 mb-2">No Audit History</div>
-          <div className="text-sm text-gray-500 mb-6">
+          <div className="text-h2 font-heading font-semibold text-text-primary mb-2">No Audit History</div>
+          <div className="text-p2 font-sans text-text-secondary mb-6">
             Run your first audit to see detailed SEO analysis and recommendations
           </div>
           <Button
