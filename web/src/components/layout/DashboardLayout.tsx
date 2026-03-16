@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import Sidebar from './Sidebar'
 import MobileDock from './MobileDock'
 import { AuditProgressBanner, AuditResultModal } from '@/features/dashboard/components'
+import { PdfPreviewModal } from '@/features/audit/components/PdfPreviewModal'
 import { gscService } from '@/services/gsc'
 import { auditService } from '@/services/audit'
 import { useWebsiteStore } from '@/stores/websiteStore'
@@ -14,6 +15,9 @@ export default function DashboardLayout() {
   const { setWebsites, setLoading, selectWebsite } = useWebsiteStore()
   const { auditProgress, auditResultModal, setAuditResultModal } = useAuditStore()
   const [hasCheckedSelection, setHasCheckedSelection] = useState(false)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewAuditId, setPdfPreviewAuditId] = useState<string | null>(null)
+  const [pdfPreviewWebsiteUrl, setPdfPreviewWebsiteUrl] = useState<string | undefined>(undefined)
 
   const handleAuditModalClose = useCallback(() => {
     setAuditResultModal((prev) => ({ ...prev, isVisible: false }))
@@ -41,19 +45,20 @@ export default function DashboardLayout() {
     }
   }, [setAuditResultModal])
 
-  const handleDownloadJson = useCallback(() => {
+  const handlePreviewPdf = useCallback(() => {
     const result = useAuditStore.getState().auditResultModal.result
     if (!result) return
-    const dataStr = JSON.stringify(result, null, 2)
-    const blob = new Blob([dataStr], { type: 'application/json' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `seo_audit_${result.id}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
+
+    const auditId = result.audit_id ? String(result.audit_id) : String(result.id)
+    setPdfPreviewAuditId(auditId)
+    setPdfPreviewWebsiteUrl(result.website_url)
+    setPdfPreviewOpen(true)
+  }, [])
+
+  const handleClosePdfPreview = useCallback(() => {
+    setPdfPreviewOpen(false)
+    setPdfPreviewAuditId(null)
+    setPdfPreviewWebsiteUrl(undefined)
   }, [])
 
   // Fetch websites on mount
@@ -111,9 +116,17 @@ export default function DashboardLayout() {
         auditResult={auditResultModal.result}
         onClose={handleAuditModalClose}
         onDownloadPdf={handleDownloadPdf}
-        onDownloadJson={handleDownloadJson}
+        onPreviewPdf={handlePreviewPdf}
         isDownloading={auditResultModal.isDownloading}
       />
+      {pdfPreviewAuditId && (
+        <PdfPreviewModal
+          isOpen={pdfPreviewOpen}
+          onClose={handleClosePdfPreview}
+          auditId={pdfPreviewAuditId}
+          websiteUrl={pdfPreviewWebsiteUrl}
+        />
+      )}
 
       {/* Desktop Sidebar */}
       <Sidebar />
