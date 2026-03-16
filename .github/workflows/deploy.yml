@@ -23,11 +23,6 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-    - name: Add server to known hosts
-      run: |
-        mkdir -p ~/.ssh
-        ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
-
     - name: Test SSH connection
       run: |
         ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo '✅ SSH connection successful'"
