@@ -1,20 +1,17 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { clsx } from 'clsx'
 import { gscService } from '@/services/gsc'
 import { auditService } from '@/services/audit'
 import { useWebsiteStore } from '@/stores/websiteStore'
 import { useAuthStore } from '@/stores/authStore'
-import type { AuditResult } from '@/types'
+import { useAuditStore } from '@/stores/auditStore'
 
 // Import extracted components
 import {
   MetricCard,
   IssueCard,
   IssueCardSkeleton,
-  AuditProgressBanner,
-  AuditResultModal,
   ChatSection,
 } from './components'
 
@@ -29,9 +26,9 @@ import {
 } from './utils/dateUtils'
 
 export default function DashboardPage() {
-  const navigate = useNavigate()
   const { selectedWebsite } = useWebsiteStore()
   const { user } = useAuthStore()
+  const { setAuditProgress, setAuditResultModal } = useAuditStore()
   const queryClient = useQueryClient()
 
   // Date filter state
@@ -48,25 +45,7 @@ export default function DashboardPage() {
     return calculateDateRange(datePreset)
   }, [datePreset, customStartDate, customEndDate])
 
-  // Audit progress state
-  const [auditProgress, setAuditProgress] = useState({
-    isVisible: false,
-    progress: 0,
-    message: 'Initializing...',
-  })
-
-  // Audit result modal state
-  const [auditResultModal, setAuditResultModal] = useState<{
-    isVisible: boolean
-    result: AuditResult | null
-    isDownloading: boolean
-  }>({
-    isVisible: false,
-    result: null,
-    isDownloading: false,
-  })
-
-  // Track banner hide timeout
+  // Track banner hide timeout (updates store)
   const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cleanup banner timeout on unmount
@@ -87,11 +66,11 @@ export default function DashboardPage() {
 
     if (delay > 0) {
       bannerTimeoutRef.current = setTimeout(() => {
-        setAuditProgress(prev => ({ ...prev, isVisible: false, progress: 0 }))
+        setAuditProgress({ isVisible: false, progress: 0 })
         bannerTimeoutRef.current = null
       }, delay)
     } else {
-      setAuditProgress(prev => ({ ...prev, isVisible: false, progress: 0 }))
+      setAuditProgress({ isVisible: false, progress: 0 })
     }
   }
 
@@ -112,14 +91,14 @@ export default function DashboardPage() {
     enabled: !!selectedWebsite,
   })
 
-  // Run audit mutation
+  // Run audit mutation (updates audit store so banner/modal show on any route)
   const runAuditMutation = useMutation({
     mutationFn: async () => {
       setAuditProgress({ isVisible: true, progress: 0, message: 'Starting audit...' })
 
       try {
         const result = await auditService.runAudit(selectedWebsite!, (progress, message) => {
-          setAuditProgress(prev => ({ ...prev, progress, message }))
+          setAuditProgress((prev) => ({ ...prev, progress, message }))
         })
         return result
       } catch (error) {
@@ -167,48 +146,6 @@ export default function DashboardPage() {
       setDatePreset('custom')
       setShowCustomDateModal(false)
     }
-  }
-
-  // Audit result modal handlers
-  const handleDownloadPdf = async () => {
-    if (!auditResultModal.result?.id) return
-    setAuditResultModal(prev => ({ ...prev, isDownloading: true }))
-    try {
-      const blob = await auditService.downloadPdf(String(auditResultModal.result.id))
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `seo_audit_${auditResultModal.result.id}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Failed to download PDF:', error)
-      alert('Failed to download PDF. Please try again.')
-    } finally {
-      setAuditResultModal(prev => ({ ...prev, isDownloading: false }))
-    }
-  }
-
-  const handleDownloadJson = () => {
-    if (!auditResultModal.result) return
-    const dataStr = JSON.stringify(auditResultModal.result, null, 2)
-    const blob = new Blob([dataStr], { type: 'application/json' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `seo_audit_${auditResultModal.result.id}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
-  }
-
-  const handleViewReport = () => {
-    if (!auditResultModal.result?.id) return
-    setAuditResultModal(prev => ({ ...prev, isVisible: false }))
-    navigate(`/audit/${auditResultModal.result.id}`)
   }
 
   // Derived values
@@ -284,25 +221,6 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
-      {/* Audit Result Modal */}
-      <AuditResultModal
-        isVisible={auditResultModal.isVisible}
-        auditResult={auditResultModal.result}
-        onClose={() => setAuditResultModal(prev => ({ ...prev, isVisible: false }))}
-        onDownloadPdf={handleDownloadPdf}
-        onDownloadJson={handleDownloadJson}
-        onViewReport={handleViewReport}
-        isDownloading={auditResultModal.isDownloading}
-      />
-
-      {/* Audit Progress Banner */}
-      <AuditProgressBanner
-        isVisible={auditProgress.isVisible}
-        progress={auditProgress.progress}
-        message={auditProgress.message}
-        onMinimize={() => setAuditProgress(prev => ({ ...prev, isVisible: false }))}
-      />
 
       {/* Header Section */}
       <div className="mb-8">

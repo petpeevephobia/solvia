@@ -1,15 +1,65 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import Sidebar from './Sidebar'
 import MobileDock from './MobileDock'
+import { AuditProgressBanner, AuditResultModal } from '@/features/dashboard/components'
+import { PdfPreviewModal } from '@/features/audit/components/PdfPreviewModal'
 import { gscService } from '@/services/gsc'
+import { auditService } from '@/services/audit'
 import { useWebsiteStore } from '@/stores/websiteStore'
+import { useAuditStore } from '@/stores/auditStore'
 
 export default function DashboardLayout() {
   const navigate = useNavigate()
   const { setWebsites, setLoading, selectWebsite } = useWebsiteStore()
+  const { auditProgress, auditResultModal, setAuditResultModal } = useAuditStore()
   const [hasCheckedSelection, setHasCheckedSelection] = useState(false)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewAuditId, setPdfPreviewAuditId] = useState<string | null>(null)
+  const [pdfPreviewWebsiteUrl, setPdfPreviewWebsiteUrl] = useState<string | undefined>(undefined)
+
+  const handleAuditModalClose = useCallback(() => {
+    setAuditResultModal((prev) => ({ ...prev, isVisible: false }))
+  }, [setAuditResultModal])
+
+  const handleDownloadPdf = useCallback(async () => {
+    const result = useAuditStore.getState().auditResultModal.result
+    if (!result?.id) return
+    setAuditResultModal((prev) => ({ ...prev, isDownloading: true }))
+    try {
+      const blob = await auditService.downloadPdf(String(result.id))
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `seo_audit_${result.id}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download PDF:', error)
+      alert('Failed to download PDF. Please try again.')
+    } finally {
+      setAuditResultModal((prev) => ({ ...prev, isDownloading: false }))
+    }
+  }, [setAuditResultModal])
+
+  const handlePreviewPdf = useCallback(() => {
+    const result = useAuditStore.getState().auditResultModal.result
+    if (!result) return
+
+    const auditId = result.audit_id ? String(result.audit_id) : String(result.id)
+    setPdfPreviewAuditId(auditId)
+    setPdfPreviewWebsiteUrl(result.website_url)
+    setPdfPreviewOpen(true)
+  }, [])
+
+  const handleClosePdfPreview = useCallback(() => {
+    setPdfPreviewOpen(false)
+    setPdfPreviewAuditId(null)
+    setPdfPreviewWebsiteUrl(undefined)
+  }, [])
 
   // Fetch websites on mount
   const { data: websites, isLoading: websitesLoading } = useQuery({
@@ -55,6 +105,29 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen flex bg-[#F9FAFB]">
+      {/* Audit progress banner and result modal — visible on all dashboard routes */}
+      <AuditProgressBanner
+        isVisible={auditProgress.isVisible}
+        progress={auditProgress.progress}
+        message={auditProgress.message}
+      />
+      <AuditResultModal
+        isVisible={auditResultModal.isVisible}
+        auditResult={auditResultModal.result}
+        onClose={handleAuditModalClose}
+        onDownloadPdf={handleDownloadPdf}
+        onPreviewPdf={handlePreviewPdf}
+        isDownloading={auditResultModal.isDownloading}
+      />
+      {pdfPreviewAuditId && (
+        <PdfPreviewModal
+          isOpen={pdfPreviewOpen}
+          onClose={handleClosePdfPreview}
+          auditId={pdfPreviewAuditId}
+          websiteUrl={pdfPreviewWebsiteUrl}
+        />
+      )}
+
       {/* Desktop Sidebar */}
       <Sidebar />
 
