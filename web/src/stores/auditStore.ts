@@ -23,8 +23,10 @@ type AuditResultModalUpdate =
 interface AuditState {
   auditProgress: AuditProgressState
   auditResultModal: AuditResultModalState
+  hasUnviewedAudit: boolean
   setAuditProgress: (update: AuditProgressUpdate) => void
   setAuditResultModal: (update: AuditResultModalUpdate) => void
+  markAsViewed: () => void
 }
 
 const initialProgress: AuditProgressState = {
@@ -42,6 +44,7 @@ const initialResultModal: AuditResultModalState = {
 export const useAuditStore = create<AuditState>()((set) => ({
   auditProgress: initialProgress,
   auditResultModal: initialResultModal,
+  hasUnviewedAudit: false,
 
   setAuditProgress: (update) =>
     set((state) => ({
@@ -58,4 +61,6 @@ export const useAuditStore = create<AuditState>()((set) => ({
         ...(typeof update === 'function' ? update(state.auditResultModal) : update),
       },
     })),
+
+  markAsViewed: () => set({ hasUnviewedAudit: false }),
 }))
