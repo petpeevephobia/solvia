@@ -1,15 +1,60 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import Sidebar from './Sidebar'
 import MobileDock from './MobileDock'
+import { AuditProgressBanner, AuditResultModal } from '@/features/dashboard/components'
 import { gscService } from '@/services/gsc'
+import { auditService } from '@/services/audit'
 import { useWebsiteStore } from '@/stores/websiteStore'
+import { useAuditStore } from '@/stores/auditStore'
 
 export default function DashboardLayout() {
   const navigate = useNavigate()
   const { setWebsites, setLoading, selectWebsite } = useWebsiteStore()
+  const { auditProgress, auditResultModal, setAuditResultModal } = useAuditStore()
   const [hasCheckedSelection, setHasCheckedSelection] = useState(false)
+
+  const handleAuditModalClose = useCallback(() => {
+    setAuditResultModal((prev) => ({ ...prev, isVisible: false }))
+  }, [setAuditResultModal])
+
+  const handleDownloadPdf = useCallback(async () => {
+    const result = useAuditStore.getState().auditResultModal.result
+    if (!result?.id) return
+    setAuditResultModal((prev) => ({ ...prev, isDownloading: true }))
+    try {
+      const blob = await auditService.downloadPdf(String(result.id))
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `seo_audit_${result.id}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download PDF:', error)
+      alert('Failed to download PDF. Please try again.')
+    } finally {
+      setAuditResultModal((prev) => ({ ...prev, isDownloading: false }))
+    }
+  }, [setAuditResultModal])
+
+  const handleDownloadJson = useCallback(() => {
+    const result = useAuditStore.getState().auditResultModal.result
+    if (!result) return
+    const dataStr = JSON.stringify(result, null, 2)
+    const blob = new Blob([dataStr], { type: 'application/json' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `seo_audit_${result.id}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }, [])
 
   // Fetch websites on mount
   const { data: websites, isLoading: websitesLoading } = useQuery({
@@ -55,6 +100,21 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen flex bg-[#F9FAFB]">
+      {/* Audit progress banner and result modal — visible on all dashboard routes */}
+      <AuditProgressBanner
+        isVisible={auditProgress.isVisible}
+        progress={auditProgress.progress}
+        message={auditProgress.message}
+      />
+      <AuditResultModal
+        isVisible={auditResultModal.isVisible}
+        auditResult={auditResultModal.result}
+        onClose={handleAuditModalClose}
+        onDownloadPdf={handleDownloadPdf}
+        onDownloadJson={handleDownloadJson}
+        isDownloading={auditResultModal.isDownloading}
+      />
+
       {/* Desktop Sidebar */}
       <Sidebar />
 

@@ -7,7 +7,6 @@ interface AuditResultModalProps {
   onClose: () => void
   onDownloadPdf: () => void
   onDownloadJson: () => void
-  onViewReport: () => void
   isDownloading: boolean
 }
 
@@ -37,7 +36,6 @@ export function AuditResultModal({
   onClose,
   onDownloadPdf,
   onDownloadJson,
-  onViewReport,
   isDownloading,
 }: AuditResultModalProps) {
   if (!isVisible || !auditResult) return null
@@ -130,33 +128,18 @@ export function AuditResultModal({
               {isDownloading ? 'Downloading...' : 'Download PDF Report'}
             </button>
 
-            <div className="flex gap-3">
-              <button
-                onClick={onDownloadJson}
-                className={clsx(
-                  'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-p1 font-sans font-medium transition-all',
-                  'bg-white text-text-primary border border-gray-200 hover:bg-gray-50'
-                )}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Download JSON
-              </button>
-
-              <button
-                onClick={onViewReport}
-                className={clsx(
-                  'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-p1 font-sans font-medium transition-all',
-                  'bg-white text-primary-600 border border-primary-600 hover:bg-primary-50'
-                )}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                View Full Report
-              </button>
-            </div>
+            <button
+              onClick={onDownloadJson}
+              className={clsx(
+                'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-p1 font-sans font-medium transition-all',
+                'bg-white text-text-primary border border-gray-200 hover:bg-gray-50'
+              )}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download JSON
+            </button>
           </div>
         </div>
       </div>
