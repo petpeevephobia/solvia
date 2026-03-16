@@ -63,8 +63,8 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	// Load environment variables
-	if err := godotenv.Load("../../.env"); err != nil {
+	// Load environment variables (cwd is solvia/api when started via Makefile; repo .env is solvia/.env)
+	if err := godotenv.Load("../.env"); err != nil {
 		if err := godotenv.Load(); err != nil {
 			log.Warn().Msg("No .env file found, using environment variables")
 		}
