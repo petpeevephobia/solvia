@@ -301,7 +301,6 @@ export default function DashboardPage() {
         isVisible={auditProgress.isVisible}
         progress={auditProgress.progress}
         message={auditProgress.message}
-        onMinimize={() => setAuditProgress(prev => ({ ...prev, isVisible: false }))}
       />
 
       {/* Header Section */}

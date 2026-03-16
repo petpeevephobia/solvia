@@ -63,7 +63,7 @@ export function AuditResultModal({
         <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-5 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-h3 font-heading font-semibold">Audit Complete!</h3>
+              <h3 className="text-h3 font-heading font-semibold text-white">Audit Complete!</h3>
               <p className="text-primary-100 text-p2 font-sans mt-1">Your SEO report is ready</p>
             </div>
             <button
