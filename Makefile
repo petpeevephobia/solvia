@@ -119,18 +119,23 @@ docker-clean:
 # Database
 # ===================
 
+# Run migrations/00*.sql in order against docker-compose postgres (stdin; no init SQL mounted in the image).
+# Uses sh + stdin so Windows paths with spaces work; avoids recursive $(MAKE) (breaks when MAKE path contains "(").
+RUN_SQL_MIGRATIONS = sh -c 'set -e; cd "$(CURDIR)" && for f in migrations/0*.sql; do echo "=== $$f ==="; docker-compose exec -T postgres psql -U solvia -d solvia < "$$f"; done'
+
 db-up:
 	docker-compose up -d postgres
 	@echo "$(GREEN)PostgreSQL started on localhost:5432$(RESET)"
 
 db-migrate:
 	@echo "$(CYAN)Running migrations...$(RESET)"
-	docker-compose exec postgres psql -U solvia -d solvia -f /docker-entrypoint-initdb.d/001_init.sql
+	@$(RUN_SQL_MIGRATIONS)
 
 db-reset:
 	@echo "$(YELLOW)Resetting database...$(RESET)"
 	docker-compose exec postgres psql -U solvia -d solvia -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-	$(MAKE) db-migrate
+	@echo "$(CYAN)Running migrations...$(RESET)"
+	@$(RUN_SQL_MIGRATIONS)
 
 db-shell:
 	docker-compose exec postgres psql -U solvia -d solvia
@@ -151,9 +156,11 @@ install:
 setup: install
 	@echo "$(CYAN)Setting up project...$(RESET)"
 	$(CP_CMD)
-	make db-up
+	docker-compose up -d postgres
+	@echo "$(GREEN)PostgreSQL started on localhost:5432$(RESET)"
 	$(SLEEP_CMD)
-	make db-migrate
+	@echo "$(CYAN)Running migrations...$(RESET)"
+	@$(RUN_SQL_MIGRATIONS)
 	@echo "$(GREEN)Setup complete!$(RESET)"
 
 clean:
