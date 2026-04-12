@@ -35,12 +35,20 @@ CREATE INDEX IF NOT EXISTS idx_embeddings_vector ON embeddings USING hnsw (embed
 ALTER TABLE embeddings ENABLE ROW LEVEL SECURITY;
 
 -- RLS policy: Users can only access their own embeddings
+DROP POLICY IF EXISTS embeddings_user_policy ON embeddings;
 CREATE POLICY embeddings_user_policy ON embeddings
     FOR ALL USING (user_email = current_setting('app.current_user_email', true));
 
--- Grant permissions
-GRANT ALL ON embeddings TO authenticated;
-GRANT ALL ON embeddings TO service_role;
+-- Grant permissions (Supabase roles; skip on vanilla Postgres / local Docker)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    GRANT ALL ON embeddings TO authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT ALL ON embeddings TO service_role;
+  END IF;
+END $$;
 
 -- Comment on table
 COMMENT ON TABLE embeddings IS 'RAG embeddings table for semantic search (1:1 with Python Supabase implementation)';
