@@ -12,6 +12,9 @@ env:
 
 jobs:
   deploy:
+    # Forks do not get upstream secrets; skip deploy so pushes to fork/main do not fail on empty SERVER_SSH_KEY.
+    # Production deploy runs only after merge to this repo (or whatever repo owns the secret), on push to main.
+    if: github.event.repository.fork == false
     runs-on: ubuntu-latest
 
     steps:

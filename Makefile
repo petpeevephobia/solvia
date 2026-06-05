@@ -13,9 +13,11 @@ RESET := \033[0m
 ifeq ($(OS),Windows_NT)
 CP_CMD = cmd /c "copy /Y .env.example .env"
 SLEEP_CMD = timeout /t 5 /nobreak > nul
+DEV_CMD = powershell -NoProfile -ExecutionPolicy Bypass -Command "$$ErrorActionPreference='Stop'; $$api=Join-Path -Path '$(CURDIR)' -ChildPath 'api'; $$web=Join-Path -Path '$(CURDIR)' -ChildPath 'web'; Start-Process -FilePath 'go' -ArgumentList @('run','./cmd/api') -WorkingDirectory $$api -WindowStyle Minimized; Start-Sleep -Seconds 3; Set-Location -LiteralPath $$web; npm run dev"
 else
 CP_CMD = cp .env.example .env
 SLEEP_CMD = sleep 5
+DEV_CMD = @(cd api && go run ./cmd/api) & sleep 3 && cd web && npm run dev
 endif
 
 help:
@@ -58,8 +60,7 @@ dev: docker-up
 	@echo "$(GREEN)Starting local API + Web...$(RESET)"
 	@echo "API:    http://localhost:8080"
 	@echo "Web:    http://localhost:3000"
-	@(cd api && go run ./cmd/api) & \
-	sleep 3 && cd web && npm run dev
+	@$(DEV_CMD)
 
 api:
 	@echo "$(CYAN)Starting API with hot reload...$(RESET)"
@@ -120,8 +121,14 @@ docker-clean:
 # ===================
 
 # Run migrations/00*.sql in order against docker-compose postgres (stdin; no init SQL mounted in the image).
-# Uses sh + stdin so Windows paths with spaces work; avoids recursive $(MAKE) (breaks when MAKE path contains "(").
-RUN_SQL_MIGRATIONS = sh -c 'set -e; cd "$(CURDIR)" && for f in migrations/0*.sql; do echo "=== $$f ==="; docker-compose exec -T postgres psql -U solvia -d solvia < "$$f"; done'
+# Unix: sh + stdin (paths with spaces). Windows: PowerShell one-liner (no sh on PATH).
+ifeq ($(OS),Windows_NT)
+define RUN_SQL_MIGRATIONS
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$$ErrorActionPreference='Stop'; Set-Location -LiteralPath '$(CURDIR)'; Get-ChildItem -Path 'migrations' -Filter '0*.sql' | Sort-Object Name | ForEach-Object { Write-Host ('=== ' + $$_.FullName + ' ==='); $$p = $$_.FullName; cmd /c ('docker-compose exec -T postgres psql -U solvia -d solvia -v ON_ERROR_STOP=1 < \"' + $$p + '\"'); if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE } }"
+endef
+else
+RUN_SQL_MIGRATIONS = sh -c 'set -e; cd "$(CURDIR)" && for f in migrations/0*.sql; do echo "=== $$f ==="; docker-compose exec -T postgres psql -U solvia -d solvia -v ON_ERROR_STOP=1 < "$$f"; done'
+endif
 
 db-up:
 	docker-compose up -d postgres
